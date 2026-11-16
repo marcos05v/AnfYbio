@@ -73,5 +73,4 @@ con todas las demás.
   de dos usuarios no es un problema de rendimiento.
 - Las filas borradas se acumulan. Su limpieza se definirá junto con la
   estrategia de sincronización.
-- Queda pendiente elegir la versión de UUID (v4 o v7) al decidir la librería de
-  base de datos local.
+- La versión de UUID (v7) se decidió en el ADR-0003.

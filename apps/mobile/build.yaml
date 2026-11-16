@@ -1,0 +1,8 @@
+# Guarda las fechas como texto ISO 8601 en vez de segundos enteros,
+# para conservar los milisegundos (importan al resolver conflictos de sync).
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          store_date_time_values_as_text: true

@@ -12,10 +12,10 @@ lo reemplaza y el anterior se marca como "Reemplazado por ADR-XXXX".
 |---|---|---|
 | [0001](0001-monorepo.md) | Un solo repositorio para app, API e infraestructura | Aceptado |
 | [0002](0002-modelo-de-datos-listo-para-sincronizar.md) | Reglas del modelo de datos para soportar sincronización | Aceptado |
+| [0003](0003-base-de-datos-local-drift.md) | drift como base de datos local; UUID v7 guardados como texto | Aceptado |
 
 ## Decisiones abiertas
 
-- Librería de base de datos local en Flutter.
 - Estrategia de sincronización y resolución de conflictos.
 - Autenticación.
 - Librería de gráficas.
