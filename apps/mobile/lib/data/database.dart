@@ -4,15 +4,17 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import 'tables/exercises.dart';
+import 'tables/sessions.dart';
+import 'tables/strength_sets.dart';
 import 'tables/users.dart';
 
 part 'database.g.dart';
 
-@DriftDatabase(tables: [Users, Exercises])
+@DriftDatabase(tables: [Users, Exercises, Sessions, StrengthSets])
 class AppDatabase extends _$AppDatabase {
   /// En pruebas se pasa una base en memoria; en la app se usa el archivo real.
   AppDatabase([QueryExecutor? executor])
-      : super(executor ?? driftDatabase(name: 'anfybio'));
+    : super(executor ?? driftDatabase(name: 'anfybio'));
 
   @override
   int get schemaVersion => 1;

@@ -17,13 +17,15 @@ void main() {
   test('guarda un ejercicio y lo lee de vuelta', () async {
     final user = await createUser();
 
-    await db.into(db.exercises).insert(
-      ExercisesCompanion.insert(
-        userId: user.id,
-        name: 'Sentadilla',
-        defaultUnit: WeightUnit.lb,
-      ),
-    );
+    await db
+        .into(db.exercises)
+        .insert(
+          ExercisesCompanion.insert(
+            userId: user.id,
+            name: 'Sentadilla',
+            defaultUnit: WeightUnit.lb,
+          ),
+        );
 
     final exercise = await db.select(db.exercises).getSingle();
     expect(exercise.name, 'Sentadilla');
@@ -44,13 +46,15 @@ void main() {
   });
 
   test('rechaza un ejercicio de un usuario que no existe', () async {
-    final insert = db.into(db.exercises).insert(
-      ExercisesCompanion.insert(
-        userId: 'no-existe',
-        name: 'Sentadilla',
-        defaultUnit: WeightUnit.kg,
-      ),
-    );
+    final insert = db
+        .into(db.exercises)
+        .insert(
+          ExercisesCompanion.insert(
+            userId: 'no-existe',
+            name: 'Sentadilla',
+            defaultUnit: WeightUnit.kg,
+          ),
+        );
 
     await expectLater(insert, throwsA(isA<SqliteException>()));
   });
@@ -58,13 +62,15 @@ void main() {
   test('rechaza un nombre de ejercicio vacío', () async {
     final user = await createUser();
 
-    final insert = db.into(db.exercises).insert(
-      ExercisesCompanion.insert(
-        userId: user.id,
-        name: '',
-        defaultUnit: WeightUnit.kg,
-      ),
-    );
+    final insert = db
+        .into(db.exercises)
+        .insert(
+          ExercisesCompanion.insert(
+            userId: user.id,
+            name: '',
+            defaultUnit: WeightUnit.kg,
+          ),
+        );
 
     await expectLater(insert, throwsA(anything));
   });
