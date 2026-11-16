@@ -3,6 +3,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 // Lo usa el código generado (database.g.dart) para crear los UUID.
 import 'package:uuid/uuid.dart';
 
+import '../domain/weight.dart';
 import 'tables/apnea_attempts.dart';
 import 'tables/exercises.dart';
 import 'tables/run_details.dart';

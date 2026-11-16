@@ -1,10 +1,8 @@
 import 'package:drift/drift.dart';
 
+import '../../domain/weight.dart';
 import 'sync_columns.dart';
 import 'users.dart';
-
-/// Unidad en la que se captura el peso. Se guarda como texto: 'kg' o 'lb'.
-enum WeightUnit { kg, lb }
 
 class Exercises extends Table with SyncColumns {
   TextColumn get userId => text().references(Users, #id)();

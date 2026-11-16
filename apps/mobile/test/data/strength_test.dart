@@ -1,6 +1,6 @@
 import 'package:anfybio/data/database.dart';
-import 'package:anfybio/data/tables/exercises.dart';
 import 'package:anfybio/data/tables/sessions.dart';
+import 'package:anfybio/domain/weight.dart';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';

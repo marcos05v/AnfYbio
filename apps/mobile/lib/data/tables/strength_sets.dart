@@ -4,6 +4,7 @@
 
 import 'package:drift/drift.dart';
 
+import '../../domain/weight.dart';
 import 'exercises.dart';
 import 'sessions.dart';
 import 'sync_columns.dart';

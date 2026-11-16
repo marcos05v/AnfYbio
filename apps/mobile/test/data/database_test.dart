@@ -1,5 +1,5 @@
 import 'package:anfybio/data/database.dart';
-import 'package:anfybio/data/tables/exercises.dart';
+import 'package:anfybio/domain/weight.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
