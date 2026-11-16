@@ -13,6 +13,7 @@ lo reemplaza y el anterior se marca como "Reemplazado por ADR-XXXX".
 | [0001](0001-monorepo.md) | Un solo repositorio para app, API e infraestructura | Aceptado |
 | [0002](0002-modelo-de-datos-listo-para-sincronizar.md) | Reglas del modelo de datos para soportar sincronización | Aceptado |
 | [0003](0003-base-de-datos-local-drift.md) | drift como base de datos local; UUID v7 guardados como texto | Aceptado |
+| [0004](0004-riverpod-para-el-manejo-de-estado.md) | Riverpod para el manejo de estado | Aceptado |
 
 ## Decisiones abiertas
 

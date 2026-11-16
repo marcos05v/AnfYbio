@@ -152,11 +152,23 @@ class TrainingRepository {
   }
 
   /// Sesiones del usuario, de la más reciente a la más antigua.
-  Future<List<Session>> sessionsOf(String userId) {
+  Future<List<Session>> sessionsOf(String userId) => _sessionsOf(userId).get();
+
+  /// Igual que [sessionsOf], pero vuelve a emitir cada vez que cambian.
+  Stream<List<Session>> watchSessionsOf(String userId) =>
+      _sessionsOf(userId).watch();
+
+  /// Una sesión concreta; emite `null` si no existe o fue borrada.
+  Stream<Session?> watchSession(String sessionId) {
     return (_db.select(_db.sessions)
-          ..where((s) => s.userId.equals(userId) & s.deletedAt.isNull())
-          ..orderBy([(s) => OrderingTerm.desc(s.startedAt)]))
-        .get();
+          ..where((s) => s.id.equals(sessionId) & s.deletedAt.isNull()))
+        .watchSingleOrNull();
+  }
+
+  SimpleSelectStatement<$SessionsTable, Session> _sessionsOf(String userId) {
+    return _db.select(_db.sessions)
+      ..where((s) => s.userId.equals(userId) & s.deletedAt.isNull())
+      ..orderBy([(s) => OrderingTerm.desc(s.startedAt)]);
   }
 
   // ------------------------------------------------------------------ fuerza
@@ -199,11 +211,19 @@ class TrainingRepository {
   }
 
   /// Series de una sesión en el orden en que se hicieron.
-  Future<List<StrengthSet>> strengthSetsOf(String sessionId) {
-    return (_db.select(_db.strengthSets)
-          ..where((s) => s.sessionId.equals(sessionId) & s.deletedAt.isNull())
-          ..orderBy([(s) => OrderingTerm.asc(s.position)]))
-        .get();
+  Future<List<StrengthSet>> strengthSetsOf(String sessionId) =>
+      _strengthSetsOf(sessionId).get();
+
+  /// Igual que [strengthSetsOf], pero vuelve a emitir cada vez que cambian.
+  Stream<List<StrengthSet>> watchStrengthSetsOf(String sessionId) =>
+      _strengthSetsOf(sessionId).watch();
+
+  SimpleSelectStatement<$StrengthSetsTable, StrengthSet> _strengthSetsOf(
+    String sessionId,
+  ) {
+    return _db.select(_db.strengthSets)
+      ..where((s) => s.sessionId.equals(sessionId) & s.deletedAt.isNull())
+      ..orderBy([(s) => OrderingTerm.asc(s.position)]);
   }
 
   // ---------------------------------------------------------------- natación
