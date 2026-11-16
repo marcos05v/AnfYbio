@@ -1,0 +1,19 @@
+# Sistema operativo
+.DS_Store
+
+# Editores
+.idea/
+.vscode/
+*.iml
+
+# Secretos y configuración local
+.env
+.env.*
+!.env.example
+
+# Node (apps/api)
+node_modules/
+dist/
+coverage/
+
+# Flutter: apps/mobile tiene su propio .gitignore generado por `flutter create`
