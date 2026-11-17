@@ -430,6 +430,235 @@ void main() {
     });
   });
 
+  group('editar y borrar registros', () {
+    test('editar una serie cambia sus datos y conserva su posición', () async {
+      final id = await start(SessionType.strength);
+      await addSet(id);
+      final second = await addSet(id);
+      clock = clock.add(const Duration(minutes: 3));
+
+      await repo.updateStrengthSet(
+        second.id,
+        exerciseId: exerciseId,
+        weight: 225,
+        weightUnit: WeightUnit.lb,
+        reps: 3,
+        rpe: 9.5,
+        isWarmup: true,
+      );
+
+      final edited = (await repo.strengthSetsOf(id)).last;
+      expect(edited.position, 2);
+      expect(
+        (edited.weight, edited.weightUnit, edited.reps, edited.rpe),
+        (225, WeightUnit.lb, 3, 9.5),
+      );
+      expect(edited.isWarmup, isTrue);
+      expect(edited.updatedAt, clock);
+    });
+
+    test('editar una serie no acepta un ejercicio de otro usuario', () async {
+      final id = await start(SessionType.strength);
+      final set = await addSet(id);
+      final foreign = await createExercise(await createUser('Hermana'));
+
+      await expectLater(
+        repo.updateStrengthSet(
+          set.id,
+          exerciseId: foreign,
+          weight: 1,
+          weightUnit: WeightUnit.kg,
+          reps: 1,
+          rpe: null,
+          isWarmup: false,
+        ),
+        throwsA(isA<ExerciseNotFound>()),
+      );
+    });
+
+    test(
+      'borrar una serie deja las demás y no reutiliza su posición',
+      () async {
+        final id = await start(SessionType.strength);
+        await addSet(id);
+        final second = await addSet(id);
+
+        await repo.deleteStrengthSet(second.id);
+        final third = await addSet(id);
+
+        final sets = await repo.strengthSetsOf(id);
+        expect(sets.map((s) => s.position), [1, 3]);
+        expect(third.position, 3);
+        // Sigue en la base, marcada como borrada.
+        expect(await db.select(db.strengthSets).get(), hasLength(3));
+      },
+    );
+
+    test('no se puede editar ni borrar una serie ya borrada', () async {
+      final id = await start(SessionType.strength);
+      final set = await addSet(id);
+      await repo.deleteStrengthSet(set.id);
+
+      await expectLater(
+        repo.deleteStrengthSet(set.id),
+        throwsA(isA<RecordNotFound>()),
+      );
+      await expectLater(
+        repo.updateStrengthSet(
+          set.id,
+          exerciseId: exerciseId,
+          weight: 1,
+          weightUnit: WeightUnit.kg,
+          reps: 1,
+          rpe: null,
+          isWarmup: false,
+        ),
+        throwsA(isA<RecordNotFound>()),
+      );
+    });
+
+    test('editar un bloque reemplaza sus parciales', () async {
+      final session = await repo.startSwimSession(
+        userId: userId,
+        poolLengthM: 25,
+      );
+      final block = await repo.addSwimInterval(
+        sessionId: session.id,
+        stroke: SwimStroke.freestyle,
+        distanceM: 50,
+        durationMs: 47000,
+        lapSplitsMs: [23000, 24000],
+      );
+
+      await repo.updateSwimInterval(
+        block.id,
+        stroke: SwimStroke.butterfly,
+        distanceM: 75,
+        durationMs: 80000,
+        lapSplitsMs: [25000, 27000, 28000],
+      );
+
+      final edited = (await repo.watchSwimIntervalsOf(session.id).first).single;
+      final laps = await repo.watchSwimLapsOf(session.id).first;
+      expect(
+        (edited.stroke, edited.distanceM, edited.durationMs),
+        (SwimStroke.butterfly, 75, 80000),
+      );
+      expect(laps.map((l) => l.splitMs), [25000, 27000, 28000]);
+      expect(laps.map((l) => l.lapNumber), [1, 2, 3]);
+    });
+
+    test('borrar un bloque borra también sus parciales', () async {
+      final session = await repo.startSwimSession(
+        userId: userId,
+        poolLengthM: 25,
+      );
+      final keep = await repo.addSwimInterval(
+        sessionId: session.id,
+        stroke: SwimStroke.freestyle,
+        distanceM: 25,
+        durationMs: 20000,
+        lapSplitsMs: [20000],
+      );
+      final remove = await repo.addSwimInterval(
+        sessionId: session.id,
+        stroke: SwimStroke.backstroke,
+        distanceM: 50,
+        durationMs: 50000,
+        lapSplitsMs: [25000, 25000],
+      );
+
+      await repo.deleteSwimInterval(remove.id);
+
+      final blocks = await repo.watchSwimIntervalsOf(session.id).first;
+      final laps = await repo.watchSwimLapsOf(session.id).first;
+      expect(blocks.single.id, keep.id);
+      expect(laps.single.intervalId, keep.id);
+    });
+
+    test('editar un intento de apnea puede cambiar su tipo', () async {
+      final id = await start(SessionType.apnea);
+      final attempt = await repo.addApneaAttempt(
+        sessionId: id,
+        kind: ApneaKind.static,
+        durationMs: 120000,
+      );
+
+      await repo.updateApneaAttempt(
+        attempt.id,
+        kind: ApneaKind.dynamic,
+        durationMs: null,
+        distanceM: 75,
+      );
+
+      final edited = (await repo.watchApneaAttemptsOf(id).first).single;
+      expect(
+        (edited.kind, edited.durationMs, edited.distanceM),
+        (ApneaKind.dynamic, null, 75),
+      );
+    });
+
+    test('borrar un intento de apnea lo quita de la lista', () async {
+      final id = await start(SessionType.apnea);
+      final attempt = await repo.addApneaAttempt(
+        sessionId: id,
+        kind: ApneaKind.static,
+        durationMs: 120000,
+      );
+
+      await repo.deleteApneaAttempt(attempt.id);
+
+      expect(await repo.watchApneaAttemptsOf(id).first, isEmpty);
+      await expectLater(
+        repo.deleteApneaAttempt(attempt.id),
+        throwsA(isA<RecordNotFound>()),
+      );
+    });
+  });
+
+  group('historial de un ejercicio', () {
+    test('devuelve sus series con la fecha local de la sesión', () async {
+      final session = await repo.startSession(
+        userId: userId,
+        type: SessionType.strength,
+        startedAt: DateTime.utc(2026, 11, 11, 2), // 20:00 del día 10 en UTC−6
+      );
+      await addSet(session.id);
+
+      final sample = (await repo.watchSetSamplesOf(exerciseId).first).single;
+      expect(sample.sessionId, session.id);
+      expect(sample.date.day, 10);
+      expect(
+        (sample.weight, sample.unit, sample.reps),
+        (100, WeightUnit.kg, 5),
+      );
+    });
+
+    test(
+      'omite otros ejercicios, series borradas y sesiones borradas',
+      () async {
+        final other = await createExercise(userId);
+        final kept = await start(SessionType.strength);
+        await addSet(kept);
+        final removedSet = await addSet(kept);
+        await repo.deleteStrengthSet(removedSet.id);
+        await repo.addStrengthSet(
+          sessionId: kept,
+          exerciseId: other,
+          weight: 50,
+          weightUnit: WeightUnit.kg,
+          reps: 8,
+        );
+        final removedSession = await start(SessionType.strength);
+        await addSet(removedSession);
+        await repo.deleteSession(removedSession);
+
+        final samples = await repo.watchSetSamplesOf(exerciseId).first;
+        expect(samples.single.sessionId, kept);
+      },
+    );
+  });
+
   group('carga', () {
     Future<void> finished(
       DateTime startedAt, {

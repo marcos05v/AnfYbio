@@ -4,6 +4,7 @@ import '../data/database.dart';
 import '../data/repositories/exercise_repository.dart';
 import '../data/repositories/training_repository.dart';
 import '../data/repositories/user_repository.dart';
+import '../domain/one_rep_max_history.dart';
 
 /// La base de datos local. Las pruebas la reemplazan por una en memoria.
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -74,4 +75,10 @@ final runDetailProvider = StreamProvider.family<RunDetail?, String>(
 final apneaAttemptsProvider = StreamProvider.family<List<ApneaAttempt>, String>(
   (ref, sessionId) =>
       ref.watch(trainingRepositoryProvider).watchApneaAttemptsOf(sessionId),
+);
+
+/// Series de un ejercicio a lo largo del tiempo, para su gráfica de progreso.
+final setSamplesProvider = StreamProvider.family<List<SetSample>, String>(
+  (ref, exerciseId) =>
+      ref.watch(trainingRepositoryProvider).watchSetSamplesOf(exerciseId),
 );

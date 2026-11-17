@@ -66,6 +66,14 @@ String formatDayRange(DateTime start, DateTime end) {
       : '${start.day} ${_months[start.month - 1]} – $endText';
 }
 
+/// Fecha corta de un día local: "16 nov", o "16 nov 2025" si no es de este año.
+String formatShortDate(DateTime local, {DateTime? now}) {
+  final text = '${local.day} ${_months[local.month - 1]}';
+  return local.year == (now ?? DateTime.now()).year
+      ? text
+      : '$text ${local.year}';
+}
+
 /// Hora local: "18:05".
 String formatTime(DateTime utc) {
   final d = utc.toLocal();

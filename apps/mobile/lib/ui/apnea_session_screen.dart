@@ -38,6 +38,19 @@ class _ApneaSessionScreenState extends ConsumerState<ApneaSessionScreen> {
     if (kind != null) _lastKind = kind;
   }
 
+  /// Abre un intento ya registrado para corregirlo o borrarlo.
+  Future<void> _editAttempt(ApneaAttempt attempt) {
+    return showAppSheet<void>(
+      context,
+      title: 'Editar intento',
+      builder: (_) => _AddAttemptForm(
+        sessionId: widget.sessionId,
+        initialKind: attempt.kind,
+        editing: attempt,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final attempts =
@@ -63,7 +76,11 @@ class _ApneaSessionScreenState extends ConsumerState<ApneaSessionScreen> {
         CardGroup(
           children: [
             for (final (index, attempt) in attempts.indexed)
-              _AttemptRow(number: index + 1, attempt: attempt),
+              _AttemptRow(
+                number: index + 1,
+                attempt: attempt,
+                onTap: () => _editAttempt(attempt),
+              ),
           ],
         ),
       ],
@@ -72,7 +89,13 @@ class _ApneaSessionScreenState extends ConsumerState<ApneaSessionScreen> {
 }
 
 class _AttemptRow extends StatelessWidget {
-  const _AttemptRow({required this.number, required this.attempt});
+  const _AttemptRow({
+    required this.number,
+    required this.attempt,
+    required this.onTap,
+  });
+
+  final VoidCallback onTap;
 
   final int number;
   final ApneaAttempt attempt;
@@ -86,6 +109,7 @@ class _AttemptRow extends StatelessWidget {
 
     return RecordRow(
       marker: RowNumber(number),
+      onTap: onTap,
       title: isStatic ? time ?? '—' : '${attempt.distanceM} m',
       details: [
         [
@@ -98,7 +122,14 @@ class _AttemptRow extends StatelessWidget {
 }
 
 class _AddAttemptForm extends ConsumerStatefulWidget {
-  const _AddAttemptForm({required this.sessionId, required this.initialKind});
+  const _AddAttemptForm({
+    required this.sessionId,
+    required this.initialKind,
+    this.editing,
+  });
+
+  /// El intento que se está corrigiendo; `null` si es nuevo.
+  final ApneaAttempt? editing;
 
   final String sessionId;
   final ApneaKind initialKind;
@@ -109,8 +140,14 @@ class _AddAttemptForm extends ConsumerStatefulWidget {
 
 class _AddAttemptFormState extends ConsumerState<_AddAttemptForm> {
   late ApneaKind _kind = widget.initialKind;
-  final _time = TextEditingController();
-  final _distance = TextEditingController();
+  late final _time = TextEditingController(
+    text: widget.editing?.durationMs == null
+        ? null
+        : formatDurationMs(widget.editing!.durationMs!),
+  );
+  late final _distance = TextEditingController(
+    text: widget.editing?.distanceM?.toString(),
+  );
   String? _error;
 
   @override
@@ -139,15 +176,32 @@ class _AddAttemptFormState extends ConsumerState<_AddAttemptForm> {
       return;
     }
 
+    final repository = ref.read(trainingRepositoryProvider);
+    final editing = widget.editing;
+    final savedDistance = isStatic ? null : distance;
+    if (editing == null) {
+      await repository.addApneaAttempt(
+        sessionId: widget.sessionId,
+        kind: _kind,
+        durationMs: time,
+        distanceM: savedDistance,
+      );
+    } else {
+      await repository.updateApneaAttempt(
+        editing.id,
+        kind: _kind,
+        durationMs: time,
+        distanceM: savedDistance,
+      );
+    }
+    if (mounted) Navigator.of(context).pop(_kind);
+  }
+
+  Future<void> _delete() async {
     await ref
         .read(trainingRepositoryProvider)
-        .addApneaAttempt(
-          sessionId: widget.sessionId,
-          kind: _kind,
-          durationMs: time,
-          distanceM: isStatic ? null : distance,
-        );
-    if (mounted) Navigator.of(context).pop(_kind);
+        .deleteApneaAttempt(widget.editing!.id);
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -203,7 +257,12 @@ class _AddAttemptFormState extends ConsumerState<_AddAttemptForm> {
         ),
         if (_error != null) FormError(_error!),
         const SizedBox(height: 16),
-        PrimaryButton(label: 'Guardar intento', onPressed: _save),
+        PrimaryButton(
+          label: widget.editing == null ? 'Guardar intento' : 'Guardar cambios',
+          onPressed: _save,
+        ),
+        if (widget.editing != null)
+          DeleteButton(label: 'Borrar intento', onConfirmed: _delete),
       ],
     );
   }

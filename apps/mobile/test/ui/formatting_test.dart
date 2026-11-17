@@ -90,4 +90,10 @@ void main() {
       '28 oct – 3 nov',
     );
   });
+
+  test('formatShortDate solo muestra el año si no es el actual', () {
+    final now = DateTime(2026, 11, 16);
+    expect(formatShortDate(DateTime(2026, 3, 5), now: now), '5 mar');
+    expect(formatShortDate(DateTime(2025, 12, 31), now: now), '31 dic 2025');
+  });
 }

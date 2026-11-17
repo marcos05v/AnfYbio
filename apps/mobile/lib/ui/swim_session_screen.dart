@@ -39,6 +39,25 @@ class _SwimSessionScreenState extends ConsumerState<SwimSessionScreen> {
     if (saved != null) _last = saved;
   }
 
+  /// Abre un bloque ya registrado para corregirlo o borrarlo.
+  Future<void> _editBlock(
+    SwimInterval block,
+    List<SwimLap> laps,
+    int? poolLengthM,
+  ) {
+    return showAppSheet<void>(
+      context,
+      title: 'Editar bloque',
+      builder: (_) => _AddBlockForm(
+        sessionId: widget.sessionId,
+        poolLengthM: poolLengthM,
+        initial: null,
+        editing: block,
+        editingLaps: laps,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final id = widget.sessionId;
@@ -67,14 +86,18 @@ class _SwimSessionScreenState extends ConsumerState<SwimSessionScreen> {
         CardGroup(
           children: [
             for (final (index, block) in blocks.indexed)
-              _BlockRow(
-                number: index + 1,
-                block: block,
-                laps: [
+              () {
+                final blockLaps = [
                   for (final lap in laps)
                     if (lap.intervalId == block.id) lap,
-                ],
-              ),
+                ];
+                return _BlockRow(
+                  number: index + 1,
+                  block: block,
+                  laps: blockLaps,
+                  onTap: () => _editBlock(block, blockLaps, pool),
+                );
+              }(),
           ],
         ),
       ],
@@ -87,8 +110,10 @@ class _BlockRow extends StatelessWidget {
     required this.number,
     required this.block,
     required this.laps,
+    required this.onTap,
   });
 
+  final VoidCallback onTap;
   final int number;
   final SwimInterval block;
   final List<SwimLap> laps;
@@ -101,6 +126,7 @@ class _BlockRow extends StatelessWidget {
     );
     return RecordRow(
       marker: RowNumber(number),
+      onTap: onTap,
       title: '${block.distanceM} m · ${swimStrokeLabel(block.stroke)}',
       details: [
         [
@@ -119,21 +145,38 @@ class _AddBlockForm extends ConsumerStatefulWidget {
     required this.sessionId,
     required this.poolLengthM,
     required this.initial,
+    this.editing,
+    this.editingLaps = const [],
   });
 
   final String sessionId;
   final int? poolLengthM;
   final _LastBlock? initial;
 
+  /// El bloque que se está corrigiendo, con sus parciales; `null` si es nuevo.
+  final SwimInterval? editing;
+  final List<SwimLap> editingLaps;
+
   @override
   ConsumerState<_AddBlockForm> createState() => _AddBlockFormState();
 }
 
 class _AddBlockFormState extends ConsumerState<_AddBlockForm> {
-  late SwimStroke _stroke = widget.initial?.stroke ?? SwimStroke.freestyle;
-  late final _distance = TextEditingController(text: widget.initial?.distance);
-  final _time = TextEditingController();
-  final _splits = TextEditingController();
+  late SwimStroke _stroke =
+      widget.editing?.stroke ?? widget.initial?.stroke ?? SwimStroke.freestyle;
+  late final _distance = TextEditingController(
+    text: widget.editing?.distanceM.toString() ?? widget.initial?.distance,
+  );
+  late final _time = TextEditingController(
+    text: widget.editing == null
+        ? null
+        : formatDurationMs(widget.editing!.durationMs),
+  );
+  late final _splits = TextEditingController(
+    text: widget.editingLaps
+        .map((lap) => formatDurationMs(lap.splitMs))
+        .join(' '),
+  );
   String? _error;
 
   @override
@@ -205,18 +248,35 @@ class _AddBlockFormState extends ConsumerState<_AddBlockForm> {
       return;
     }
 
-    await ref
-        .read(trainingRepositoryProvider)
-        .addSwimInterval(
-          sessionId: widget.sessionId,
-          stroke: _stroke,
-          distanceM: distance!,
-          durationMs: time!,
-          lapSplitsMs: [for (final ms in splits) ms!],
-        );
+    final repository = ref.read(trainingRepositoryProvider);
+    final editing = widget.editing;
+    if (editing == null) {
+      await repository.addSwimInterval(
+        sessionId: widget.sessionId,
+        stroke: _stroke,
+        distanceM: distance!,
+        durationMs: time!,
+        lapSplitsMs: [for (final ms in splits) ms!],
+      );
+    } else {
+      await repository.updateSwimInterval(
+        editing.id,
+        stroke: _stroke,
+        distanceM: distance!,
+        durationMs: time!,
+        lapSplitsMs: [for (final ms in splits) ms!],
+      );
+    }
     if (!mounted) return;
     Navigator.of(context)
         .pop<_LastBlock>((stroke: _stroke, distance: _distance.text));
+  }
+
+  Future<void> _delete() async {
+    await ref
+        .read(trainingRepositoryProvider)
+        .deleteSwimInterval(widget.editing!.id);
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -284,7 +344,12 @@ class _AddBlockFormState extends ConsumerState<_AddBlockForm> {
         ),
         if (_error != null) FormError(_error!),
         const SizedBox(height: 16),
-        PrimaryButton(label: 'Guardar bloque', onPressed: _save),
+        PrimaryButton(
+          label: widget.editing == null ? 'Guardar bloque' : 'Guardar cambios',
+          onPressed: _save,
+        ),
+        if (widget.editing != null)
+          DeleteButton(label: 'Borrar bloque', onConfirmed: _delete),
       ],
     );
   }

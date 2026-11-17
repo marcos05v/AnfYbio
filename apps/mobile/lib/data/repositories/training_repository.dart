@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../domain/one_rep_max_history.dart';
 import '../../domain/training_load.dart';
 import '../../domain/weight.dart';
 import '../database.dart';
@@ -34,6 +35,15 @@ class ExerciseNotFound implements Exception {
 
   @override
   String toString() => 'ExerciseNotFound: $exerciseId';
+}
+
+/// La serie, el bloque o el intento no existe o fue borrado.
+class RecordNotFound implements Exception {
+  const RecordNotFound(this.id);
+  final String id;
+
+  @override
+  String toString() => 'RecordNotFound: $id';
 }
 
 /// Única puerta de entrada para leer y escribir entrenamientos.
@@ -210,6 +220,50 @@ class TrainingRepository {
     });
   }
 
+  /// Corrige una serie ya registrada. Conserva su posición en la sesión.
+  Future<void> updateStrengthSet(
+    String setId, {
+    required String exerciseId,
+    required double weight,
+    required WeightUnit weightUnit,
+    required int reps,
+    required double? rpe,
+    required bool isWarmup,
+  }) {
+    return _db.transaction(() async {
+      final set =
+          await (_db.select(_db.strengthSets)
+                ..where((s) => s.id.equals(setId) & s.deletedAt.isNull()))
+              .getSingleOrNull();
+      if (set == null) throw RecordNotFound(setId);
+      await _requireExercise(exerciseId, set.userId);
+
+      await (_db.update(
+        _db.strengthSets,
+      )..where((s) => s.id.equals(setId))).write(
+        StrengthSetsCompanion(
+          exerciseId: Value(exerciseId),
+          weight: Value(weight),
+          weightUnit: Value(weightUnit),
+          reps: Value(reps),
+          rpe: Value(rpe),
+          isWarmup: Value(isWarmup),
+          updatedAt: Value(_now()),
+        ),
+      );
+    });
+  }
+
+  /// Borra una serie (borrado lógico).
+  Future<void> deleteStrengthSet(String setId) async {
+    final now = Value(_now());
+    final deleted =
+        await (_db.update(_db.strengthSets)
+              ..where((s) => s.id.equals(setId) & s.deletedAt.isNull()))
+            .write(StrengthSetsCompanion(deletedAt: now, updatedAt: now));
+    if (deleted == 0) throw RecordNotFound(setId);
+  }
+
   /// Series de una sesión en el orden en que se hicieron.
   Future<List<StrengthSet>> strengthSetsOf(String sessionId) =>
       _strengthSetsOf(sessionId).get();
@@ -224,6 +278,35 @@ class TrainingRepository {
     return _db.select(_db.strengthSets)
       ..where((s) => s.sessionId.equals(sessionId) & s.deletedAt.isNull())
       ..orderBy([(s) => OrderingTerm.asc(s.position)]);
+  }
+
+  /// Todas las series de un ejercicio con la fecha local de su sesión, para
+  /// calcular su progresión. No incluye series ni sesiones borradas.
+  Stream<List<SetSample>> watchSetSamplesOf(String exerciseId) {
+    final sets = _db.strengthSets;
+    final sessions = _db.sessions;
+    final query =
+        _db.select(sets).join([
+          innerJoin(sessions, sessions.id.equalsExp(sets.sessionId)),
+        ])..where(
+          sets.exerciseId.equals(exerciseId) &
+              sets.deletedAt.isNull() &
+              sessions.deletedAt.isNull(),
+        );
+
+    return query.watch().map(
+      (rows) => [
+        for (final row in rows)
+          SetSample(
+            sessionId: row.readTable(sets).sessionId,
+            date: _toLocal(row.readTable(sessions).startedAt),
+            weight: row.readTable(sets).weight,
+            unit: row.readTable(sets).weightUnit,
+            reps: row.readTable(sets).reps,
+            isWarmup: row.readTable(sets).isWarmup,
+          ),
+      ],
+    );
   }
 
   // ---------------------------------------------------------------- natación
@@ -258,20 +341,80 @@ class TrainingRepository {
             ),
           );
 
-      for (final (index, splitMs) in lapSplitsMs.indexed) {
-        await _db
-            .into(_db.swimLaps)
-            .insert(
-              SwimLapsCompanion.insert(
-                userId: session.userId,
-                intervalId: interval.id,
-                lapNumber: index + 1,
-                splitMs: splitMs,
-              ),
-            );
-      }
+      await _insertLaps(session.userId, interval.id, lapSplitsMs);
       return interval;
     });
+  }
+
+  /// Corrige un bloque. Sus parciales se reemplazan por [lapSplitsMs]: los
+  /// anteriores se marcan como borrados y se insertan los nuevos.
+  Future<void> updateSwimInterval(
+    String intervalId, {
+    required SwimStroke stroke,
+    required int distanceM,
+    required int durationMs,
+    required List<int> lapSplitsMs,
+  }) {
+    return _db.transaction(() async {
+      final interval =
+          await (_db.select(_db.swimIntervals)
+                ..where((i) => i.id.equals(intervalId) & i.deletedAt.isNull()))
+              .getSingleOrNull();
+      if (interval == null) throw RecordNotFound(intervalId);
+      final now = Value(_now());
+
+      await (_db.update(
+        _db.swimIntervals,
+      )..where((i) => i.id.equals(intervalId))).write(
+        SwimIntervalsCompanion(
+          stroke: Value(stroke),
+          distanceM: Value(distanceM),
+          durationMs: Value(durationMs),
+          updatedAt: now,
+        ),
+      );
+      await _deleteLapsOf(intervalId, now);
+      await _insertLaps(interval.userId, intervalId, lapSplitsMs);
+    });
+  }
+
+  /// Borra un bloque junto con sus parciales (borrado lógico).
+  Future<void> deleteSwimInterval(String intervalId) {
+    return _db.transaction(() async {
+      final now = Value(_now());
+      final deleted =
+          await (_db.update(_db.swimIntervals)
+                ..where((i) => i.id.equals(intervalId) & i.deletedAt.isNull()))
+              .write(SwimIntervalsCompanion(deletedAt: now, updatedAt: now));
+      if (deleted == 0) throw RecordNotFound(intervalId);
+      await _deleteLapsOf(intervalId, now);
+    });
+  }
+
+  Future<void> _deleteLapsOf(String intervalId, Value<DateTime> now) {
+    return (_db.update(
+          _db.swimLaps,
+        )..where((l) => l.intervalId.equals(intervalId) & l.deletedAt.isNull()))
+        .write(SwimLapsCompanion(deletedAt: now, updatedAt: now));
+  }
+
+  Future<void> _insertLaps(
+    String userId,
+    String intervalId,
+    List<int> lapSplitsMs,
+  ) async {
+    for (final (index, splitMs) in lapSplitsMs.indexed) {
+      await _db
+          .into(_db.swimLaps)
+          .insert(
+            SwimLapsCompanion.insert(
+              userId: userId,
+              intervalId: intervalId,
+              lapNumber: index + 1,
+              splitMs: splitMs,
+            ),
+          );
+    }
   }
 
   /// Tamaño de alberca de la sesión; `null` si no es de natación.
@@ -373,6 +516,37 @@ class TrainingRepository {
             ),
           );
     });
+  }
+
+  /// Corrige un intento de apnea.
+  Future<void> updateApneaAttempt(
+    String attemptId, {
+    required ApneaKind kind,
+    required int? durationMs,
+    required int? distanceM,
+  }) async {
+    final updated =
+        await (_db.update(
+          _db.apneaAttempts,
+        )..where((a) => a.id.equals(attemptId) & a.deletedAt.isNull())).write(
+          ApneaAttemptsCompanion(
+            kind: Value(kind),
+            durationMs: Value(durationMs),
+            distanceM: Value(distanceM),
+            updatedAt: Value(_now()),
+          ),
+        );
+    if (updated == 0) throw RecordNotFound(attemptId);
+  }
+
+  /// Borra un intento de apnea (borrado lógico).
+  Future<void> deleteApneaAttempt(String attemptId) async {
+    final now = Value(_now());
+    final deleted =
+        await (_db.update(_db.apneaAttempts)
+              ..where((a) => a.id.equals(attemptId) & a.deletedAt.isNull()))
+            .write(ApneaAttemptsCompanion(deletedAt: now, updatedAt: now));
+    if (deleted == 0) throw RecordNotFound(attemptId);
   }
 
   /// Intentos de una sesión de apnea en el orden en que se hicieron.

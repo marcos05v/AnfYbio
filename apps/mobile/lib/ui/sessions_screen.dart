@@ -8,6 +8,7 @@ import '../domain/training_load.dart';
 import 'apnea_session_screen.dart';
 import 'formatting.dart';
 import 'load_history_screen.dart';
+import 'progress_screen.dart';
 import 'run_session_screen.dart';
 import 'settings_screen.dart';
 import 'strength_session_screen.dart';
@@ -285,6 +286,27 @@ class _WeekSummary extends StatelessWidget {
               builder: (_) => LoadHistoryScreen(user: user),
             ),
           ),
+        ),
+        const SizedBox(height: 12),
+        CardGroup(
+          children: [
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () => Navigator.of(context).push(
+                CupertinoPageRoute<void>(
+                  builder: (_) => ProgressScreen(user: user),
+                ),
+              ),
+              child: FormRow(
+                label: 'Progreso de fuerza',
+                child: Icon(
+                  CupertinoIcons.chevron_forward,
+                  size: 16,
+                  color: resolveColor(context, CupertinoColors.tertiaryLabel),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );

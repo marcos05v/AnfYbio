@@ -156,6 +156,56 @@ void main() {
     },
   );
 
+  testWidgets('tocar una serie permite corregirla', (tester) async {
+    await startSession(tester);
+    await tap(tester, find.text('Agregar ejercicio'));
+    await createBenchPress(tester);
+    await tester.enterText(find.byKey(const Key('weight')), '225');
+    await tester.enterText(find.byKey(const Key('reps')), '5');
+    await tester.enterText(find.byKey(const Key('rpe')), '8');
+    await tap(tester, find.text('Guardar serie'));
+
+    await tap(tester, find.text('225 lb × 5'));
+    // El formulario se abre con los datos de la serie, incluido su RPE.
+    expect(find.text('Editar serie'), findsOneWidget);
+    final rpeField = tester.widget<RowTextField>(find.byKey(const Key('rpe')));
+    expect(rpeField.controller.text, '8');
+    await tester.enterText(find.byKey(const Key('reps')), '6');
+    await tap(tester, find.text('Guardar cambios'));
+
+    expect(find.text('225 lb × 6'), findsOneWidget);
+    final sets = await db.select(db.strengthSets).get();
+    expect(sets.single.reps, 6); // se corrigió la misma fila, no se creó otra
+    await shutDown(tester);
+  });
+
+  testWidgets('una serie se puede borrar, con confirmación', (tester) async {
+    await startSession(tester);
+    await tap(tester, find.text('Agregar ejercicio'));
+    await createBenchPress(tester);
+    await tester.enterText(find.byKey(const Key('weight')), '225');
+    await tester.enterText(find.byKey(const Key('reps')), '5');
+    await tap(tester, find.text('Guardar serie'));
+
+    await tap(tester, find.text('225 lb × 5'));
+    await tap(tester, find.text('Borrar serie'));
+    expect(find.text('¿Borrar serie?'), findsOneWidget);
+    await tap(tester, find.text('Borrar'));
+
+    expect(find.text('Sin series todavía'), findsOneWidget);
+    await shutDown(tester);
+  });
+
+  testWidgets('al agregar una serie no aparece el botón de borrar', (
+    tester,
+  ) async {
+    await startSession(tester);
+    await tap(tester, find.text('Agregar ejercicio'));
+
+    expect(find.text('Borrar serie'), findsNothing);
+    await shutDown(tester);
+  });
+
   testWidgets('avisa si falta un dato y no guarda la serie', (tester) async {
     await startSession(tester);
 
@@ -321,6 +371,93 @@ void main() {
     expect(find.text('No se pudo exportar'), findsOneWidget);
     await tap(tester, find.text('Aceptar'));
     expect(find.text('Exportar respaldo'), findsOneWidget);
+    await shutDown(tester);
+  });
+
+  testWidgets('el progreso avisa cuando aún no hay ejercicios', (tester) async {
+    await createUser();
+    await pumpApp(tester);
+
+    await tap(tester, find.text('Progreso de fuerza'));
+
+    expect(find.text('Aún no hay ejercicios'), findsOneWidget);
+    await shutDown(tester);
+  });
+
+  testWidgets('el progreso muestra el mejor y el último 1RM de un ejercicio', (
+    tester,
+  ) async {
+    final user = await db
+        .into(db.users)
+        .insertReturning(UsersCompanion.insert(displayName: 'Ana'));
+    final squat = await db
+        .into(db.exercises)
+        .insertReturning(
+          ExercisesCompanion.insert(
+            userId: user.id,
+            name: 'Sentadilla',
+            defaultUnit: WeightUnit.kg,
+          ),
+        );
+    final repository = TrainingRepository(db);
+    // Tres sesiones: 100, 110 y 105 kg × 5 → 116.7, 128.3 y 122.5 kg (Epley).
+    for (final (daysAgo, weight) in [(14, 100.0), (7, 110.0), (0, 105.0)]) {
+      final session = await repository.startSession(
+        userId: user.id,
+        type: SessionType.strength,
+        startedAt: DateTime.now().subtract(Duration(days: daysAgo)),
+      );
+      await repository.addStrengthSet(
+        sessionId: session.id,
+        exerciseId: squat.id,
+        weight: weight,
+        weightUnit: WeightUnit.kg,
+        reps: 5,
+      );
+    }
+    await pumpApp(tester);
+
+    await tap(tester, find.text('Progreso de fuerza'));
+    await tap(tester, find.text('Sentadilla'));
+
+    expect(find.text('1RM estimado'), findsOneWidget);
+    expect(find.text('128.3 kg'), findsWidgets); // mejor
+    expect(find.text('122.5 kg'), findsWidgets); // último
+    // La lista "Por sesión" queda más abajo: se desplaza hasta verla.
+    await tester.scrollUntilVisible(
+      find.text('116.7 kg'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('116.7 kg'), findsOneWidget);
+
+    // Con Brzycki las estimaciones bajan: 110 × 36 / 32 = 123.75.
+    await tap(tester, find.text('Brzycki'));
+    expect(find.text('123.8 kg'), findsWidgets);
+    await shutDown(tester);
+  });
+
+  testWidgets('un ejercicio sin series válidas no muestra gráfica', (
+    tester,
+  ) async {
+    final user = await db
+        .into(db.users)
+        .insertReturning(UsersCompanion.insert(displayName: 'Ana'));
+    await db
+        .into(db.exercises)
+        .insert(
+          ExercisesCompanion.insert(
+            userId: user.id,
+            name: 'Dominadas',
+            defaultUnit: WeightUnit.kg,
+          ),
+        );
+    await pumpApp(tester);
+
+    await tap(tester, find.text('Progreso de fuerza'));
+    await tap(tester, find.text('Dominadas'));
+
+    expect(find.text('Aún no hay datos'), findsOneWidget);
     await shutDown(tester);
   });
 

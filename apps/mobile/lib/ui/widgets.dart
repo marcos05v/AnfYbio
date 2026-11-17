@@ -243,6 +243,53 @@ class SessionTypeIcon extends StatelessWidget {
   }
 }
 
+/// Botón de borrado para el modo de edición de un formulario. Pide
+/// confirmación antes de llamar a [onConfirmed].
+class DeleteButton extends StatelessWidget {
+  const DeleteButton({
+    super.key,
+    required this.label,
+    required this.onConfirmed,
+  });
+
+  /// Texto del botón y título de la confirmación, p. ej. "Borrar serie".
+  final String label;
+  final VoidCallback onConfirmed;
+
+  Future<void> _confirm(BuildContext context) async {
+    final confirmed = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text('¿$label?'),
+        content: const Text('Esta acción no se puede deshacer.'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Borrar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) onConfirmed();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoButton(
+      onPressed: () => _confirm(context),
+      child: Text(
+        label,
+        style: textStyle(context, color: CupertinoColors.destructiveRed),
+      ),
+    );
+  }
+}
+
 /// Mensaje de error bajo un formulario.
 class FormError extends StatelessWidget {
   const FormError(this.message, {super.key});
@@ -322,6 +369,7 @@ class RecordRow extends StatelessWidget {
     required this.title,
     this.details = const [],
     this.muted = false,
+    this.onTap,
   });
 
   /// Lo que va a la izquierda: normalmente [RowNumber] o [WarmupBadge].
@@ -334,8 +382,22 @@ class RecordRow extends StatelessWidget {
   /// Atenúa el título (se usa en las series de calentamiento).
   final bool muted;
 
+  /// Si se indica, la fila se puede tocar (para editar) y muestra una flecha.
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
+    final row = _content(context);
+    return onTap == null
+        ? row
+        : CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: onTap,
+            child: row,
+          );
+  }
+
+  Widget _content(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -370,6 +432,12 @@ class RecordRow extends StatelessWidget {
               ],
             ),
           ),
+          if (onTap != null)
+            Icon(
+              CupertinoIcons.chevron_forward,
+              size: 16,
+              color: resolveColor(context, CupertinoColors.tertiaryLabel),
+            ),
         ],
       ),
     );

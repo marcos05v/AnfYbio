@@ -15,6 +15,7 @@ typedef _Prefill = ({
   WeightUnit unit,
   String weight,
   String reps,
+  String rpe,
   bool isWarmup,
 });
 
@@ -53,8 +54,30 @@ class _StrengthSessionScreenState extends ConsumerState<StrengthSessionScreen> {
                 unit: after.weightUnit,
                 weight: formatNumber(after.weight, decimals: 2),
                 reps: '${after.reps}',
+                rpe: '', // el RPE es de cada serie: no se copia
                 isWarmup: after.isWarmup,
               ),
+      ),
+    );
+  }
+
+  /// Abre una serie ya registrada para corregirla o borrarla.
+  Future<void> _editSet(StrengthSet set) {
+    return showAppSheet<void>(
+      context,
+      title: 'Editar serie',
+      builder: (_) => _AddSetForm(
+        userId: widget.userId,
+        sessionId: widget.sessionId,
+        editing: set,
+        initial: (
+          exerciseId: set.exerciseId,
+          unit: set.weightUnit,
+          weight: formatNumber(set.weight, decimals: 2),
+          reps: '${set.reps}',
+          rpe: set.rpe == null ? '' : formatNumber(set.rpe!),
+          isWarmup: set.isWarmup,
+        ),
       ),
     );
   }
@@ -117,13 +140,19 @@ class _StrengthSessionScreenState extends ConsumerState<StrengthSessionScreen> {
     var number = 0;
     return [
       for (final set in sets)
-        _SetRow(number: set.isWarmup ? null : ++number, set: set),
+        _SetRow(
+          number: set.isWarmup ? null : ++number,
+          set: set,
+          onTap: () => _editSet(set),
+        ),
     ];
   }
 }
 
 class _SetRow extends StatelessWidget {
-  const _SetRow({required this.number, required this.set});
+  const _SetRow({required this.number, required this.set, required this.onTap});
+
+  final VoidCallback onTap;
 
   /// Número de serie efectiva; `null` si es de calentamiento.
   final int? number;
@@ -143,6 +172,7 @@ class _SetRow extends StatelessWidget {
     return RecordRow(
       marker: number == null ? const WarmupBadge() : RowNumber(number),
       muted: number == null,
+      onTap: onTap,
       title:
           '${formatNumber(set.weight, decimals: 2)} ${set.weightUnit.name}'
           ' × ${set.reps}',
@@ -165,11 +195,15 @@ class _AddSetForm extends ConsumerStatefulWidget {
     required this.userId,
     required this.sessionId,
     required this.initial,
+    this.editing,
   });
 
   final String userId;
   final String sessionId;
   final _Prefill? initial;
+
+  /// La serie que se está corrigiendo; `null` si se agrega una nueva.
+  final StrengthSet? editing;
 
   @override
   ConsumerState<_AddSetForm> createState() => _AddSetFormState();
@@ -178,7 +212,7 @@ class _AddSetForm extends ConsumerStatefulWidget {
 class _AddSetFormState extends ConsumerState<_AddSetForm> {
   late final _weight = TextEditingController(text: widget.initial?.weight);
   late final _reps = TextEditingController(text: widget.initial?.reps);
-  final _rpe = TextEditingController();
+  late final _rpe = TextEditingController(text: widget.initial?.rpe);
   late String? _exerciseId = widget.initial?.exerciseId;
   late WeightUnit _unit = widget.initial?.unit ?? WeightUnit.kg;
   late bool _isWarmup = widget.initial?.isWarmup ?? false;
@@ -255,19 +289,38 @@ class _AddSetFormState extends ConsumerState<_AddSetForm> {
       return;
     }
 
-    await ref
-        .read(trainingRepositoryProvider)
-        .addStrengthSet(
-          sessionId: widget.sessionId,
-          exerciseId: _exerciseId!,
-          weight: weight!,
-          weightUnit: _unit,
-          reps: reps!,
-          rpe: rpe,
-          isWarmup: _isWarmup,
-        );
+    final repository = ref.read(trainingRepositoryProvider);
+    final editing = widget.editing;
+    if (editing == null) {
+      await repository.addStrengthSet(
+        sessionId: widget.sessionId,
+        exerciseId: _exerciseId!,
+        weight: weight!,
+        weightUnit: _unit,
+        reps: reps!,
+        rpe: rpe,
+        isWarmup: _isWarmup,
+      );
+    } else {
+      await repository.updateStrengthSet(
+        editing.id,
+        exerciseId: _exerciseId!,
+        weight: weight!,
+        weightUnit: _unit,
+        reps: reps!,
+        rpe: rpe,
+        isWarmup: _isWarmup,
+      );
+    }
     if (!mounted) return;
     Navigator.of(context).pop();
+  }
+
+  Future<void> _delete() async {
+    await ref
+        .read(trainingRepositoryProvider)
+        .deleteStrengthSet(widget.editing!.id);
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -355,7 +408,12 @@ class _AddSetFormState extends ConsumerState<_AddSetForm> {
         ),
         if (_error != null) FormError(_error!),
         const SizedBox(height: 16),
-        PrimaryButton(label: 'Guardar serie', onPressed: _save),
+        PrimaryButton(
+          label: widget.editing == null ? 'Guardar serie' : 'Guardar cambios',
+          onPressed: _save,
+        ),
+        if (widget.editing != null)
+          DeleteButton(label: 'Borrar serie', onConfirmed: _delete),
       ],
     );
   }

@@ -119,6 +119,49 @@ void main() {
       await shutDown(tester);
     });
 
+    testWidgets('tocar un bloque permite corregirlo y cambiar sus parciales', (
+      tester,
+    ) async {
+      await startSession(tester, 'Natación');
+      await tap(tester, find.text('25 m'));
+      await tap(tester, find.text('Agregar bloque'));
+      await type(tester, 'distance', '50');
+      await type(tester, 'time', '0:47');
+      await type(tester, 'splits', '23 24');
+      await tap(tester, find.text('Guardar bloque'));
+
+      await tap(tester, find.text('50 m · Libre'));
+      expect(find.text('Editar bloque'), findsOneWidget);
+      await type(tester, 'distance', '75');
+      await type(tester, 'time', '1:15');
+      await type(tester, 'splits', '24 25 26');
+      await tap(tester, find.text('Guardar cambios'));
+
+      expect(find.text('75 m · Libre'), findsOneWidget);
+      expect(
+        find.textContaining('Parciales: 0:24  0:25  0:26'),
+        findsOneWidget,
+      );
+      expect(await db.select(db.swimIntervals).get(), hasLength(1));
+      await shutDown(tester);
+    });
+
+    testWidgets('un bloque se puede borrar', (tester) async {
+      await startSession(tester, 'Natación');
+      await tap(tester, find.text('25 m'));
+      await tap(tester, find.text('Agregar bloque'));
+      await type(tester, 'distance', '100');
+      await type(tester, 'time', '1:35');
+      await tap(tester, find.text('Guardar bloque'));
+
+      await tap(tester, find.text('100 m · Libre'));
+      await tap(tester, find.text('Borrar bloque'));
+      await tap(tester, find.text('Borrar'));
+
+      expect(find.text('Sin bloques todavía'), findsOneWidget);
+      await shutDown(tester);
+    });
+
     testWidgets('acepta una alberca de otra medida', (tester) async {
       await startSession(tester, 'Natación');
       await tap(tester, find.text('Otra medida…'));
@@ -200,6 +243,27 @@ void main() {
         await shutDown(tester);
       },
     );
+
+    testWidgets('tocar un intento permite corregirlo o borrarlo', (
+      tester,
+    ) async {
+      await startSession(tester, 'Apnea');
+      await tap(tester, find.text('Agregar intento'));
+      await type(tester, 'time', '2:30');
+      await tap(tester, find.text('Guardar intento'));
+
+      await tap(tester, find.text('2:30'));
+      expect(find.text('Editar intento'), findsOneWidget);
+      await type(tester, 'time', '2:45');
+      await tap(tester, find.text('Guardar cambios'));
+      expect(find.text('2:45'), findsOneWidget);
+
+      await tap(tester, find.text('2:45'));
+      await tap(tester, find.text('Borrar intento'));
+      await tap(tester, find.text('Borrar'));
+      expect(find.text('Sin intentos todavía'), findsOneWidget);
+      await shutDown(tester);
+    });
 
     testWidgets('una estática sin tiempo no se guarda', (tester) async {
       await startSession(tester, 'Apnea');
