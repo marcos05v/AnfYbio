@@ -407,13 +407,14 @@ class _AddSetFormState extends ConsumerState<_AddSetForm> {
           ],
         ),
         if (_error != null) FormError(_error!),
-        const SizedBox(height: 16),
-        PrimaryButton(
-          label: widget.editing == null ? 'Guardar serie' : 'Guardar cambios',
-          onPressed: _save,
+        FormActions(
+          saveLabel: widget.editing == null
+              ? 'Guardar serie'
+              : 'Guardar cambios',
+          onSave: _save,
+          deleteLabel: 'Borrar serie',
+          onDelete: widget.editing == null ? null : _delete,
         ),
-        if (widget.editing != null)
-          DeleteButton(label: 'Borrar serie', onConfirmed: _delete),
       ],
     );
   }

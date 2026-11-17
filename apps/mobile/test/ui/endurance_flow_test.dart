@@ -155,7 +155,7 @@ void main() {
       await tap(tester, find.text('Guardar bloque'));
 
       await tap(tester, find.text('100 m · Libre'));
-      await tap(tester, find.text('Borrar bloque'));
+      await tap(tester, find.byIcon(CupertinoIcons.trash));
       await tap(tester, find.text('Borrar'));
 
       expect(find.text('Sin bloques todavía'), findsOneWidget);
@@ -259,7 +259,7 @@ void main() {
       expect(find.text('2:45'), findsOneWidget);
 
       await tap(tester, find.text('2:45'));
-      await tap(tester, find.text('Borrar intento'));
+      await tap(tester, find.byIcon(CupertinoIcons.trash));
       await tap(tester, find.text('Borrar'));
       expect(find.text('Sin intentos todavía'), findsOneWidget);
       await shutDown(tester);

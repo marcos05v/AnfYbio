@@ -1,4 +1,5 @@
 import Flutter
+import PDFKit
 import UIKit
 
 @main
@@ -12,5 +13,32 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    registerPdfTextChannel(messenger: engineBridge.applicationRegistrar.messenger())
+  }
+
+  /// Canal "anfybio/pdf_text": extrae el texto de un PDF con PDFKit, que viene
+  /// con iOS (ADR-0009). El texto nunca sale del dispositivo.
+  private func registerPdfTextChannel(messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: "anfybio/pdf_text", binaryMessenger: messenger)
+    channel.setMethodCallHandler { call, result in
+      guard call.method == "extractText", let path = call.arguments as? String else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      // La lectura puede tardar: se hace fuera del hilo de la interfaz.
+      DispatchQueue.global(qos: .userInitiated).async {
+        guard let document = PDFDocument(url: URL(fileURLWithPath: path)) else {
+          DispatchQueue.main.async {
+            result(FlutterError(code: "unreadable", message: "No se pudo abrir el PDF.", details: nil))
+          }
+          return
+        }
+        var pages: [String] = []
+        for index in 0..<document.pageCount {
+          pages.append(document.page(at: index)?.string ?? "")
+        }
+        DispatchQueue.main.async { result(pages.joined(separator: "\n")) }
+      }
+    }
   }
 }

@@ -18,10 +18,10 @@ lo reemplaza y el anterior se marca como "Reemplazado por ADR-XXXX".
 | [0006](0006-fl-chart-para-las-graficas.md) | fl_chart para las gráficas | Aceptado |
 | [0007](0007-importar-solo-en-instalacion-nueva.md) | Un respaldo solo se restaura en una instalación sin datos | Aceptado |
 | [0008](0008-modelo-del-plan-de-alimentacion.md) | Modelo del plan de alimentación | Aceptado |
+| [0009](0009-lectura-del-plan-desde-pdf.md) | Lectura del plan desde PDF con PDFKit y un intérprete propio | Aceptado |
 
 ## Decisiones abiertas
 
-- Lectura del plan desde PDF dentro de la app.
 - Estrategia de sincronización y resolución de conflictos.
 - Autenticación.
 - Almacenamiento de imágenes del catálogo.

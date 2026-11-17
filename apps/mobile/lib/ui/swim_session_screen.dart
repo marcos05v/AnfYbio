@@ -343,13 +343,14 @@ class _AddBlockFormState extends ConsumerState<_AddBlockForm> {
           ),
         ),
         if (_error != null) FormError(_error!),
-        const SizedBox(height: 16),
-        PrimaryButton(
-          label: widget.editing == null ? 'Guardar bloque' : 'Guardar cambios',
-          onPressed: _save,
+        FormActions(
+          saveLabel: widget.editing == null
+              ? 'Guardar bloque'
+              : 'Guardar cambios',
+          onSave: _save,
+          deleteLabel: 'Borrar bloque',
+          onDelete: widget.editing == null ? null : _delete,
         ),
-        if (widget.editing != null)
-          DeleteButton(label: 'Borrar bloque', onConfirmed: _delete),
       ],
     );
   }

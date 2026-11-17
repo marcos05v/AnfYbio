@@ -256,13 +256,14 @@ class _AddAttemptFormState extends ConsumerState<_AddAttemptForm> {
           ],
         ),
         if (_error != null) FormError(_error!),
-        const SizedBox(height: 16),
-        PrimaryButton(
-          label: widget.editing == null ? 'Guardar intento' : 'Guardar cambios',
-          onPressed: _save,
+        FormActions(
+          saveLabel: widget.editing == null
+              ? 'Guardar intento'
+              : 'Guardar cambios',
+          onSave: _save,
+          deleteLabel: 'Borrar intento',
+          onDelete: widget.editing == null ? null : _delete,
         ),
-        if (widget.editing != null)
-          DeleteButton(label: 'Borrar intento', onConfirmed: _delete),
       ],
     );
   }

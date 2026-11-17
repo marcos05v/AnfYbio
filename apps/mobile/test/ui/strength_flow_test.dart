@@ -188,7 +188,7 @@ void main() {
     await tap(tester, find.text('Guardar serie'));
 
     await tap(tester, find.text('225 lb × 5'));
-    await tap(tester, find.text('Borrar serie'));
+    await tap(tester, find.byIcon(CupertinoIcons.trash));
     expect(find.text('¿Borrar serie?'), findsOneWidget);
     await tap(tester, find.text('Borrar'));
 
@@ -202,7 +202,7 @@ void main() {
     await startSession(tester);
     await tap(tester, find.text('Agregar ejercicio'));
 
-    expect(find.text('Borrar serie'), findsNothing);
+    expect(find.byIcon(CupertinoIcons.trash), findsNothing);
     await shutDown(tester);
   });
 

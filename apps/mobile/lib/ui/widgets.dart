@@ -76,6 +76,162 @@ class SecondaryButton extends StatelessWidget {
   }
 }
 
+/// Botón contorneado con icono "+": para agregar un elemento a una lista
+/// sin competir con el botón principal de la pantalla.
+class OutlineAddButton extends StatelessWidget {
+  const OutlineAddButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = resolveColor(context, accentColor);
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      onPressed: onPressed,
+      child: Container(
+        height: 52,
+        decoration: BoxDecoration(
+          border: Border.all(color: accent, width: 1.5),
+          borderRadius: BorderRadius.circular(cardRadius),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(CupertinoIcons.plus_circle_fill, size: 20, color: accent),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: textStyle(context, weight: FontWeight.w600, color: accent),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Pie de un formulario: guardar y, si se está editando, borrar.
+///
+/// Borrar es un botón cuadrado con un bote de basura, a la izquierda del
+/// principal: se distingue por forma y color, y pide confirmación.
+class FormActions extends StatelessWidget {
+  const FormActions({
+    super.key,
+    required this.saveLabel,
+    required this.onSave,
+    this.deleteLabel,
+    this.onDelete,
+  });
+
+  final String saveLabel;
+  final VoidCallback onSave;
+
+  /// Título de la confirmación y etiqueta de accesibilidad: "Borrar serie".
+  final String? deleteLabel;
+
+  /// Si es nulo, no se muestra el botón de borrar.
+  final VoidCallback? onDelete;
+
+  Future<void> _confirmDelete(BuildContext context) async {
+    final confirmed = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text('¿$deleteLabel?'),
+        content: const Text('Esta acción no se puede deshacer.'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Borrar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) onDelete!();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final red = resolveColor(context, CupertinoColors.destructiveRed);
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Row(
+        children: [
+          if (onDelete != null) ...[
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () => _confirmDelete(context),
+              child: Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: red.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(cardRadius),
+                ),
+                child: Icon(
+                  CupertinoIcons.trash,
+                  size: 22,
+                  color: red,
+                  semanticLabel: deleteLabel,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
+          Expanded(
+            child: PrimaryButton(label: saveLabel, onPressed: onSave),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Icono de un suplemento, elegido por su nombre, en un cuadro de color.
+class SupplementIcon extends StatelessWidget {
+  const SupplementIcon(this.name, {super.key});
+
+  final String name;
+
+  /// Icono según palabras del nombre; una cápsula si no reconoce ninguna.
+  static IconData iconFor(String name) {
+    final text = name.toLowerCase();
+    bool has(String word) => text.contains(word);
+    if (has('creatin')) return CupertinoIcons.bolt_fill;
+    if (has('magnesio')) return CupertinoIcons.moon_fill;
+    if (has('omega') || has('pescado')) return CupertinoIcons.drop_fill;
+    if (has('vitamina d') || has('d3')) return CupertinoIcons.sun_max_fill;
+    if (has('zinc')) return CupertinoIcons.shield_fill;
+    if (has('prote')) return CupertinoIcons.flame_fill;
+    if (has('cafe')) return CupertinoIcons.timer;
+    return CupertinoIcons.capsule_fill;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = resolveColor(context, accentColor);
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(iconFor(name), size: 20, color: color),
+    );
+  }
+}
+
 /// Barra inferior fija con el botón principal de la pantalla.
 class BottomActionBar extends StatelessWidget {
   const BottomActionBar({super.key, required this.child});
@@ -238,53 +394,6 @@ class SessionTypeIcon extends StatelessWidget {
         },
         size: size * 0.5,
         color: color,
-      ),
-    );
-  }
-}
-
-/// Botón de borrado para el modo de edición de un formulario. Pide
-/// confirmación antes de llamar a [onConfirmed].
-class DeleteButton extends StatelessWidget {
-  const DeleteButton({
-    super.key,
-    required this.label,
-    required this.onConfirmed,
-  });
-
-  /// Texto del botón y título de la confirmación, p. ej. "Borrar serie".
-  final String label;
-  final VoidCallback onConfirmed;
-
-  Future<void> _confirm(BuildContext context) async {
-    final confirmed = await showCupertinoDialog<bool>(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text('¿$label?'),
-        content: const Text('Esta acción no se puede deshacer.'),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Borrar'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) onConfirmed();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return CupertinoButton(
-      onPressed: () => _confirm(context),
-      child: Text(
-        label,
-        style: textStyle(context, color: CupertinoColors.destructiveRed),
       ),
     );
   }

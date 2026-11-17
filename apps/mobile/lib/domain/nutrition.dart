@@ -42,6 +42,20 @@ class NutritionPlanDraft {
   final String? weighingNotes;
   final List<MenuDraft> menus;
   final List<SupplementDraft> supplements;
+
+  NutritionPlanDraft copyWith({String? name, List<MenuDraft>? menus}) {
+    return NutritionPlanDraft(
+      name: name ?? this.name,
+      sourceFileName: sourceFileName,
+      weighingNotes: weighingNotes,
+      menus: menus ?? this.menus,
+      supplements: supplements,
+    );
+  }
+
+  /// Todos los alimentos del plan, en orden.
+  Iterable<ItemDraft> get items =>
+      menus.expand((menu) => menu.meals).expand((meal) => meal.items);
 }
 
 class MenuDraft {
@@ -54,6 +68,9 @@ class MenuDraft {
   final DayType dayType;
   final String title;
   final List<MealDraft> meals;
+
+  MenuDraft copyWith({List<MealDraft>? meals}) =>
+      MenuDraft(dayType: dayType, title: title, meals: meals ?? this.meals);
 }
 
 class MealDraft {
@@ -62,6 +79,9 @@ class MealDraft {
   final String name;
   final String? timingNote;
   final List<ItemDraft> items;
+
+  MealDraft copyWith({List<ItemDraft>? items}) =>
+      MealDraft(name: name, timingNote: timingNote, items: items ?? this.items);
 }
 
 class ItemDraft {
@@ -72,6 +92,7 @@ class ItemDraft {
     this.state = FoodState.unspecified,
     this.isFree = false,
     this.note,
+    this.warning,
   });
 
   final String name;
@@ -82,6 +103,10 @@ class ItemDraft {
   /// Consumo libre ("Ensalada verde: Libre"): no lleva cantidad.
   final bool isFree;
   final String? note;
+
+  /// Lo que la lectura de un archivo no entendió de este renglón, para
+  /// mostrarlo en la revisión. No se guarda en la base de datos.
+  final String? warning;
 }
 
 class SupplementDraft {

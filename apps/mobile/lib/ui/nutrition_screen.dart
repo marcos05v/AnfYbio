@@ -2,11 +2,15 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/appearance.dart';
+import '../app/plan_import.dart';
 import '../app/providers.dart';
 import '../data/database.dart';
 import '../data/repositories/nutrition_repository.dart';
 import '../domain/nutrition.dart';
+import '../import/nutrition_plan_parser.dart';
 import 'formatting.dart';
+import 'plan_item_form.dart';
+import 'plan_review_screen.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -55,29 +59,84 @@ class NutritionScreen extends ConsumerWidget {
         .createEmptyPlan(user.id, name: name);
   }
 
+  /// Elige un PDF, lo interpreta y abre la revisión antes de guardar nada.
+  Future<void> _importPdf(BuildContext context, WidgetRef ref) async {
+    Future<void> explain(String title, String message) {
+      return showCupertinoDialog<void>(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Aceptar'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final PickedPdf? picked;
+    try {
+      picked = await ref.read(pdfTextPickerProvider)();
+    } catch (_) {
+      if (context.mounted) {
+        await explain('No se pudo leer el PDF', 'Prueba con otro archivo.');
+      }
+      return;
+    }
+    if (picked == null || !context.mounted) return;
+
+    final parsed = parseNutritionPlan(picked.text, fileName: picked.fileName);
+    if (parsed.draft.items.isEmpty) {
+      await explain(
+        'No se encontró un plan',
+        picked.text.trim().isEmpty
+            ? 'El PDF no contiene texto; puede ser una imagen escaneada. '
+                  'Captura el plan a mano.'
+            : 'El PDF no tiene el formato esperado. Captura el plan a mano.',
+      );
+      return;
+    }
+
+    await Navigator.of(context, rootNavigator: true).push(
+      CupertinoPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => PlanReviewScreen(userId: user.id, parsed: parsed),
+      ),
+    );
+  }
+
   Future<void> _showPlanMenu(
     BuildContext context,
     WidgetRef ref,
     NutritionPlan plan,
   ) async {
-    final delete = await showCupertinoModalPopup<bool>(
+    final action = await showCupertinoModalPopup<String>(
       context: context,
       builder: (context) => CupertinoActionSheet(
         title: Text(plan.name),
         actions: [
           CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('import'),
+            child: const Text('Importar otro plan (PDF)'),
+          ),
+          CupertinoActionSheetAction(
             isDestructiveAction: true,
-            onPressed: () => Navigator.of(context).pop(true),
+            onPressed: () => Navigator.of(context).pop('delete'),
             child: const Text('Borrar plan'),
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.of(context).pop(false),
+          onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancelar'),
         ),
       ),
     );
-    if (delete != true || !context.mounted) return;
+    if (!context.mounted) return;
+    if (action == 'import') return _importPdf(context, ref);
+    if (action != 'delete') return;
 
     final confirmed = await showCupertinoDialog<bool>(
       context: context,
@@ -131,7 +190,10 @@ class NutritionScreen extends ConsumerWidget {
               hasScrollBody: false,
               child: planState.isLoading
                   ? const Center(child: CupertinoActivityIndicator())
-                  : _NoPlan(onCreate: () => _createPlan(context, ref)),
+                  : _NoPlan(
+                      onImport: () => _importPdf(context, ref),
+                      onCreate: () => _createPlan(context, ref),
+                    ),
             )
           else
             SliverPadding(
@@ -147,8 +209,9 @@ class NutritionScreen extends ConsumerWidget {
 }
 
 class _NoPlan extends StatelessWidget {
-  const _NoPlan({required this.onCreate});
+  const _NoPlan({required this.onImport, required this.onCreate});
 
+  final VoidCallback onImport;
   final VoidCallback onCreate;
 
   @override
@@ -170,8 +233,7 @@ class _NoPlan extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Captura el plan de tu nutrióloga: sus comidas, alimentos y '
-            'suplementos.',
+            'Importa el PDF de tu nutrióloga o captura el plan a mano.',
             textAlign: TextAlign.center,
             style: textStyle(
               context,
@@ -180,7 +242,13 @@ class _NoPlan extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          PrimaryButton(label: 'Crear plan a mano', onPressed: onCreate),
+          PrimaryButton(
+            label: 'Importar desde PDF',
+            icon: CupertinoIcons.doc_text,
+            onPressed: onImport,
+          ),
+          const SizedBox(height: 10),
+          SecondaryButton(label: 'Crear plan a mano', onPressed: onCreate),
         ],
       ),
     );
@@ -274,7 +342,7 @@ class _PlanBody extends ConsumerWidget {
           for (final (index, meal) in menu.meals.indexed)
             _MealSection(number: index + 1, meal: meal),
           const SizedBox(height: 20),
-          SecondaryButton(
+          OutlineAddButton(
             label: 'Agregar comida',
             onPressed: () => showAppSheet<void>(
               context,
@@ -430,7 +498,7 @@ class _MealSection extends ConsumerWidget {
                 onPressed: () => showAppSheet<void>(
                   context,
                   title: 'Nuevo alimento',
-                  builder: (_) => _ItemForm(
+                  builder: (_) => PlanItemForm(
                     onSave: (draft) => repository.addItem(meal.meal.id, draft),
                   ),
                 ),
@@ -472,8 +540,15 @@ class _ItemRow extends ConsumerWidget {
       onPressed: () => showAppSheet<void>(
         context,
         title: 'Editar alimento',
-        builder: (_) => _ItemForm(
-          editing: item,
+        builder: (_) => PlanItemForm(
+          initial: ItemDraft(
+            name: item.name,
+            amount: item.amount,
+            unit: item.unit,
+            state: item.state,
+            isFree: item.isFree,
+            note: item.note,
+          ),
           onSave: (draft) => repository.updateItem(item.id, draft),
           onDelete: () => repository.deleteItem(item.id),
         ),
@@ -541,6 +616,8 @@ class _SupplementRow extends ConsumerWidget {
       ),
       child: Row(
         children: [
+          SupplementIcon(supplement.name),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -572,46 +649,6 @@ class _SupplementRow extends ConsumerWidget {
 }
 
 // ------------------------------------------------------------- formularios
-
-/// Botones comunes al pie de un formulario: guardar y, al editar, borrar.
-class _FormActions extends StatelessWidget {
-  const _FormActions({
-    required this.isEditing,
-    required this.saveLabel,
-    required this.deleteLabel,
-    required this.onSave,
-    required this.onDelete,
-  });
-
-  final bool isEditing;
-  final String saveLabel;
-  final String deleteLabel;
-  final VoidCallback onSave;
-  final Future<void> Function()? onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: 16),
-        PrimaryButton(
-          label: isEditing ? 'Guardar cambios' : saveLabel,
-          onPressed: onSave,
-        ),
-        if (onDelete != null)
-          DeleteButton(
-            label: deleteLabel,
-            onConfirmed: () async {
-              final navigator = Navigator.of(context);
-              await onDelete!();
-              navigator.pop();
-            },
-          ),
-      ],
-    );
-  }
-}
 
 class _MealForm extends StatefulWidget {
   const _MealForm({required this.onSave, this.editing, this.onDelete});
@@ -646,6 +683,12 @@ class _MealFormState extends State<_MealForm> {
     navigator.pop();
   }
 
+  Future<void> _delete() async {
+    final navigator = Navigator.of(context);
+    await widget.onDelete!();
+    navigator.pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -665,182 +708,13 @@ class _MealFormState extends State<_MealForm> {
           placeholder: 'Horario o indicación (opcional)',
         ),
         if (_error != null) FormError(_error!),
-        _FormActions(
-          isEditing: widget.editing != null,
-          saveLabel: 'Guardar comida',
+        FormActions(
+          saveLabel: widget.editing == null
+              ? 'Guardar comida'
+              : 'Guardar cambios',
+          onSave: _save,
           deleteLabel: 'Borrar comida',
-          onSave: _save,
-          onDelete: widget.onDelete,
-        ),
-      ],
-    );
-  }
-}
-
-class _ItemForm extends StatefulWidget {
-  const _ItemForm({required this.onSave, this.editing, this.onDelete});
-
-  final PlanItem? editing;
-  final Future<void> Function(ItemDraft draft) onSave;
-  final Future<void> Function()? onDelete;
-
-  @override
-  State<_ItemForm> createState() => _ItemFormState();
-}
-
-class _ItemFormState extends State<_ItemForm> {
-  late final _name = TextEditingController(text: widget.editing?.name);
-  late final _amount = TextEditingController(
-    text: widget.editing?.amount == null
-        ? null
-        : formatNumber(widget.editing!.amount!, decimals: 2),
-  );
-  late final _note = TextEditingController(text: widget.editing?.note);
-  late FoodUnit _unit = widget.editing?.unit ?? FoodUnit.gram;
-  late FoodState _state = widget.editing?.state ?? FoodState.unspecified;
-  late bool _isFree = widget.editing?.isFree ?? false;
-  String? _error;
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _amount.dispose();
-    _note.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pickState() async {
-    final state = await showCupertinoModalPopup<FoodState>(
-      context: context,
-      builder: (context) => CupertinoActionSheet(
-        title: const Text('¿Cómo se pesa?'),
-        actions: [
-          for (final state in FoodState.values)
-            CupertinoActionSheetAction(
-              onPressed: () => Navigator.of(context).pop(state),
-              child: Text(foodStateLabel(state)),
-            ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
-        ),
-      ),
-    );
-    if (state != null) setState(() => _state = state);
-  }
-
-  Future<void> _save() async {
-    final amountText = _amount.text.trim();
-    final amount = amountText.isEmpty ? null : parseNumber(amountText);
-
-    String? error;
-    if (_name.text.trim().isEmpty) {
-      error = 'Escribe el nombre del alimento.';
-    } else if (!_isFree &&
-        amountText.isNotEmpty &&
-        (amount == null || amount <= 0)) {
-      error = 'La cantidad debe ser un número mayor que cero.';
-    }
-    if (error != null) {
-      setState(() => _error = error);
-      return;
-    }
-
-    final navigator = Navigator.of(context);
-    await widget.onSave(
-      ItemDraft(
-        name: _name.text,
-        amount: amount,
-        // Sin cantidad, la unidad no significa nada.
-        unit: amount == null ? null : _unit,
-        state: _state,
-        isFree: _isFree,
-        note: _note.text,
-      ),
-    );
-    navigator.pop();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        CardTextField(
-          key: const Key('itemName'),
-          controller: _name,
-          placeholder: 'Alimento',
-          autofocus: widget.editing == null,
-        ),
-        const SizedBox(height: 12),
-        CardGroup(
-          children: [
-            FormRow(
-              label: 'Consumo libre',
-              child: CupertinoSwitch(
-                value: _isFree,
-                onChanged: (value) => setState(() => _isFree = value),
-              ),
-            ),
-            if (!_isFree) ...[
-              FormRow(
-                label: 'Cantidad',
-                child: RowTextField(
-                  key: const Key('itemAmount'),
-                  controller: _amount,
-                  placeholder: 'Opcional',
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                ),
-              ),
-              FormRow(
-                label: 'Unidad',
-                child: CupertinoSlidingSegmentedControl<FoodUnit>(
-                  groupValue: _unit,
-                  children: const {
-                    FoodUnit.gram: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 6),
-                      child: Text('g'),
-                    ),
-                    FoodUnit.piece: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 6),
-                      child: Text('piezas'),
-                    ),
-                    FoodUnit.scoop: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 6),
-                      child: Text('scoops'),
-                    ),
-                  },
-                  onValueChanged: (unit) {
-                    if (unit != null) setState(() => _unit = unit);
-                  },
-                ),
-              ),
-            ],
-            PickerRow(
-              key: const Key('itemState'),
-              label: 'Se pesa',
-              value: foodStateLabel(_state),
-              onPressed: _pickState,
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        CardTextField(
-          key: const Key('itemNote'),
-          controller: _note,
-          placeholder: 'Nota (opcional)',
-        ),
-        if (_error != null) FormError(_error!),
-        _FormActions(
-          isEditing: widget.editing != null,
-          saveLabel: 'Guardar alimento',
-          deleteLabel: 'Borrar alimento',
-          onSave: _save,
-          onDelete: widget.onDelete,
+          onDelete: widget.onDelete == null ? null : _delete,
         ),
       ],
     );
@@ -891,6 +765,12 @@ class _SupplementFormState extends State<_SupplementForm> {
     navigator.pop();
   }
 
+  Future<void> _delete() async {
+    final navigator = Navigator.of(context);
+    await widget.onDelete!();
+    navigator.pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -924,12 +804,13 @@ class _SupplementFormState extends State<_SupplementForm> {
           maxLines: 3,
         ),
         if (_error != null) FormError(_error!),
-        _FormActions(
-          isEditing: widget.editing != null,
-          saveLabel: 'Guardar suplemento',
-          deleteLabel: 'Borrar suplemento',
+        FormActions(
+          saveLabel: widget.editing == null
+              ? 'Guardar suplemento'
+              : 'Guardar cambios',
           onSave: _save,
-          onDelete: widget.onDelete,
+          deleteLabel: 'Borrar suplemento',
+          onDelete: widget.onDelete == null ? null : _delete,
         ),
       ],
     );

@@ -15,8 +15,9 @@ de la cantidad de funciones.
   y apnea; 1RM estimado con gráficas por ejercicio; carga sRPE con resumen
   semanal; respaldo y restauración en un archivo JSON; modo claro y oscuro.
 - Fase 2, hecho: plan de alimentación con menús por tipo de día, captura y
-  edición manual, y guía de suplementos.
-- Fase 2, pendiente: importar el plan desde PDF, rutina de entrenamiento y
+  edición manual, guía de suplementos, e importación del plan desde PDF con
+  revisión antes de guardar.
+- Fase 2, pendiente: rutina de entrenamiento (con importación desde PDF) y
   lotes de cocción.
 
 | Fase | Contenido | Estado |

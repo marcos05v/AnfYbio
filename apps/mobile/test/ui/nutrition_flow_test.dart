@@ -6,6 +6,7 @@ import 'package:anfybio/data/repositories/training_repository.dart';
 import 'package:anfybio/data/tables/sessions.dart';
 import 'package:anfybio/domain/nutrition.dart';
 import 'package:anfybio/ui/app.dart';
+import 'package:anfybio/ui/widgets.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -233,7 +234,7 @@ void main() {
     expect(find.text('2 piezas'), findsOneWidget);
 
     await tap(tester, find.text('Huevo entero'));
-    await tap(tester, find.text('Borrar alimento'));
+    await tap(tester, find.byIcon(CupertinoIcons.trash));
     await tap(tester, find.text('Borrar'));
     expect(find.text('Huevo entero'), findsNothing);
     expect(find.text('Ensalada verde'), findsOneWidget);
@@ -265,7 +266,7 @@ void main() {
     expect(find.text('1. Almuerzo'), findsOneWidget);
 
     await tap(tester, find.text('1. Almuerzo'));
-    await tap(tester, find.text('Borrar comida'));
+    await tap(tester, find.byIcon(CupertinoIcons.trash));
     await tap(tester, find.text('Borrar'));
     expect(find.text('1. Almuerzo'), findsNothing);
     expect(find.text('Huevo entero'), findsNothing);
@@ -288,6 +289,25 @@ void main() {
     await tap(tester, find.text('Guardar cambios'));
     expect(find.text('30 mg'), findsOneWidget);
     await shutDown(tester);
+  });
+
+  testWidgets('cada suplemento lleva un icono según su nombre', (tester) async {
+    expect(
+      SupplementIcon.iconFor('Creatina Monohidratada'),
+      CupertinoIcons.bolt_fill,
+    );
+    expect(
+      SupplementIcon.iconFor('Citrato de Magnesio'),
+      CupertinoIcons.moon_fill,
+    );
+    expect(
+      SupplementIcon.iconFor('Omega 3 (EPA / DHA)'),
+      CupertinoIcons.drop_fill,
+    );
+    expect(SupplementIcon.iconFor('Vitamina D3'), CupertinoIcons.sun_max_fill);
+    expect(SupplementIcon.iconFor('Zinc'), CupertinoIcons.shield_fill);
+    // Uno que no reconoce usa la cápsula.
+    expect(SupplementIcon.iconFor('Ashwagandha'), CupertinoIcons.capsule_fill);
   });
 
   testWidgets('borrar el plan vuelve a la pantalla sin plan', (tester) async {
