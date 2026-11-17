@@ -3,12 +3,16 @@ import 'dart:convert';
 import 'package:anfybio/data/database.dart';
 import 'package:anfybio/data/export/backup_exporter.dart';
 import 'package:anfybio/data/export/backup_importer.dart';
+import 'package:anfybio/data/repositories/cooking_repository.dart';
 import 'package:anfybio/data/repositories/nutrition_repository.dart';
+import 'package:anfybio/data/repositories/routine_repository.dart';
+import 'package:anfybio/data/repositories/supplement_repository.dart';
 import 'package:anfybio/data/repositories/training_repository.dart';
 import 'package:anfybio/data/tables/apnea_attempts.dart';
 import 'package:anfybio/data/tables/sessions.dart';
 import 'package:anfybio/data/tables/swim.dart';
 import 'package:anfybio/domain/nutrition.dart';
+import 'package:anfybio/domain/routine.dart';
 import 'package:anfybio/domain/weight.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -81,6 +85,62 @@ void main() {
       type: SessionType.strength,
     );
     await repo.deleteSession(removed.id);
+    // Una rutina, y una sesión que siguió su primer día.
+    final routines = RoutineRepository(source);
+    await routines.saveRoutine(
+      user.id,
+      const RoutineDraft(
+        name: 'Rutina',
+        days: [
+          RoutineDayDraft(
+            name: 'Pecho',
+            exercises: [
+              RoutineExerciseDraft(
+                name: 'Press de banca',
+                warmupSets: 2,
+                workSets: 4,
+                repsMin: 8,
+                repsMax: 12,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    final routineDay = (await routines.activeRoutine(user.id))!.days.single.day;
+    await repo.startSession(
+      userId: user.id,
+      type: SessionType.strength,
+      routineDayId: routineDay.id,
+    );
+    final supplements = SupplementRepository(source);
+    final creatine = await supplements.addSupplement(
+      userId: user.id,
+      name: 'Creatina',
+      unitLabel: 'g',
+      dailyDose: 5,
+      timing: 'Con el post-entreno',
+      restockLeadDays: 10,
+      initialQuantity: 300,
+    );
+    await supplements.logIntake(
+      creatine.id,
+      takenAt: DateTime.utc(2026, 11, 15, 14),
+    );
+    await supplements.adjustStock(
+      creatine.id,
+      actualStock: 280,
+      now: DateTime(2026, 11, 16),
+    );
+    await CookingRepository(source).addBatch(
+      userId: user.id,
+      foodName: 'Pechuga de pollo',
+      rawWeightG: 1000,
+      cookedWeightG: 720,
+      withOtherIngredients: true,
+      note: 'Con salsa',
+      cookedAt: DateTime.utc(2026, 11, 14, 13),
+    );
     await NutritionRepository(source).savePlan(
       user.id,
       const NutritionPlanDraft(
@@ -145,9 +205,9 @@ void main() {
     final sessions = await repo.sessionsOf(user.id);
 
     expect(user.displayName, 'Marcos');
-    expect(sessions, hasLength(4)); // la sesión borrada sigue oculta
+    expect(sessions, hasLength(5)); // la sesión borrada sigue oculta
     final strength = sessions.singleWhere(
-      (s) => s.type == SessionType.strength,
+      (s) => s.type == SessionType.strength && s.routineDayId == null,
     );
     expect(strength.startedAt, DateTime.utc(2026, 11, 10, 18, 5));
     expect(strength.startedAt.isUtc, isTrue);
@@ -181,15 +241,74 @@ void main() {
       'planMeals',
       'planItems',
       'supplementGuidelines',
+      'routines',
+      'routineDays',
+      'routineExercises',
+      'cookingBatches',
+      'supplements',
+      'supplementPurchases',
+      'supplementIntakes',
     ]) {
       tables.remove(name);
+    }
+    for (final session in tables['sessions'] as List) {
+      (session as Map).remove('routineDayId');
     }
 
     await BackupImporter(target).import(jsonEncode(document));
 
-    expect(await target.select(target.sessions).get(), hasLength(5));
+    expect(await target.select(target.sessions).get(), hasLength(6));
     expect(await target.select(target.nutritionPlans).get(), isEmpty);
   });
+
+  test('la rutina importada conserva su enlace con la sesión', () async {
+    await BackupImporter(target).import(await fullBackup());
+
+    final user = await target.select(target.users).getSingle();
+    final view = (await RoutineRepository(target).activeRoutine(user.id))!;
+    final exercise = view.days.single.exercises.single;
+    expect((exercise.warmupSets, exercise.workSets), (2, 4));
+    expect((exercise.repsMin, exercise.repsMax), (8, 12));
+
+    final linked = (await target.select(target.sessions).get()).where(
+      (s) => s.routineDayId != null,
+    );
+    expect(linked.single.routineDayId, view.days.single.day.id);
+  });
+
+  test(
+    'los lotes de cocción importados conservan sus pesos y su fecha',
+    () async {
+      await BackupImporter(target).import(await fullBackup());
+
+      final batch = await target.select(target.cookingBatches).getSingle();
+      expect(
+        (batch.foodName, batch.rawWeightG, batch.cookedWeightG),
+        ('Pechuga de pollo', 1000, 720),
+      );
+      expect(batch.cookedAt, DateTime.utc(2026, 11, 14, 13));
+      expect((batch.withOtherIngredients, batch.note), (true, 'Con salsa'));
+    },
+  );
+
+  test(
+    'el inventario de suplementos importado da las mismas existencias',
+    () async {
+      await BackupImporter(target).import(await fullBackup());
+
+      final user = await target.select(target.users).getSingle();
+      final view = (await SupplementRepository(target).supplementsOf(user.id))
+          .single;
+      expect(
+        (view.supplement.dailyDose, view.supplement.restockLeadDays),
+        (5, 10),
+      );
+      expect(view.purchases.single.quantity, 300);
+      // Una toma de 5 y un ajuste de 15: 300 − 5 − 15 = 280.
+      expect(view.intakes, hasLength(2));
+      expect(view.statusAt(DateTime(2026, 11, 16)).stock, 280);
+    },
+  );
 
   test('a un respaldo actual no le puede faltar una tabla nueva', () async {
     final document = jsonDecode(await fullBackup()) as Map<String, dynamic>;

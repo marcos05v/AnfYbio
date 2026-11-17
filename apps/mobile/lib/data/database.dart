@@ -6,11 +6,14 @@ import 'package:uuid/uuid.dart';
 import '../domain/nutrition.dart';
 import '../domain/weight.dart';
 import 'tables/apnea_attempts.dart';
+import 'tables/cooking_batches.dart';
 import 'tables/exercises.dart';
 import 'tables/nutrition.dart';
+import 'tables/routines.dart';
 import 'tables/run_details.dart';
 import 'tables/sessions.dart';
 import 'tables/strength_sets.dart';
+import 'tables/supplements.dart';
 import 'tables/swim.dart';
 import 'tables/users.dart';
 
@@ -32,6 +35,13 @@ part 'database.g.dart';
     PlanMeals,
     PlanItems,
     SupplementGuidelines,
+    Routines,
+    RoutineDays,
+    RoutineExercises,
+    CookingBatches,
+    Supplements,
+    SupplementPurchases,
+    SupplementIntakes,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -41,8 +51,11 @@ class AppDatabase extends _$AppDatabase {
 
   /// 1: entrenamiento (Fase 1).
   /// 2: plan de alimentación y guía de suplementos (Fase 2).
+  /// 3: rutina de entrenamiento, y qué día de ella siguió cada sesión.
+  /// 4: lotes de cocción.
+  /// 5: inventario de suplementos (Fase 3).
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -59,6 +72,25 @@ class AppDatabase extends _$AppDatabase {
         await m.createIndex(planMealsMenu);
         await m.createIndex(planItemsMeal);
         await m.createIndex(supplementGuidelinesPlan);
+      }
+      if (from < 3) {
+        await m.createTable(routines);
+        await m.createTable(routineDays);
+        await m.createTable(routineExercises);
+        await m.createIndex(routineDaysRoutine);
+        await m.createIndex(routineExercisesDay);
+        await m.addColumn(sessions, sessions.routineDayId);
+      }
+      if (from < 4) {
+        await m.createTable(cookingBatches);
+        await m.createIndex(cookingBatchesUser);
+      }
+      if (from < 5) {
+        await m.createTable(supplements);
+        await m.createTable(supplementPurchases);
+        await m.createTable(supplementIntakes);
+        await m.createIndex(supplementPurchasesSupplement);
+        await m.createIndex(supplementIntakesSupplement);
       }
     },
     beforeOpen: (details) async {

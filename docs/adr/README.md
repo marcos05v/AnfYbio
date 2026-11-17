@@ -19,6 +19,10 @@ lo reemplaza y el anterior se marca como "Reemplazado por ADR-XXXX".
 | [0007](0007-importar-solo-en-instalacion-nueva.md) | Un respaldo solo se restaura en una instalación sin datos | Aceptado |
 | [0008](0008-modelo-del-plan-de-alimentacion.md) | Modelo del plan de alimentación | Aceptado |
 | [0009](0009-lectura-del-plan-desde-pdf.md) | Lectura del plan desde PDF con PDFKit y un intérprete propio | Aceptado |
+| [0010](0010-rutina-de-entrenamiento.md) | Rutina de entrenamiento y sesiones que la siguen | Aceptado; el "día que toca" lo reemplaza el ADR-0012 |
+| [0011](0011-lotes-de-coccion.md) | Lotes de cocción y conversión de crudo a cocido | Aceptado |
+| [0012](0012-dia-de-rutina-por-dia-de-la-semana.md) | El día de rutina que toca se decide por el día de la semana | Aceptado |
+| [0013](0013-inventario-de-suplementos.md) | Inventario de suplementos | Aceptado |
 
 ## Decisiones abiertas
 

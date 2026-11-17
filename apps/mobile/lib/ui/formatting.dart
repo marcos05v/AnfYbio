@@ -223,3 +223,14 @@ String formatFoodAmount({
     FoodUnit.scoop => amount <= 1 ? '$number scoop' : '$number scoops',
   };
 }
+
+/// Cantidad de un suplemento con su unidad: "285 g", "12 cápsulas".
+String formatQuantity(double amount, String unit) =>
+    '${formatNumber(amount, decimals: 1)} $unit';
+
+/// Días restantes en palabras: "hoy", "1 día", "57 días".
+String formatDaysLeft(int days) => switch (days) {
+  0 => 'hoy',
+  1 => '1 día',
+  _ => '$days días',
+};

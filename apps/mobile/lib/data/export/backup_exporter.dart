@@ -100,6 +100,25 @@ class BackupExporter {
             db.supplementGuidelines,
             db.supplementGuidelines.userId,
           ),
+          'routines': await rows(db.routines, db.routines.userId),
+          'routineDays': await rows(db.routineDays, db.routineDays.userId),
+          'routineExercises': await rows(
+            db.routineExercises,
+            db.routineExercises.userId,
+          ),
+          'cookingBatches': await rows(
+            db.cookingBatches,
+            db.cookingBatches.userId,
+          ),
+          'supplements': await rows(db.supplements, db.supplements.userId),
+          'supplementPurchases': await rows(
+            db.supplementPurchases,
+            db.supplementPurchases.userId,
+          ),
+          'supplementIntakes': await rows(
+            db.supplementIntakes,
+            db.supplementIntakes.userId,
+          ),
         },
       };
     });

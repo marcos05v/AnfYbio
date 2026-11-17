@@ -85,6 +85,22 @@ class BackupImporter {
               .into(_db.exercises)
               .insert(Exercise.fromJson(row, serializer: _serializer));
         }
+        // La rutina va antes que las sesiones, que apuntan a sus días.
+        for (final row in rows('routines', since: 3)) {
+          await _db
+              .into(_db.routines)
+              .insert(Routine.fromJson(row, serializer: _serializer));
+        }
+        for (final row in rows('routineDays', since: 3)) {
+          await _db
+              .into(_db.routineDays)
+              .insert(RoutineDay.fromJson(row, serializer: _serializer));
+        }
+        for (final row in rows('routineExercises', since: 3)) {
+          await _db
+              .into(_db.routineExercises)
+              .insert(RoutineExercise.fromJson(row, serializer: _serializer));
+        }
         for (final row in rows('sessions')) {
           await _db
               .into(_db.sessions)
@@ -146,6 +162,28 @@ class BackupImporter {
               .insert(
                 SupplementGuideline.fromJson(row, serializer: _serializer),
               );
+        }
+        for (final row in rows('cookingBatches', since: 4)) {
+          await _db
+              .into(_db.cookingBatches)
+              .insert(CookingBatch.fromJson(row, serializer: _serializer));
+        }
+        for (final row in rows('supplements', since: 5)) {
+          await _db
+              .into(_db.supplements)
+              .insert(Supplement.fromJson(row, serializer: _serializer));
+        }
+        for (final row in rows('supplementPurchases', since: 5)) {
+          await _db
+              .into(_db.supplementPurchases)
+              .insert(
+                SupplementPurchase.fromJson(row, serializer: _serializer),
+              );
+        }
+        for (final row in rows('supplementIntakes', since: 5)) {
+          await _db
+              .into(_db.supplementIntakes)
+              .insert(SupplementIntake.fromJson(row, serializer: _serializer));
         }
       });
     } on BackupImportException {

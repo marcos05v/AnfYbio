@@ -6,8 +6,10 @@ import '../app/plan_import.dart';
 import '../app/providers.dart';
 import '../data/database.dart';
 import '../data/repositories/nutrition_repository.dart';
+import '../domain/cooking.dart';
 import '../domain/nutrition.dart';
 import '../import/nutrition_plan_parser.dart';
+import 'batches_screen.dart';
 import 'formatting.dart';
 import 'plan_item_form.dart';
 import 'plan_review_screen.dart';
@@ -284,6 +286,17 @@ class _PlanBody extends ConsumerWidget {
       color: CupertinoColors.secondaryLabel,
     );
     final repository = ref.read(nutritionRepositoryProvider);
+    final batches =
+        ref.watch(cookingBatchesProvider(user.id)).value ?? const [];
+    final batchInfo = <BatchInfo>[
+      for (final batch in batches)
+        (
+          foodName: batch.foodName,
+          rawG: batch.rawWeightG,
+          cookedG: batch.cookedWeightG,
+          withOtherIngredients: batch.withOtherIngredients,
+        ),
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -338,9 +351,67 @@ class _PlanBody extends ConsumerWidget {
             child: Text(notes, style: secondary.copyWith(fontSize: 14)),
           ),
         ],
+        const SizedBox(height: 14),
+        CardGroup(
+          children: [
+            CupertinoButton(
+              padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+              onPressed: () => Navigator.of(context).push(
+                CupertinoPageRoute<void>(
+                  builder: (_) => BatchesScreen(user: user),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: resolveColor(
+                        context,
+                        accentColor,
+                      ).withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      CupertinoIcons.flame_fill,
+                      size: 20,
+                      color: resolveColor(context, accentColor),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Lotes de cocción',
+                          style: textStyle(context, weight: FontWeight.w600),
+                        ),
+                        Text(
+                          batches.isEmpty
+                              ? 'Pesa lo que cocinas y sabrás cuánto servir'
+                              : batches.length == 1
+                              ? '1 lote registrado'
+                              : '${batches.length} lotes registrados',
+                          style: secondary,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    CupertinoIcons.chevron_forward,
+                    size: 16,
+                    color: resolveColor(context, CupertinoColors.tertiaryLabel),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         if (menu != null) ...[
           for (final (index, meal) in menu.meals.indexed)
-            _MealSection(number: index + 1, meal: meal),
+            _MealSection(number: index + 1, meal: meal, batches: batchInfo),
           const SizedBox(height: 20),
           OutlineAddButton(
             label: 'Agregar comida',
@@ -433,7 +504,14 @@ class _EmptyCard extends StatelessWidget {
 }
 
 class _MealSection extends ConsumerWidget {
-  const _MealSection({required this.number, required this.meal});
+  const _MealSection({
+    required this.number,
+    required this.meal,
+    required this.batches,
+  });
+
+  /// Lotes de cocción, del más reciente al más antiguo.
+  final List<BatchInfo> batches;
 
   final int number;
   final MealView meal;
@@ -510,7 +588,19 @@ class _MealSection extends ConsumerWidget {
           const _EmptyCard('Sin alimentos.')
         else
           CardGroup(
-            children: [for (final item in meal.items) _ItemRow(item: item)],
+            children: [
+              for (final item in meal.items)
+                _ItemRow(
+                  item: item,
+                  serving: cookedServingFor(
+                    itemName: item.name,
+                    amount: item.amount,
+                    unit: item.unit,
+                    state: item.state,
+                    batches: batches,
+                  ),
+                ),
+            ],
           ),
       ],
     );
@@ -518,9 +608,12 @@ class _MealSection extends ConsumerWidget {
 }
 
 class _ItemRow extends ConsumerWidget {
-  const _ItemRow({required this.item});
+  const _ItemRow({required this.item, required this.serving});
 
   final PlanItem item;
+
+  /// Cuánto servir ya cocido, si hay un lote de este alimento.
+  final CookedServing? serving;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -569,6 +662,18 @@ class _ItemRow extends ConsumerWidget {
                       color: CupertinoColors.secondaryLabel,
                     ),
                   ),
+                if (serving case final serving?)
+                  Text(
+                    serving.isApproximate
+                        ? 'Sirve aprox. ${formatNumber(serving.cookedG, decimals: 0)} g cocido'
+                        : 'Sirve ${formatNumber(serving.cookedG, decimals: 0)} g cocido',
+                    style: textStyle(
+                      context,
+                      size: 13,
+                      weight: FontWeight.w600,
+                      color: accentColor,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -597,14 +702,8 @@ class _SupplementRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final repository = ref.read(nutritionRepositoryProvider);
-    final secondary = textStyle(
-      context,
-      size: 13,
-      color: CupertinoColors.secondaryLabel,
-    );
-
     return CupertinoButton(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.zero,
       onPressed: () => showAppSheet<void>(
         context,
         title: 'Editar suplemento',
@@ -614,35 +713,10 @@ class _SupplementRow extends ConsumerWidget {
           onDelete: () => repository.deleteSupplement(supplement.id),
         ),
       ),
-      child: Row(
-        children: [
-          SupplementIcon(supplement.name),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        supplement.name,
-                        style: textStyle(context, weight: FontWeight.w600),
-                      ),
-                    ),
-                    if (supplement.dose case final dose?)
-                      Text(
-                        dose,
-                        style: textStyle(context, weight: FontWeight.w600),
-                      ),
-                  ],
-                ),
-                if (supplement.timing case final timing?)
-                  Text(timing, style: secondary),
-              ],
-            ),
-          ),
-        ],
+      child: SupplementTile(
+        name: supplement.name,
+        dose: supplement.dose,
+        timing: supplement.timing,
       ),
     );
   }

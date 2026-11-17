@@ -7,6 +7,7 @@ import '../app/providers.dart';
 import '../data/database.dart';
 import 'nutrition_screen.dart';
 import 'sessions_screen.dart';
+import 'supplements_screen.dart';
 import 'theme.dart';
 import 'welcome_screen.dart';
 
@@ -71,12 +72,17 @@ class _HomeTabs extends StatelessWidget {
             icon: Icon(CupertinoIcons.square_list_fill),
             label: 'Alimentación',
           ),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.capsule_fill),
+            label: 'Suplementos',
+          ),
         ],
       ),
       tabBuilder: (context, index) => CupertinoTabView(
         builder: (_) => switch (index) {
           0 => SessionsScreen(user: user),
-          _ => NutritionScreen(user: user),
+          1 => NutritionScreen(user: user),
+          _ => SupplementsScreen(user: user),
         },
       ),
     );

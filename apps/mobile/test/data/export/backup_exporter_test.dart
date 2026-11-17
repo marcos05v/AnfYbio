@@ -86,6 +86,13 @@ void main() {
       'planMeals',
       'planItems',
       'supplementGuidelines',
+      'routines',
+      'routineDays',
+      'routineExercises',
+      'cookingBatches',
+      'supplements',
+      'supplementPurchases',
+      'supplementIntakes',
     ]);
     expect(
       (document['tables'] as Map).values.every((t) => (t as List).isEmpty),

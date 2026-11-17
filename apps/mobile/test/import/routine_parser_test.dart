@@ -1,0 +1,202 @@
+import 'dart:io';
+
+import 'package:anfybio/domain/routine.dart';
+import 'package:anfybio/import/routine_parser.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+/// El archivo de ejemplo imita el formato de una rutina real (viñetas de
+/// tres niveles, biseries y renglones partidos) con ejercicios inventados.
+void main() {
+  late ParsedRoutine parsed;
+  late RoutineDraft draft;
+
+  setUp(() {
+    final text = File('test/fixtures/rutina_ejemplo.txt').readAsStringSync();
+    parsed = parseRoutine(text, fileName: 'rutina.pdf');
+    draft = parsed.draft;
+  });
+
+  RoutineExerciseDraft exercise(String name) =>
+      draft.exercises.singleWhere((e) => e.name == name);
+
+  group('estructura', () {
+    test('toma el título y el nombre del archivo', () {
+      expect(draft.name, 'Rutina de ejemplo');
+      expect(draft.sourceFileName, 'rutina.pdf');
+    });
+
+    test('lee los días sin su número', () {
+      expect(draft.days.map((d) => d.name), ['Empuje', 'Tirón y Core']);
+    });
+
+    test('cada ejercicio queda en su día y en orden', () {
+      expect(draft.days.first.exercises.map((e) => e.name), [
+        'Press con Barra',
+        'Press Inclinado',
+        'Aperturas en Banco',
+        'Press en Máquina',
+        'Cruces en Polea (de Alta a Baja)',
+        'Elevaciones Laterales',
+        'Pájaros con dos agarres',
+      ]);
+      expect(draft.days.last.exercises, hasLength(5));
+    });
+
+    test('asigna a cada ejercicio su grupo muscular', () {
+      expect(exercise('Press con Barra').groupLabel, 'Pecho');
+      expect(exercise('Elevaciones Laterales').groupLabel, 'Hombro (Bombeo)');
+      // El grupo no se arrastra de un día al siguiente.
+      expect(exercise('Dominadas').groupLabel, isNull);
+      expect(exercise('Plancha').groupLabel, 'Core (Estabilidad)');
+    });
+
+    test('"Combinado con:" no forma parte del nombre', () {
+      expect(
+        draft.exercises.map((e) => e.name),
+        contains('Cruces en Polea (de Alta a Baja)'),
+      );
+    });
+  });
+
+  group('series y repeticiones', () {
+    test('aproximación más efectivas, con el renglón partido', () {
+      final press = exercise('Press con Barra');
+      expect((press.warmupSets, press.workSets), (2, 4));
+      expect((press.repsMin, press.repsMax), (6, 10));
+      expect(
+        press.note,
+        'Como ejercicio principal, cuidando el recorrido completo',
+      );
+    });
+
+    test('tolera espacios y palabras repetidas ("de  de 8 a 12")', () {
+      final row = exercise('Remo con Barra');
+      expect((row.warmupSets, row.workSets), (3, 4));
+      expect((row.repsMin, row.repsMax), (8, 12));
+    });
+
+    test('rango con "a" o con guion', () {
+      expect(exercise('Press Inclinado').repsMax, 12);
+      final flyes = exercise('Aperturas en Banco');
+      expect((flyes.repsMin, flyes.repsMax), (12, 15));
+    });
+
+    test('un número fijo de repeticiones', () {
+      final cable = exercise('Cruces en Polea (de Alta a Baja)');
+      expect((cable.repsMin, cable.repsMax), (15, 15));
+      expect(cable.note, 'Sin descanso previo');
+    });
+
+    test('"al fallo" queda como objetivo en texto', () {
+      final pullups = exercise('Dominadas');
+      expect((pullups.workSets, pullups.repsMin), (3, null));
+      expect(pullups.repsNote, 'al fallo técnico');
+      expect(pullups.note, 'Para ganar fuerza');
+
+      final plank = exercise('Plancha');
+      expect(plank.repsNote, 'al fallo (30 a 60 segundos)');
+      expect(plank.note, 'Con el abdomen firme');
+    });
+
+    test('un ejercicio sin indicaciones no lleva nota', () {
+      expect(exercise('Elevaciones Laterales').note, isNull);
+    });
+  });
+
+  group('biseries', () {
+    test('une los dos ejercicios que siguen a "Biserie:"', () {
+      expect(exercise('Press Inclinado').supersetWithPrevious, isFalse);
+      expect(exercise('Aperturas en Banco').supersetWithPrevious, isTrue);
+    });
+
+    test('funciona en el tercer nivel de viñetas y con "Combinado con"', () {
+      expect(exercise('Press en Máquina').supersetWithPrevious, isFalse);
+      expect(
+        exercise('Cruces en Polea (de Alta a Baja)').supersetWithPrevious,
+        isTrue,
+      );
+    });
+
+    test('acepta "Biserie;" con punto y coma', () {
+      expect(exercise('Plancha').supersetWithPrevious, isFalse);
+      expect(exercise('Rueda Abdominal').supersetWithPrevious, isTrue);
+    });
+
+    test('una biserie solo abarca dos ejercicios', () {
+      expect(exercise('Caminata de Granjero').supersetWithPrevious, isFalse);
+    });
+
+    test('un grupo muscular nuevo cierra la biserie', () {
+      expect(exercise('Elevaciones Laterales').supersetWithPrevious, isFalse);
+    });
+
+    test(
+      'un título que empieza con "Biserie de…" es un grupo, no una marca',
+      () {
+        final result = parseRoutine(
+          'R\nDía 1: Brazos\n• Biserie de Brazos (Aislamiento)\n'
+          '◦Curl: 3 series de 12 repeticiones',
+        );
+        final curl = result.draft.exercises.single;
+        expect(curl.groupLabel, 'Biserie de Brazos (Aislamiento)');
+        expect(curl.supersetWithPrevious, isFalse);
+      },
+    );
+  });
+
+  group('lo que no entiende', () {
+    test('dos bloques de series en un ejercicio: toma el primero y avisa', () {
+      final flyes = exercise('Pájaros con dos agarres');
+      expect((flyes.workSets, flyes.repsMin, flyes.repsMax), (4, 10, 12));
+      expect(flyes.note, contains('4 series de 10-12 repeticiones'));
+      expect(flyes.warning, contains('dos bloques de series'));
+    });
+
+    test('sin series reconocibles conserva el texto como nota y avisa', () {
+      final carry = exercise('Caminata de Granjero');
+      expect(carry.workSets, isNull);
+      expect(carry.note, 'Ida y vuelta al pasillo');
+      expect(carry.warning, 'No se entendieron las series de este ejercicio.');
+    });
+
+    test('series sin repeticiones avisa', () {
+      final result = parseRoutine('R\nDía 1: X\n◦Remo: 4 series pesadas');
+      final row = result.draft.exercises.single;
+      expect(row.workSets, 4);
+      expect(row.warning, contains('No se entendieron las repeticiones'));
+    });
+
+    test('cuenta todo lo que hay que revisar', () {
+      expect(parsed.warningCount, 2);
+      expect(parsed.warnings, isEmpty);
+    });
+  });
+
+  group('documentos inesperados', () {
+    test('un texto que no es una rutina avisa que no hay ejercicios', () {
+      final result = parseRoutine('Factura 123\nTotal: 500 pesos');
+
+      expect(result.draft.exercises, isEmpty);
+      expect(
+        result.warnings.single,
+        contains('No se encontró ningún ejercicio'),
+      );
+    });
+
+    test('una rutina sin días se guarda en uno solo y avisa', () {
+      final result = parseRoutine(
+        'Mi rutina\n◦Sentadilla: 4 series de 8 repeticiones',
+      );
+
+      expect(result.draft.days.single.name, 'Día 1');
+      expect(result.draft.exercises.single.name, 'Sentadilla');
+      expect(result.warnings.single, contains('no separa los días'));
+    });
+
+    test('un texto vacío no falla', () {
+      final result = parseRoutine('');
+      expect(result.draft.name, 'Rutina de entrenamiento');
+      expect(result.draft.days, isEmpty);
+    });
+  });
+}

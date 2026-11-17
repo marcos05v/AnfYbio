@@ -15,8 +15,8 @@ void main() {
 
   setUpAll(() => verifier = SchemaVerifier(GeneratedHelper()));
 
-  test('de la versión 1 a la 2: el esquema queda como el de una instalación '
-      'nueva y los datos se conservan', () async {
+  test('de la versión 1 a la actual: el esquema queda como el de una '
+      'instalación nueva y los datos se conservan', () async {
     final schema = await verifier.schemaAt(1);
 
     // Datos escritos por la versión 1: un usuario con una sesión terminada.
@@ -33,7 +33,7 @@ void main() {
       );
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 2);
+    await verifier.migrateAndValidate(db, 5);
 
     final user = await db.select(db.users).getSingle();
     final session = await db.select(db.sessions).getSingle();
@@ -44,12 +44,103 @@ void main() {
     // Las tablas nuevas existen y están vacías.
     expect(await db.select(db.nutritionPlans).get(), isEmpty);
     expect(await db.select(db.planItems).get(), isEmpty);
+    expect(await db.select(db.routines).get(), isEmpty);
+    // La sesión antigua queda como sesión libre.
+    expect(session.routineDayId, isNull);
+    await db.close();
+  });
+
+  test('de la versión 2 a la actual: se conserva el plan de alimentación', () async {
+    final schema = await verifier.schemaAt(2);
+    schema.rawDatabase
+      ..execute(
+        "INSERT INTO users (id, created_at, updated_at, display_name) VALUES "
+        "('u1', '2026-11-01T10:00:00.000Z', '2026-11-01T10:00:00.000Z', 'Marcos')",
+      )
+      ..execute(
+        "INSERT INTO nutrition_plans (id, created_at, updated_at, user_id, name, "
+        "is_active) VALUES ('p1', '2026-11-10T10:00:00.000Z', "
+        "'2026-11-10T10:00:00.000Z', 'u1', 'Plan', 1)",
+      )
+      ..execute(
+        "INSERT INTO sessions (id, created_at, updated_at, user_id, type, "
+        "started_at) VALUES ('s1', '2026-11-12T18:00:00.000Z', "
+        "'2026-11-12T18:00:00.000Z', 'u1', 'run', '2026-11-12T18:00:00.000Z')",
+      );
+
+    final db = AppDatabase(schema.newConnection());
+    await verifier.migrateAndValidate(db, 5);
+
+    final plan = await db.select(db.nutritionPlans).getSingle();
+    final session = await db.select(db.sessions).getSingle();
+    expect((plan.name, plan.isActive), ('Plan', true));
+    expect((session.type, session.routineDayId), (SessionType.run, null));
+    await db.close();
+  });
+
+  test(
+    'de la versión 3 a la actual: se conserva la rutina y su sesión',
+    () async {
+      final schema = await verifier.schemaAt(3);
+      const stamp = "'2026-11-10T10:00:00.000Z'";
+      schema.rawDatabase
+        ..execute(
+          "INSERT INTO users (id, created_at, updated_at, display_name) VALUES "
+          "('u1', $stamp, $stamp, 'Marcos')",
+        )
+        ..execute(
+          "INSERT INTO routines (id, created_at, updated_at, user_id, name, "
+          "is_active) VALUES ('r1', $stamp, $stamp, 'u1', 'Rutina', 1)",
+        )
+        ..execute(
+          "INSERT INTO routine_days (id, created_at, updated_at, user_id, "
+          "routine_id, position, name) VALUES "
+          "('d1', $stamp, $stamp, 'u1', 'r1', 1, 'Empuje')",
+        )
+        ..execute(
+          "INSERT INTO sessions (id, created_at, updated_at, user_id, type, "
+          "started_at, routine_day_id) VALUES "
+          "('s1', $stamp, $stamp, 'u1', 'strength', $stamp, 'd1')",
+        );
+
+      final db = AppDatabase(schema.newConnection());
+      await verifier.migrateAndValidate(db, 5);
+
+      final day = await db.select(db.routineDays).getSingle();
+      final session = await db.select(db.sessions).getSingle();
+      expect(day.name, 'Empuje');
+      expect(session.routineDayId, 'd1');
+      expect(await db.select(db.cookingBatches).get(), isEmpty);
+      await db.close();
+    },
+  );
+
+  test('de la versión 4 a la 5: se conservan los lotes de cocción', () async {
+    final schema = await verifier.schemaAt(4);
+    const stamp = "'2026-11-14T13:00:00.000Z'";
+    schema.rawDatabase
+      ..execute(
+        "INSERT INTO users (id, created_at, updated_at, display_name) VALUES "
+        "('u1', $stamp, $stamp, 'Marcos')",
+      )
+      ..execute(
+        "INSERT INTO cooking_batches (id, created_at, updated_at, user_id, "
+        "food_name, raw_weight_g, cooked_weight_g, cooked_at) VALUES "
+        "('b1', $stamp, $stamp, 'u1', 'Pollo', 1000, 720, $stamp)",
+      );
+
+    final db = AppDatabase(schema.newConnection());
+    await verifier.migrateAndValidate(db, 5);
+
+    final batch = await db.select(db.cookingBatches).getSingle();
+    expect((batch.foodName, batch.cookedWeightG), ('Pollo', 720));
+    expect(await db.select(db.supplements).get(), isEmpty);
     await db.close();
   });
 
   test('una instalación nueva crea directamente el esquema actual', () async {
-    final db = AppDatabase(await verifier.startAt(2));
-    await verifier.migrateAndValidate(db, 2);
+    final db = AppDatabase(await verifier.startAt(5));
+    await verifier.migrateAndValidate(db, 5);
     await db.close();
   });
 }

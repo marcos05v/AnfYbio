@@ -24,6 +24,9 @@ void main() {
   });
 
   Future<void> tap(WidgetTester tester, Finder finder) async {
+    // Desplaza la lista si el elemento quedó fuera de la pantalla.
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
     await tester.tap(finder);
     await tester.pumpAndSettle();
   }

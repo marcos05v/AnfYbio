@@ -4,6 +4,7 @@
 
 import 'package:drift/drift.dart';
 
+import 'routines.dart';
 import 'sync_columns.dart';
 import 'users.dart';
 
@@ -29,4 +30,8 @@ class Sessions extends Table with SyncColumns {
       integer().nullable().check(sessionRpe.isBetweenValues(1, 10))();
 
   TextColumn get notes => text().nullable()();
+
+  /// El día de la rutina que se siguió; nulo en una sesión libre.
+  TextColumn get routineDayId =>
+      text().nullable().references(RoutineDays, #id)();
 }

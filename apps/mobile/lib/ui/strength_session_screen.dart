@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/providers.dart';
 import '../data/database.dart';
 import '../domain/one_rep_max.dart';
+import '../domain/routine.dart';
 import '../domain/weight.dart';
 import 'formatting.dart';
+import 'routine_widgets.dart';
 import 'session_scaffold.dart';
+import 'theme.dart';
 import 'widgets.dart';
 
 /// Valores con los que se abre el formulario de una serie.
@@ -82,6 +85,59 @@ class _StrengthSessionScreenState extends ConsumerState<StrengthSessionScreen> {
     );
   }
 
+  /// Agrega una serie a un ejercicio de la rutina. La primera vez enlaza el
+  /// ejercicio; propone el peso de la última vez y marca la serie como
+  /// aproximación mientras falten las que pide la rutina.
+  Future<void> _addRoutineSet(
+    RoutineExercise routineExercise,
+    List<StrengthSet> sessionSets,
+  ) async {
+    final exercise = await ref
+        .read(routineRepositoryProvider)
+        .exerciseFor(routineExercise.id);
+    final done = sessionSets.where((s) => s.exerciseId == exercise.id).toList();
+    final last =
+        done.lastOrNull ??
+        await ref.read(trainingRepositoryProvider).lastSetOf(exercise.id);
+    if (!mounted) return;
+
+    await showAppSheet<void>(
+      context,
+      title: 'Nueva serie',
+      builder: (_) => _AddSetForm(
+        userId: widget.userId,
+        sessionId: widget.sessionId,
+        initial: (
+          exerciseId: exercise.id,
+          unit: last?.weightUnit ?? exercise.defaultUnit,
+          weight: last == null ? '' : formatNumber(last.weight, decimals: 2),
+          reps: last == null ? '' : '${last.reps}',
+          rpe: '',
+          isWarmup: nextSetIsWarmup(
+            warmupSets: routineExercise.warmupSets,
+            loggedWarmups: done.where((s) => s.isWarmup).length,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _addSetButton(VoidCallback onPressed) {
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      minimumSize: const Size(44, 32),
+      onPressed: onPressed,
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(CupertinoIcons.plus_circle_fill, size: 20),
+          SizedBox(width: 5),
+          Text('Serie'),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final sets =
@@ -90,46 +146,82 @@ class _StrengthSessionScreenState extends ConsumerState<StrengthSessionScreen> {
         ref.watch(exercisesProvider(widget.userId)).value ?? const [];
     final names = {for (final e in exercises) e.id: e.name};
 
+    // Si la sesión sigue un día de rutina, se muestra lo que toca.
+    final routineDayId = ref
+        .watch(sessionProvider(widget.sessionId))
+        .value
+        ?.routineDayId;
+    final routineDay = routineDayId == null
+        ? null
+        : ref.watch(routineDayProvider(routineDayId)).value;
+    final planned = routineDay?.exercises ?? const <RoutineExercise>[];
+    final plannedIds = {for (final e in planned) ?e.exerciseId};
+
     // Agrupa por ejercicio conservando el orden en que apareció cada uno.
     final groups = <String, List<StrengthSet>>{};
     for (final set in sets) {
       groups.putIfAbsent(set.exerciseId, () => []).add(set);
     }
 
+    Widget plannedExercise(RoutineExercise routineExercise, {String? marker}) {
+      final done = groups[routineExercise.exerciseId] ?? const <StrengthSet>[];
+      return _PlannedExercise(
+        exercise: routineExercise,
+        marker: marker,
+        rows: _setRows(done),
+        effectiveDone: done.where((s) => !s.isWarmup).length,
+        addButton: _addSetButton(() => _addRoutineSet(routineExercise, sets)),
+      );
+    }
+
     return SessionScaffold(
       sessionId: widget.sessionId,
       title: 'Fuerza',
-      summary: switch (sets.length) {
-        0 => '',
-        1 => '1 serie',
-        final n => '$n series',
-      },
-      isEmpty: sets.isEmpty,
+      summary: [
+        ?routineDay?.day.name,
+        switch (sets.length) {
+          0 => null,
+          1 => '1 serie',
+          final n => '$n series',
+        },
+      ].nonNulls.join(' · '),
+      isEmpty: sets.isEmpty && planned.isEmpty,
       emptyIcon: CupertinoIcons.square_list,
       emptyTitle: 'Sin series todavía',
       emptyMessage: 'Toca "Agregar ejercicio" para registrar la primera.',
       actionLabel: 'Agregar ejercicio',
       onAction: _addSet,
       children: [
-        for (final entry in groups.entries) ...[
-          SectionHeader(
-            names[entry.key] ?? '…',
-            trailing: CupertinoButton(
-              padding: EdgeInsets.zero,
-              minimumSize: const Size(44, 32),
-              onPressed: () => _addSet(after: entry.value.last),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
+        // Los ejercicios sueltos van uno tras otro; cada biserie, en su
+        // bloque, con sus ejercicios marcados A y B.
+        for (final block in groupSupersets(
+          planned,
+          (e) => e.supersetWithPrevious,
+        ))
+          if (block.length == 1)
+            plannedExercise(block.single)
+          else
+            Padding(
+              padding: const EdgeInsets.only(top: 22),
+              child: SupersetBlock(
                 children: [
-                  Icon(CupertinoIcons.plus_circle_fill, size: 20),
-                  SizedBox(width: 5),
-                  Text('Serie'),
+                  for (final (index, routineExercise) in block.indexed)
+                    plannedExercise(
+                      routineExercise,
+                      marker: supersetLetter(index),
+                    ),
                 ],
               ),
             ),
-          ),
-          CardGroup(children: _setRows(entry.value)),
-        ],
+        // Lo registrado que no estaba en la rutina (o toda la sesión libre).
+        for (final entry in groups.entries)
+          if (!plannedIds.contains(entry.key)) ...[
+            SectionHeader(
+              names[entry.key] ?? '…',
+              trailing: _addSetButton(() => _addSet(after: entry.value.last)),
+            ),
+            CardGroup(children: _setRows(entry.value)),
+          ],
       ],
     );
   }
@@ -146,6 +238,118 @@ class _StrengthSessionScreenState extends ConsumerState<StrengthSessionScreen> {
           onTap: () => _editSet(set),
         ),
     ];
+  }
+}
+
+/// Un ejercicio que la rutina pide en esta sesión: su objetivo, el avance
+/// y las series ya registradas.
+class _PlannedExercise extends StatelessWidget {
+  const _PlannedExercise({
+    required this.exercise,
+    required this.rows,
+    required this.effectiveDone,
+    required this.addButton,
+    this.marker,
+  });
+
+  final RoutineExercise exercise;
+  final List<Widget> rows;
+
+  /// Series efectivas ya registradas en esta sesión.
+  final int effectiveDone;
+  final Widget addButton;
+
+  /// Letra dentro de su biserie; nula si el ejercicio va suelto.
+  final String? marker;
+
+  @override
+  Widget build(BuildContext context) {
+    final inBlock = marker != null;
+    final target = formatExerciseTarget(
+      warmupSets: exercise.warmupSets,
+      workSets: exercise.workSets,
+      repsMin: exercise.repsMin,
+      repsMax: exercise.repsMax,
+      repsNote: exercise.repsNote,
+    );
+    final workSets = exercise.workSets;
+    final complete = workSets != null && effectiveDone >= workSets;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          // Dentro de un bloque de biserie el margen lo pone el bloque.
+          padding: inBlock
+              ? const EdgeInsets.fromLTRB(16, 12, 12, 10)
+              : const EdgeInsets.only(top: 22, bottom: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (inBlock) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: SupersetMarker(marker!),
+                ),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      exercise.name,
+                      style: textStyle(
+                        context,
+                        size: inBlock ? 17 : 18,
+                        weight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      [
+                        if (target.isNotEmpty) target,
+                        if (workSets != null)
+                          complete
+                              ? 'completo'
+                              : '$effectiveDone de $workSets hechas',
+                      ].join(' · '),
+                      style: textStyle(
+                        context,
+                        size: 14,
+                        weight: FontWeight.w500,
+                        color: complete
+                            ? CupertinoColors.systemGreen
+                            : CupertinoColors.secondaryLabel,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              addButton,
+            ],
+          ),
+        ),
+        if (rows.isNotEmpty)
+          inBlock
+              // En el bloque las series van sobre el fondo de la app, para
+              // distinguirse de la tarjeta que las contiene.
+              ? Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: resolveColor(
+                        context,
+                        CupertinoColors.systemBackground,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(children: rows),
+                  ),
+                )
+              : CardGroup(children: rows),
+      ],
+    );
   }
 }
 

@@ -70,15 +70,22 @@ class TrainingRepository {
   // ---------------------------------------------------------------- sesiones
 
   /// Inicia una sesión de fuerza, carrera o apnea.
+  ///
+  /// Con [routineDayId] la sesión de fuerza queda ligada a ese día de la
+  /// rutina, y su pantalla muestra lo que toca hacer.
   Future<Session> startSession({
     required String userId,
     required SessionType type,
     DateTime? startedAt,
+    String? routineDayId,
   }) {
     if (type == SessionType.swim) {
       throw ArgumentError('La natación se inicia con startSwimSession.');
     }
-    return _insertSession(userId, type, startedAt);
+    if (routineDayId != null && type != SessionType.strength) {
+      throw ArgumentError('Solo una sesión de fuerza sigue un día de rutina.');
+    }
+    return _insertSession(userId, type, startedAt, routineDayId: routineDayId);
   }
 
   /// Inicia una sesión de natación junto con su tamaño de alberca.
@@ -195,7 +202,18 @@ class TrainingRepository {
   }) {
     return _db.transaction(() async {
       final session = await _requireSession(sessionId, SessionType.strength);
-      await _requireExercise(exerciseId, session.userId);
+      final exercise = await _requireExercise(exerciseId, session.userId);
+      // La próxima serie de este ejercicio propondrá la unidad que se usó.
+      if (exercise.defaultUnit != weightUnit) {
+        await (_db.update(
+          _db.exercises,
+        )..where((e) => e.id.equals(exerciseId))).write(
+          ExercisesCompanion(
+            defaultUnit: Value(weightUnit),
+            updatedAt: Value(_now()),
+          ),
+        );
+      }
 
       return _db
           .into(_db.strengthSets)
@@ -278,6 +296,28 @@ class TrainingRepository {
     return _db.select(_db.strengthSets)
       ..where((s) => s.sessionId.equals(sessionId) & s.deletedAt.isNull())
       ..orderBy([(s) => OrderingTerm.asc(s.position)]);
+  }
+
+  /// La serie más reciente de un ejercicio en cualquier sesión, para
+  /// proponer su peso la próxima vez. `null` si nunca se ha registrado.
+  Future<StrengthSet?> lastSetOf(String exerciseId) {
+    final sets = _db.strengthSets;
+    final sessions = _db.sessions;
+    final query =
+        _db.select(sets).join([
+            innerJoin(sessions, sessions.id.equalsExp(sets.sessionId)),
+          ])
+          ..where(
+            sets.exerciseId.equals(exerciseId) &
+                sets.deletedAt.isNull() &
+                sessions.deletedAt.isNull(),
+          )
+          ..orderBy([
+            OrderingTerm.desc(sessions.startedAt),
+            OrderingTerm.desc(sets.position),
+          ])
+          ..limit(1);
+    return query.map((row) => row.readTable(sets)).getSingleOrNull();
   }
 
   /// Todas las series de un ejercicio con la fecha local de su sesión, para
@@ -581,8 +621,9 @@ class TrainingRepository {
   Future<Session> _insertSession(
     String userId,
     SessionType type,
-    DateTime? startedAt,
-  ) {
+    DateTime? startedAt, {
+    String? routineDayId,
+  }) {
     return _db
         .into(_db.sessions)
         .insertReturning(
@@ -590,6 +631,7 @@ class TrainingRepository {
             userId: userId,
             type: type,
             startedAt: (startedAt ?? _now()).toUtc(),
+            routineDayId: Value(routineDayId),
           ),
         );
   }
@@ -607,7 +649,7 @@ class TrainingRepository {
     return session;
   }
 
-  Future<void> _requireExercise(String exerciseId, String userId) async {
+  Future<Exercise> _requireExercise(String exerciseId, String userId) async {
     final exercise =
         await (_db.select(_db.exercises)..where(
               (e) =>
@@ -617,6 +659,7 @@ class TrainingRepository {
             ))
             .getSingleOrNull();
     if (exercise == null) throw ExerciseNotFound(exerciseId);
+    return exercise;
   }
 
   /// Siguiente posición libre dentro de la sesión (1 si está vacía).

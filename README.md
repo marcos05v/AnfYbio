@@ -9,22 +9,30 @@ de la cantidad de funciones.
 
 ## Estado
 
-**Fase 1 — Entrenamiento**, completa. **Fase 2 — Nutrición**, en desarrollo.
+**Fases 1 y 2 completas; Fase 3 en desarrollo.**
 
-- Fase 1: registro, edición y borrado de sesiones de fuerza, natación, carrera
-  y apnea; 1RM estimado con gráficas por ejercicio; carga sRPE con resumen
-  semanal; respaldo y restauración en un archivo JSON; modo claro y oscuro.
-- Fase 2, hecho: plan de alimentación con menús por tipo de día, captura y
-  edición manual, guía de suplementos, e importación del plan desde PDF con
-  revisión antes de guardar.
-- Fase 2, pendiente: rutina de entrenamiento (con importación desde PDF) y
-  lotes de cocción.
+- Fase 1 — Entrenamiento: registro, edición y borrado de sesiones de fuerza,
+  natación, carrera y apnea; 1RM estimado con gráficas por ejercicio; carga
+  sRPE con resumen semanal; respaldo y restauración en un archivo JSON; modo
+  claro y oscuro.
+- Fase 2 — Nutrición: plan de alimentación con menús por tipo de día, captura
+  manual o importación desde PDF con revisión, guía de suplementos, y lotes de
+  cocción que convierten las porciones del plan de crudo a cocido.
+- Fase 3 — Suplementos, hecho: inventario con compras, tomas y ajustes; días
+  restantes y fecha en que se acaba; adherencia; aviso de reabastecimiento
+  dentro de la app. Pendiente: recordatorios y avisos como notificaciones.
+- Adelantado de la Fase 4: rutina de entrenamiento (manual o importada desde
+  PDF) y sesiones de fuerza que siguen el día que toca según el día de la
+  semana.
+
+Las sustituciones del plan son las alternativas que escribe la nutrióloga en
+cada renglón; no hay catálogo de equivalentes (ADR-0008).
 
 | Fase | Contenido | Estado |
 |---|---|---|
 | 1 | Entrenamiento: fuerza, natación, carrera, apnea, carga sRPE, exportación | Completa |
-| 2 | Nutrición: plan alimenticio, lotes de cocción, sustituciones | En desarrollo |
-| 3 | Suplementos: inventario, recordatorios, adherencia | Pendiente |
+| 2 | Nutrición: plan alimenticio, lotes de cocción, sustituciones | Completa |
+| 3 | Suplementos: inventario, recordatorios, adherencia | En desarrollo |
 | 4 | Catálogo de ejercicios e importación desde PDF | Pendiente |
 
 ## Principios

@@ -74,3 +74,25 @@ final dayTypeOverrideProvider =
     NotifierProvider<DayTypeOverrideController, DayType?>(
       DayTypeOverrideController.new,
     );
+
+/// Día de la semana (1 = lunes … 7 = domingo) en el que cae el Día 1 de la
+/// rutina. Por defecto es el lunes; cambia cuando el usuario corrige a mano
+/// qué día toca hoy.
+class RoutineDayOneController extends Notifier<int> {
+  static const _key = 'routineDayOneWeekday';
+
+  @override
+  int build() {
+    final saved = ref.watch(sharedPreferencesProvider).getInt(_key);
+    return saved != null && saved >= 1 && saved <= 7 ? saved : DateTime.monday;
+  }
+
+  Future<void> select(int weekday) async {
+    state = weekday;
+    await ref.read(sharedPreferencesProvider).setInt(_key, weekday);
+  }
+}
+
+final routineDayOneProvider = NotifierProvider<RoutineDayOneController, int>(
+  RoutineDayOneController.new,
+);

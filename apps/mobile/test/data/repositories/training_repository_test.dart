@@ -659,6 +659,48 @@ void main() {
     );
   });
 
+  group('última serie de un ejercicio', () {
+    test('es nula si nunca se ha registrado', () async {
+      expect(await repo.lastSetOf(exerciseId), isNull);
+    });
+
+    test('es la última de la sesión más reciente', () async {
+      final old = await repo.startSession(
+        userId: userId,
+        type: SessionType.strength,
+        startedAt: DateTime.utc(2026, 11, 1),
+      );
+      await addSet(old.id);
+      final recent = await repo.startSession(
+        userId: userId,
+        type: SessionType.strength,
+        startedAt: DateTime.utc(2026, 11, 10),
+      );
+      await addSet(recent.id);
+      final last = await repo.addStrengthSet(
+        sessionId: recent.id,
+        exerciseId: exerciseId,
+        weight: 120,
+        weightUnit: WeightUnit.kg,
+        reps: 3,
+      );
+
+      expect((await repo.lastSetOf(exerciseId))!.id, last.id);
+    });
+
+    test('no cuenta series ni sesiones borradas', () async {
+      final kept = await start(SessionType.strength);
+      final keptSet = await addSet(kept);
+      final removed = await addSet(kept);
+      await repo.deleteStrengthSet(removed.id);
+
+      expect((await repo.lastSetOf(exerciseId))!.id, keptSet.id);
+
+      await repo.deleteSession(kept);
+      expect(await repo.lastSetOf(exerciseId), isNull);
+    });
+  });
+
   group('carga', () {
     Future<void> finished(
       DateTime startedAt, {

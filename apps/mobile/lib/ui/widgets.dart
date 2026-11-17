@@ -197,6 +197,67 @@ class FormActions extends StatelessWidget {
   }
 }
 
+/// Un suplemento de la guía: nombre, y debajo su dosis y su momento de toma.
+///
+/// Todo va apilado a lo ancho de la fila: las dosis reales son frases
+/// ("1 g de EPA/DHA combinados al día"), no caben junto al nombre.
+class SupplementTile extends StatelessWidget {
+  const SupplementTile({super.key, required this.name, this.dose, this.timing});
+
+  final String name;
+  final String? dose;
+  final String? timing;
+
+  @override
+  Widget build(BuildContext context) {
+    // "Omega 3 (EPAs / DHAs)" → título "Omega 3" y aclaración "EPAs / DHAs".
+    final match = RegExp(r'^(.+?)\s*\((.+)\)\s*$').firstMatch(name);
+    final title = match?.group(1) ?? name;
+    final detail = match?.group(2);
+    final secondary = textStyle(
+      context,
+      size: 13,
+      color: CupertinoColors.secondaryLabel,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SupplementIcon(name),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: textStyle(context, weight: FontWeight.w600)),
+                if (detail != null) Text(detail, style: secondary),
+                if (dose != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    dose!,
+                    style: textStyle(
+                      context,
+                      size: 15,
+                      weight: FontWeight.w500,
+                      color: accentColor,
+                    ),
+                  ),
+                ],
+                if (timing != null) ...[
+                  const SizedBox(height: 2),
+                  Text(timing!, style: secondary),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Icono de un suplemento, elegido por su nombre, en un cuadro de color.
 class SupplementIcon extends StatelessWidget {
   const SupplementIcon(this.name, {super.key});
@@ -717,56 +778,77 @@ Future<T?> showAppSheet<T>(
 }) {
   return showCupertinoModalPopup<T>(
     context: context,
-    builder: (context) => Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: resolveColor(context, sheetColor),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              screenPadding,
-              8,
-              screenPadding,
-              12,
+    builder: (context) {
+      final media = MediaQuery.of(context);
+      return Padding(
+        padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+        child: ConstrainedBox(
+          // La hoja nunca pasa de la zona visible: con el teclado abierto o
+          // un formulario largo, su contenido se desplaza.
+          constraints: BoxConstraints(
+            maxHeight:
+                media.size.height -
+                media.viewInsets.bottom -
+                media.padding.top -
+                12,
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: resolveColor(context, sheetColor),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  screenPadding,
+                  8,
+                  screenPadding,
+                  12,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: textStyle(
-                          context,
-                          size: 20,
-                          weight: FontWeight.w600,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: textStyle(
+                              context,
+                              size: 20,
+                              weight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        CupertinoButton(
+                          padding: EdgeInsets.zero,
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Cancelar'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        // Nivel elevado: las tarjetas de la hoja usan su
+                        // tono propio.
+                        child: CupertinoUserInterfaceLevel(
+                          data: CupertinoUserInterfaceLevelData.elevated,
+                          child: Builder(builder: builder),
                         ),
                       ),
                     ),
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Cancelar'),
-                    ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                // Nivel elevado: las tarjetas de la hoja usan su tono propio.
-                CupertinoUserInterfaceLevel(
-                  data: CupertinoUserInterfaceLevelData.elevated,
-                  child: Builder(builder: builder),
-                ),
-              ],
+              ),
             ),
           ),
         ),
-      ),
-    ),
+      );
+    },
   );
 }

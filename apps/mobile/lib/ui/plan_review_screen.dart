@@ -200,39 +200,10 @@ class _PlanReviewScreenState extends ConsumerState<PlanReviewScreen> {
                     CardGroup(
                       children: [
                         for (final supplement in _draft.supplements)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            child: Row(
-                              children: [
-                                SupplementIcon(supplement.name),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        supplement.name,
-                                        style: textStyle(
-                                          context,
-                                          weight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      Text(
-                                        [
-                                          ?supplement.dose,
-                                          ?supplement.timing,
-                                        ].join(' · '),
-                                        style: secondary,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
+                          SupplementTile(
+                            name: supplement.name,
+                            dose: supplement.dose,
+                            timing: supplement.timing,
                           ),
                       ],
                     ),

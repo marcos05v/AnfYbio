@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/database.dart';
+import '../data/repositories/cooking_repository.dart';
 import '../data/repositories/exercise_repository.dart';
 import '../data/repositories/nutrition_repository.dart';
+import '../data/repositories/routine_repository.dart';
+import '../data/repositories/supplement_repository.dart';
 import '../data/repositories/training_repository.dart';
 import '../data/repositories/user_repository.dart';
 import '../domain/one_rep_max_history.dart';
@@ -92,4 +95,40 @@ final nutritionRepositoryProvider = Provider(
 final activePlanProvider = StreamProvider.family<NutritionPlanView?, String>(
   (ref, userId) =>
       ref.watch(nutritionRepositoryProvider).watchActivePlan(userId),
+);
+
+final routineRepositoryProvider = Provider(
+  (ref) => RoutineRepository(ref.watch(databaseProvider)),
+);
+
+/// La rutina de entrenamiento activa del usuario; `null` si no tiene.
+final activeRoutineProvider = StreamProvider.family<RoutineView?, String>(
+  (ref, userId) =>
+      ref.watch(routineRepositoryProvider).watchActiveRoutine(userId),
+);
+
+/// El día de rutina que sigue una sesión, con sus ejercicios.
+final routineDayProvider = StreamProvider.family<RoutineDayView?, String>(
+  (ref, dayId) => ref.watch(routineRepositoryProvider).watchDay(dayId),
+);
+
+final cookingRepositoryProvider = Provider(
+  (ref) => CookingRepository(ref.watch(databaseProvider)),
+);
+
+/// Lotes de cocción del usuario, del más reciente al más antiguo.
+final cookingBatchesProvider =
+    StreamProvider.family<List<CookingBatch>, String>(
+      (ref, userId) =>
+          ref.watch(cookingRepositoryProvider).watchBatchesOf(userId),
+    );
+
+final supplementRepositoryProvider = Provider(
+  (ref) => SupplementRepository(ref.watch(databaseProvider)),
+);
+
+/// Suplementos del usuario con su inventario, en orden alfabético.
+final supplementsProvider = StreamProvider.family<List<SupplementView>, String>(
+  (ref, userId) =>
+      ref.watch(supplementRepositoryProvider).watchSupplementsOf(userId),
 );
