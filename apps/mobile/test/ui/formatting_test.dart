@@ -1,3 +1,4 @@
+import 'package:anfybio/domain/nutrition.dart';
 import 'package:anfybio/ui/formatting.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -95,5 +96,20 @@ void main() {
     final now = DateTime(2026, 11, 16);
     expect(formatShortDate(DateTime(2026, 3, 5), now: now), '5 mar');
     expect(formatShortDate(DateTime(2025, 12, 31), now: now), '31 dic 2025');
+  });
+
+  test('formatFoodAmount escribe la cantidad con su unidad', () {
+    String amount(double? amount, FoodUnit? unit, {bool isFree = false}) =>
+        formatFoodAmount(amount: amount, unit: unit, isFree: isFree);
+
+    expect(amount(100, FoodUnit.gram), '100 g');
+    expect(amount(2, FoodUnit.piece), '2 piezas');
+    expect(amount(1, FoodUnit.piece), '1 pieza');
+    expect(amount(1, FoodUnit.scoop), '1 scoop');
+    expect(amount(0.5, FoodUnit.scoop), '0.5 scoop');
+    expect(amount(2, FoodUnit.scoop), '2 scoops');
+    expect(amount(150, null), '150'); // el plan no trae unidad
+    expect(amount(null, null), '');
+    expect(amount(null, null, isFree: true), 'Libre');
   });
 }

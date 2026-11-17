@@ -290,6 +290,46 @@ class DeleteButton extends StatelessWidget {
   }
 }
 
+/// Campo de texto de ancho completo con fondo de tarjeta, para formularios.
+class CardTextField extends StatelessWidget {
+  const CardTextField({
+    super.key,
+    required this.controller,
+    required this.placeholder,
+    this.autofocus = false,
+    this.maxLines = 1,
+    this.textCapitalization = TextCapitalization.sentences,
+  });
+
+  final TextEditingController controller;
+  final String placeholder;
+  final bool autofocus;
+  final int maxLines;
+  final TextCapitalization textCapitalization;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoTextField(
+      controller: controller,
+      placeholder: placeholder,
+      autofocus: autofocus,
+      minLines: 1,
+      maxLines: maxLines,
+      textCapitalization: textCapitalization,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+      decoration: BoxDecoration(
+        color: resolveColor(context, cardColor),
+        borderRadius: BorderRadius.circular(cardRadius),
+      ),
+      style: textStyle(context),
+      placeholderStyle: textStyle(
+        context,
+        color: CupertinoColors.placeholderText,
+      ),
+    );
+  }
+}
+
 /// Mensaje de error bajo un formulario.
 class FormError extends StatelessWidget {
   const FormError(this.message, {super.key});

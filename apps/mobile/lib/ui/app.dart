@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/appearance.dart';
 import '../app/providers.dart';
+import '../data/database.dart';
+import 'nutrition_screen.dart';
 import 'sessions_screen.dart';
 import 'theme.dart';
 import 'welcome_screen.dart';
@@ -44,7 +46,39 @@ class _Root extends ConsumerWidget {
       error: (error, _) =>
           CupertinoPageScaffold(child: Center(child: Text('Error: $error'))),
       data: (user) =>
-          user == null ? const WelcomeScreen() : SessionsScreen(user: user),
+          user == null ? const WelcomeScreen() : _HomeTabs(user: user),
+    );
+  }
+}
+
+/// Pestañas principales. Cada una tiene su propia pila de navegación, así
+/// que la barra inferior sigue visible al entrar a una pantalla.
+class _HomeTabs extends StatelessWidget {
+  const _HomeTabs({required this.user});
+
+  final User user;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoTabScaffold(
+      tabBar: CupertinoTabBar(
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.bolt_fill),
+            label: 'Entrenar',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.square_list_fill),
+            label: 'Alimentación',
+          ),
+        ],
+      ),
+      tabBuilder: (context, index) => CupertinoTabView(
+        builder: (_) => switch (index) {
+          0 => SessionsScreen(user: user),
+          _ => NutritionScreen(user: user),
+        },
+      ),
     );
   }
 }

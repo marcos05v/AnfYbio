@@ -3,10 +3,12 @@ import 'dart:convert';
 import 'package:anfybio/data/database.dart';
 import 'package:anfybio/data/export/backup_exporter.dart';
 import 'package:anfybio/data/export/backup_importer.dart';
+import 'package:anfybio/data/repositories/nutrition_repository.dart';
 import 'package:anfybio/data/repositories/training_repository.dart';
 import 'package:anfybio/data/tables/apnea_attempts.dart';
 import 'package:anfybio/data/tables/sessions.dart';
 import 'package:anfybio/data/tables/swim.dart';
+import 'package:anfybio/domain/nutrition.dart';
 import 'package:anfybio/domain/weight.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -79,6 +81,35 @@ void main() {
       type: SessionType.strength,
     );
     await repo.deleteSession(removed.id);
+    await NutritionRepository(source).savePlan(
+      user.id,
+      const NutritionPlanDraft(
+        name: 'Plan',
+        weighingNotes: 'Proteínas en crudo.',
+        menus: [
+          MenuDraft(
+            dayType: DayType.training,
+            title: 'Entrenamiento',
+            meals: [
+              MealDraft(
+                name: 'Desayuno',
+                timingNote: 'Al despertar',
+                items: [
+                  ItemDraft(
+                    name: 'Claras de huevo',
+                    amount: 100,
+                    unit: FoodUnit.gram,
+                    state: FoodState.raw,
+                  ),
+                  ItemDraft(name: 'Verdura', isFree: true),
+                ],
+              ),
+            ],
+          ),
+        ],
+        supplements: [SupplementDraft(name: 'Creatina', dose: '5 g')],
+      ),
+    );
 
     return (await BackupExporter(source, now: () => exportedAt).export(user.id))
         .json;
@@ -122,6 +153,53 @@ void main() {
     expect(strength.startedAt.isUtc, isTrue);
     final set = (await repo.strengthSetsOf(strength.id)).single;
     expect((set.weight, set.weightUnit, set.rpe), (225, WeightUnit.lb, 8.5));
+  });
+
+  test('el plan de alimentación importado se lee completo', () async {
+    await BackupImporter(target).import(await fullBackup());
+
+    final user = await target.select(target.users).getSingle();
+    final view = (await NutritionRepository(target).activePlan(user.id))!;
+    final meal = view.menuFor(DayType.training)!.meals.single;
+    expect(view.plan.weighingNotes, 'Proteínas en crudo.');
+    expect(meal.meal.timingNote, 'Al despertar');
+    expect(meal.items.map((i) => (i.name, i.state, i.isFree)), [
+      ('Claras de huevo', FoodState.raw, false),
+      ('Verdura', FoodState.unspecified, true),
+    ]);
+    expect(view.supplements.single.dose, '5 g');
+  });
+
+  test('acepta un respaldo anterior al plan de alimentación', () async {
+    // Un respaldo de la versión 1 del esquema no trae las tablas nuevas.
+    final document = jsonDecode(await fullBackup()) as Map<String, dynamic>;
+    document['schemaVersion'] = 1;
+    final tables = document['tables'] as Map<String, dynamic>;
+    for (final name in [
+      'nutritionPlans',
+      'planMenus',
+      'planMeals',
+      'planItems',
+      'supplementGuidelines',
+    ]) {
+      tables.remove(name);
+    }
+
+    await BackupImporter(target).import(jsonEncode(document));
+
+    expect(await target.select(target.sessions).get(), hasLength(5));
+    expect(await target.select(target.nutritionPlans).get(), isEmpty);
+  });
+
+  test('a un respaldo actual no le puede faltar una tabla nueva', () async {
+    final document = jsonDecode(await fullBackup()) as Map<String, dynamic>;
+    (document['tables'] as Map).remove('planItems');
+
+    await expectLater(
+      BackupImporter(target).import(jsonEncode(document)),
+      rejectsWith('dañado'),
+    );
+    expect(await target.select(target.users).get(), isEmpty);
   });
 
   test('no importa si la app ya tiene un usuario', () async {

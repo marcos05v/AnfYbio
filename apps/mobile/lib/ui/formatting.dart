@@ -1,6 +1,7 @@
 import '../data/tables/apnea_attempts.dart';
 import '../data/tables/sessions.dart';
 import '../data/tables/swim.dart';
+import '../domain/nutrition.dart';
 
 const _weekdays = [
   'lunes',
@@ -186,3 +187,39 @@ String formatDurationMs(int ms) {
 String formatDistance(int meters) => meters < 1000
     ? '$meters m'
     : '${formatNumber(meters / 1000, decimals: 2)} km';
+
+String dayTypeLabel(DayType dayType) => switch (dayType) {
+  DayType.training => 'Entrenamiento',
+  DayType.rest => 'Descanso',
+};
+
+String foodStateLabel(FoodState state) => switch (state) {
+  FoodState.raw => 'En crudo',
+  FoodState.cooked => 'Cocido',
+  FoodState.dry => 'En seco',
+  FoodState.unspecified => 'Sin especificar',
+};
+
+String foodUnitLabel(FoodUnit unit) => switch (unit) {
+  FoodUnit.gram => 'Gramos',
+  FoodUnit.piece => 'Piezas',
+  FoodUnit.scoop => 'Scoops',
+};
+
+/// Cantidad de un alimento del plan: "100 g", "2 piezas", "1 scoop", "Libre".
+/// Vacío si el plan no indica cantidad.
+String formatFoodAmount({
+  required double? amount,
+  required FoodUnit? unit,
+  required bool isFree,
+}) {
+  if (isFree) return 'Libre';
+  if (amount == null) return '';
+  final number = formatNumber(amount, decimals: 2);
+  return switch (unit) {
+    null => number,
+    FoodUnit.gram => '$number g',
+    FoodUnit.piece => amount == 1 ? '$number pieza' : '$number piezas',
+    FoodUnit.scoop => amount <= 1 ? '$number scoop' : '$number scoops',
+  };
+}

@@ -3,9 +3,11 @@ import 'package:drift_flutter/drift_flutter.dart';
 // Lo usa el código generado (database.g.dart) para crear los UUID.
 import 'package:uuid/uuid.dart';
 
+import '../domain/nutrition.dart';
 import '../domain/weight.dart';
 import 'tables/apnea_attempts.dart';
 import 'tables/exercises.dart';
+import 'tables/nutrition.dart';
 import 'tables/run_details.dart';
 import 'tables/sessions.dart';
 import 'tables/strength_sets.dart';
@@ -25,6 +27,11 @@ part 'database.g.dart';
     SwimLaps,
     RunDetails,
     ApneaAttempts,
+    NutritionPlans,
+    PlanMenus,
+    PlanMeals,
+    PlanItems,
+    SupplementGuidelines,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -32,11 +39,28 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
     : super(executor ?? driftDatabase(name: 'anfybio'));
 
+  /// 1: entrenamiento (Fase 1).
+  /// 2: plan de alimentación y guía de suplementos (Fase 2).
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      // Cada paso lleva la base de una versión a la siguiente; una app que
+      // se quedó varias versiones atrás los recorre todos en orden.
+      if (from < 2) {
+        await m.createTable(nutritionPlans);
+        await m.createTable(planMenus);
+        await m.createTable(planMeals);
+        await m.createTable(planItems);
+        await m.createTable(supplementGuidelines);
+        await m.createIndex(planMenusPlan);
+        await m.createIndex(planMealsMenu);
+        await m.createIndex(planItemsMeal);
+        await m.createIndex(supplementGuidelinesPlan);
+      }
+    },
     beforeOpen: (details) async {
       // SQLite no valida las llaves foráneas a menos que se active en cada
       // conexión. Sin esto, un ejercicio podría apuntar a un usuario inexistente.

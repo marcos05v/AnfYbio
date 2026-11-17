@@ -89,6 +89,17 @@ class BackupExporter {
             db.apneaAttempts,
             db.apneaAttempts.userId,
           ),
+          'nutritionPlans': await rows(
+            db.nutritionPlans,
+            db.nutritionPlans.userId,
+          ),
+          'planMenus': await rows(db.planMenus, db.planMenus.userId),
+          'planMeals': await rows(db.planMeals, db.planMeals.userId),
+          'planItems': await rows(db.planItems, db.planItems.userId),
+          'supplementGuidelines': await rows(
+            db.supplementGuidelines,
+            db.supplementGuidelines.userId,
+          ),
         },
       };
     });

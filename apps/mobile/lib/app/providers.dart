@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/database.dart';
 import '../data/repositories/exercise_repository.dart';
+import '../data/repositories/nutrition_repository.dart';
 import '../data/repositories/training_repository.dart';
 import '../data/repositories/user_repository.dart';
 import '../domain/one_rep_max_history.dart';
@@ -81,4 +82,14 @@ final apneaAttemptsProvider = StreamProvider.family<List<ApneaAttempt>, String>(
 final setSamplesProvider = StreamProvider.family<List<SetSample>, String>(
   (ref, exerciseId) =>
       ref.watch(trainingRepositoryProvider).watchSetSamplesOf(exerciseId),
+);
+
+final nutritionRepositoryProvider = Provider(
+  (ref) => NutritionRepository(ref.watch(databaseProvider)),
+);
+
+/// El plan de alimentación activo del usuario; `null` si no tiene.
+final activePlanProvider = StreamProvider.family<NutritionPlanView?, String>(
+  (ref, userId) =>
+      ref.watch(nutritionRepositoryProvider).watchActivePlan(userId),
 );

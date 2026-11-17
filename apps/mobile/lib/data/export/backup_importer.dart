@@ -59,8 +59,16 @@ class BackupImporter {
         }
 
         final tables = document['tables'] as Map<String, dynamic>;
-        Iterable<Map<String, dynamic>> rows(String name) =>
-            (tables[name] as List).cast<Map<String, dynamic>>();
+
+        /// Filas de una tabla. [since] es la versión del esquema en la que
+        /// se creó: un respaldo anterior a ella no la trae, y es correcto.
+        /// Que falte una tabla que sí debería estar es un archivo dañado.
+        Iterable<Map<String, dynamic>> rows(String name, {int since = 1}) {
+          if (!tables.containsKey(name) && schemaVersion < since) {
+            return const [];
+          }
+          return (tables[name] as List).cast<Map<String, dynamic>>();
+        }
 
         // El orden importa: cada tabla va después de aquellas a las que
         // apunta con una llave foránea.
@@ -111,6 +119,33 @@ class BackupImporter {
           await _db
               .into(_db.apneaAttempts)
               .insert(ApneaAttempt.fromJson(row, serializer: _serializer));
+        }
+        for (final row in rows('nutritionPlans', since: 2)) {
+          await _db
+              .into(_db.nutritionPlans)
+              .insert(NutritionPlan.fromJson(row, serializer: _serializer));
+        }
+        for (final row in rows('planMenus', since: 2)) {
+          await _db
+              .into(_db.planMenus)
+              .insert(PlanMenu.fromJson(row, serializer: _serializer));
+        }
+        for (final row in rows('planMeals', since: 2)) {
+          await _db
+              .into(_db.planMeals)
+              .insert(PlanMeal.fromJson(row, serializer: _serializer));
+        }
+        for (final row in rows('planItems', since: 2)) {
+          await _db
+              .into(_db.planItems)
+              .insert(PlanItem.fromJson(row, serializer: _serializer));
+        }
+        for (final row in rows('supplementGuidelines', since: 2)) {
+          await _db
+              .into(_db.supplementGuidelines)
+              .insert(
+                SupplementGuideline.fromJson(row, serializer: _serializer),
+              );
         }
       });
     } on BackupImportException {

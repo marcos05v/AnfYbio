@@ -9,16 +9,20 @@ de la cantidad de funciones.
 
 ## Estado
 
-**Fase 1 — Entrenamiento**, completa.
+**Fase 1 — Entrenamiento**, completa. **Fase 2 — Nutrición**, en desarrollo.
 
-Registro, edición y borrado de sesiones de fuerza, natación, carrera y apnea;
-1RM estimado con gráficas por ejercicio; carga sRPE con resumen semanal;
-respaldo y restauración en un archivo JSON; modo claro y oscuro.
+- Fase 1: registro, edición y borrado de sesiones de fuerza, natación, carrera
+  y apnea; 1RM estimado con gráficas por ejercicio; carga sRPE con resumen
+  semanal; respaldo y restauración en un archivo JSON; modo claro y oscuro.
+- Fase 2, hecho: plan de alimentación con menús por tipo de día, captura y
+  edición manual, y guía de suplementos.
+- Fase 2, pendiente: importar el plan desde PDF, rutina de entrenamiento y
+  lotes de cocción.
 
 | Fase | Contenido | Estado |
 |---|---|---|
 | 1 | Entrenamiento: fuerza, natación, carrera, apnea, carga sRPE, exportación | Completa |
-| 2 | Nutrición: plan alimenticio, lotes de cocción, sustituciones | Pendiente |
+| 2 | Nutrición: plan alimenticio, lotes de cocción, sustituciones | En desarrollo |
 | 3 | Suplementos: inventario, recordatorios, adherencia | Pendiente |
 | 4 | Catálogo de ejercicios e importación desde PDF | Pendiente |
 
