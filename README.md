@@ -9,17 +9,15 @@ de la cantidad de funciones.
 
 ## Estado
 
-**Fase 1 — Entrenamiento**, en desarrollo.
+**Fase 1 — Entrenamiento**, completa.
 
-- Hecho: modelo de datos completo, lógica de dominio (1RM, carga sRPE, carga
-  aguda vs crónica, ritmos), registro, edición y borrado de sesiones de fuerza,
-  natación, carrera y apnea, resumen semanal de carga, gráficas de 1RM por
-  ejercicio, modo claro y oscuro, y exportación de respaldo a un archivo JSON.
-- Pendiente: importación de un respaldo.
+Registro, edición y borrado de sesiones de fuerza, natación, carrera y apnea;
+1RM estimado con gráficas por ejercicio; carga sRPE con resumen semanal;
+respaldo y restauración en un archivo JSON; modo claro y oscuro.
 
 | Fase | Contenido | Estado |
 |---|---|---|
-| 1 | Entrenamiento: fuerza, natación, carrera, apnea, carga sRPE, exportación | En desarrollo |
+| 1 | Entrenamiento: fuerza, natación, carrera, apnea, carga sRPE, exportación | Completa |
 | 2 | Nutrición: plan alimenticio, lotes de cocción, sustituciones | Pendiente |
 | 3 | Suplementos: inventario, recordatorios, adherencia | Pendiente |
 | 4 | Catálogo de ejercicios e importación desde PDF | Pendiente |

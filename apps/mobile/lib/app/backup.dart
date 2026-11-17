@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'dart:ui';
 
+import 'package:file_selector/file_selector.dart' as selector;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../data/export/backup_exporter.dart';
+import '../data/export/backup_importer.dart';
 import 'providers.dart';
 
 final backupExporterProvider = Provider(
@@ -31,4 +33,27 @@ Future<void> _shareAsFile(Backup backup, {Rect? origin}) async {
       sharePositionOrigin: origin,
     ),
   );
+}
+
+final backupImporterProvider = Provider(
+  (ref) => BackupImporter(ref.watch(databaseProvider)),
+);
+
+/// Deja elegir un archivo y devuelve su contenido; `null` si se cancela.
+typedef BackupPicker = Future<String?> Function();
+
+/// En la app abre el selector de archivos de iOS; las pruebas lo reemplazan.
+final backupPickerProvider = Provider<BackupPicker>((ref) => _pickFile);
+
+Future<String?> _pickFile() async {
+  final file = await selector.openFile(
+    acceptedTypeGroups: const [
+      selector.XTypeGroup(
+        label: 'Respaldo de AnfYbio',
+        extensions: ['json'],
+        uniformTypeIdentifiers: ['public.json'],
+      ),
+    ],
+  );
+  return file?.readAsString();
 }

@@ -1,0 +1,55 @@
+name: App móvil
+
+# Solo corre cuando cambia la app o este mismo archivo (ADR-0001: monorepo
+# con filtros por ruta).
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/mobile/**
+      - .github/workflows/mobile.yml
+  pull_request:
+    paths:
+      - apps/mobile/**
+      - .github/workflows/mobile.yml
+
+# Un push nuevo cancela la ejecución anterior de la misma rama.
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Formato, análisis y pruebas
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.7
+          cache: true
+
+      - name: Dependencias
+        run: flutter pub get
+
+      # El código generado por drift está en el repo; si alguien cambia una
+      # tabla y olvida regenerarlo, este paso lo detecta.
+      - name: Código generado al día
+        run: |
+          dart run build_runner build
+          git diff --exit-code -- lib
+
+      - name: Formato
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Análisis estático
+        run: flutter analyze
+
+      - name: Pruebas
+        run: flutter test

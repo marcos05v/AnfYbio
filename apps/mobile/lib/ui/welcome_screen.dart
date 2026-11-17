@@ -1,7 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../app/backup.dart';
 import '../app/providers.dart';
+import '../data/export/backup_importer.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -27,6 +29,35 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     // Al crearse el usuario, currentUserProvider emite y la app cambia sola
     // a la pantalla de sesiones.
     await ref.read(userRepositoryProvider).createUser(_name.text);
+  }
+
+  /// Restaura un respaldo. Solo se ofrece aquí, antes de que existan datos.
+  Future<void> _restore() async {
+    String? failure;
+    try {
+      final json = await ref.read(backupPickerProvider)();
+      if (json == null) return; // se canceló el selector
+      // Al importarse el usuario, la app pasa sola a la pantalla de sesiones.
+      await ref.read(backupImporterProvider).import(json);
+    } on BackupImportException catch (error) {
+      failure = error.message;
+    } catch (_) {
+      failure = 'No se pudo leer el archivo.';
+    }
+    if (failure == null || !mounted) return;
+    await showCupertinoDialog<void>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('No se pudo restaurar'),
+        content: Text(failure!),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Aceptar'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -94,6 +125,10 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
               ),
               const Spacer(flex: 2),
               PrimaryButton(label: 'Empezar', onPressed: _start),
+              CupertinoButton(
+                onPressed: _restore,
+                child: const Text('Restaurar un respaldo'),
+              ),
             ],
           ),
         ),

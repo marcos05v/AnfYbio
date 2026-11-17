@@ -461,6 +461,85 @@ void main() {
     await shutDown(tester);
   });
 
+  group('restaurar un respaldo', () {
+    Future<void> pumpWithPicker(
+      WidgetTester tester,
+      Future<String?> Function() picker,
+    ) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            sharedPreferencesProvider.overrideWithValue(preferences),
+            backupPickerProvider.overrideWithValue(picker),
+          ],
+          child: const AnfybioApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    /// Respaldo de otra instalación con un usuario y una sesión terminada.
+    Future<String> backupFromAnotherPhone() async {
+      final other = AppDatabase(NativeDatabase.memory());
+      final user = await other
+          .into(other.users)
+          .insertReturning(UsersCompanion.insert(displayName: 'Marcos'));
+      final repository = TrainingRepository(other);
+      final session = await repository.startSession(
+        userId: user.id,
+        type: SessionType.run,
+      );
+      await repository.finishSession(
+        session.id,
+        durationS: 1800,
+        sessionRpe: 6,
+      );
+      final backup = await BackupExporter(other).export(user.id);
+      await other.close();
+      return backup.json;
+    }
+
+    testWidgets('desde la bienvenida, entra a la app con los datos', (
+      tester,
+    ) async {
+      final json = await tester.runAsync(backupFromAnotherPhone);
+      await pumpWithPicker(tester, () async => json);
+
+      await tap(tester, find.text('Restaurar un respaldo'));
+
+      expect(find.text('Hola, Marcos'), findsOneWidget);
+      expect(find.text('30 min · RPE 6 · carga 180'), findsOneWidget);
+      await shutDown(tester);
+    });
+
+    testWidgets('un archivo que no es un respaldo muestra el motivo', (
+      tester,
+    ) async {
+      await pumpWithPicker(tester, () async => 'esto no es un respaldo');
+
+      await tap(tester, find.text('Restaurar un respaldo'));
+
+      expect(find.text('No se pudo restaurar'), findsOneWidget);
+      expect(find.textContaining('no es un respaldo'), findsOneWidget);
+      await tap(tester, find.text('Aceptar'));
+      expect(find.text('¿Cómo te llamas?'), findsOneWidget);
+      await shutDown(tester);
+    });
+
+    testWidgets('cancelar el selector deja la bienvenida como estaba', (
+      tester,
+    ) async {
+      await pumpWithPicker(tester, () async => null);
+
+      await tap(tester, find.text('Restaurar un respaldo'));
+
+      expect(find.text('¿Cómo te llamas?'), findsOneWidget);
+      expect(find.text('No se pudo restaurar'), findsNothing);
+      await shutDown(tester);
+    });
+  });
+
   testWidgets('el modo oscuro se aplica y se recuerda', (tester) async {
     await createUser();
     await pumpApp(tester);

@@ -16,6 +16,7 @@ lo reemplaza y el anterior se marca como "Reemplazado por ADR-XXXX".
 | [0004](0004-riverpod-para-el-manejo-de-estado.md) | Riverpod para el manejo de estado | Aceptado |
 | [0005](0005-respaldo-en-json.md) | Respaldo de datos en un archivo JSON versionado | Aceptado |
 | [0006](0006-fl-chart-para-las-graficas.md) | fl_chart para las gráficas | Aceptado |
+| [0007](0007-importar-solo-en-instalacion-nueva.md) | Un respaldo solo se restaura en una instalación sin datos | Aceptado |
 
 ## Decisiones abiertas
 
