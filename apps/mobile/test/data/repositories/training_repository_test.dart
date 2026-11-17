@@ -351,6 +351,85 @@ void main() {
     });
   });
 
+  group('lecturas de resistencia', () {
+    test(
+      'los parciales de natación llegan ordenados y sin los borrados',
+      () async {
+        final session = await repo.startSwimSession(
+          userId: userId,
+          poolLengthM: 25,
+        );
+        await repo.addSwimInterval(
+          sessionId: session.id,
+          stroke: SwimStroke.freestyle,
+          distanceM: 50,
+          durationMs: 47000,
+          lapSplitsMs: [23000, 24000],
+        );
+
+        final detail = await repo.watchSwimDetail(session.id).first;
+        final blocks = await repo.watchSwimIntervalsOf(session.id).first;
+        final laps = await repo.watchSwimLapsOf(session.id).first;
+        expect(detail!.poolLengthM, 25);
+        expect(blocks.single.distanceM, 50);
+        expect(laps.map((l) => l.splitMs), [23000, 24000]);
+
+        await repo.deleteSession(session.id);
+        expect(await repo.watchSwimDetail(session.id).first, isNull);
+        expect(await repo.watchSwimIntervalsOf(session.id).first, isEmpty);
+        expect(await repo.watchSwimLapsOf(session.id).first, isEmpty);
+      },
+    );
+
+    test('los parciales de otra sesión no se mezclan', () async {
+      final first = await repo.startSwimSession(
+        userId: userId,
+        poolLengthM: 25,
+      );
+      final second = await repo.startSwimSession(
+        userId: userId,
+        poolLengthM: 50,
+      );
+      await repo.addSwimInterval(
+        sessionId: first.id,
+        stroke: SwimStroke.freestyle,
+        distanceM: 25,
+        durationMs: 20000,
+        lapSplitsMs: [20000],
+      );
+
+      expect(await repo.watchSwimLapsOf(second.id).first, isEmpty);
+    });
+
+    test('la distancia de carrera es nula hasta que se registra', () async {
+      final id = await start(SessionType.run);
+      expect(await repo.watchRunDetail(id).first, isNull);
+
+      await repo.setRunDistance(id, distanceM: 5000);
+      expect((await repo.watchRunDetail(id).first)!.distanceM, 5000);
+    });
+
+    test('los intentos de apnea llegan en orden', () async {
+      final id = await start(SessionType.apnea);
+      await repo.addApneaAttempt(
+        sessionId: id,
+        kind: ApneaKind.static,
+        durationMs: 120000,
+      );
+      await repo.addApneaAttempt(
+        sessionId: id,
+        kind: ApneaKind.dynamic,
+        distanceM: 50,
+      );
+
+      final attempts = await repo.watchApneaAttemptsOf(id).first;
+      expect(attempts.map((a) => a.kind), [
+        ApneaKind.static,
+        ApneaKind.dynamic,
+      ]);
+    });
+  });
+
   group('carga', () {
     Future<void> finished(
       DateTime startedAt, {

@@ -117,4 +117,69 @@ void main() {
       expect(summary.acute, 100);
     });
   });
+
+  group('carga por semana', () {
+    final today = DateTime(2026, 11, 16);
+    LoadEntry daysAgo(int days, double load) => LoadEntry(
+      day: today.subtract(Duration(days: days)),
+      load: load,
+    );
+
+    test('devuelve las semanas de la más antigua a la actual', () {
+      final loads = weeklyLoads([
+        daysAgo(0, 100), // semana actual
+        daysAgo(6, 50), // semana actual
+        daysAgo(7, 300), // semana anterior
+        daysAgo(27, 800), // hace 3 semanas
+      ], asOf: today);
+
+      expect(loads, [800, 0, 300, 150]);
+    });
+
+    test('la semana actual coincide con la carga aguda', () {
+      final entries = [daysAgo(2, 420), daysAgo(5, 156), daysAgo(9, 999)];
+
+      expect(
+        weeklyLoads(entries, asOf: today).last,
+        summarizeLoad(entries, asOf: today).acute,
+      );
+    });
+
+    test('ignora lo que queda fuera del periodo y lo futuro', () {
+      final loads = weeklyLoads([
+        daysAgo(28, 500),
+        LoadEntry(day: today.add(const Duration(days: 1)), load: 500),
+      ], asOf: today);
+
+      expect(loads, [0, 0, 0, 0]);
+    });
+
+    test('sin registros, todas las semanas valen cero', () {
+      expect(weeklyLoads([], asOf: today, weeks: 3), [0, 0, 0]);
+    });
+  });
+
+  group('semanas de historial', () {
+    final today = DateTime(2026, 11, 16);
+    LoadEntry daysAgo(int days) =>
+        LoadEntry(day: today.subtract(Duration(days: days)), load: 100);
+
+    test('sin registros no hay semanas', () {
+      expect(weeksOfHistory([], asOf: today), 0);
+    });
+
+    test('un registro de esta semana cuenta una semana', () {
+      expect(weeksOfHistory([daysAgo(0)], asOf: today), 1);
+      expect(weeksOfHistory([daysAgo(6)], asOf: today), 1);
+    });
+
+    test('crece con el registro más antiguo', () {
+      expect(weeksOfHistory([daysAgo(7)], asOf: today), 2);
+      expect(weeksOfHistory([daysAgo(2), daysAgo(30)], asOf: today), 5);
+    });
+
+    test('ignora los registros futuros', () {
+      expect(weeksOfHistory([daysAgo(-3)], asOf: today), 0);
+    });
+  });
 }

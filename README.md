@@ -12,9 +12,10 @@ de la cantidad de funciones.
 **Fase 1 — Entrenamiento**, en desarrollo.
 
 - Hecho: modelo de datos completo, lógica de dominio (1RM, carga sRPE, carga
-  aguda vs crónica, ritmos) y registro de sesiones de fuerza.
-- Pendiente: pantallas de natación, carrera y apnea, gráficas históricas, vista
-  de carga y exportación de datos.
+  aguda vs crónica, ritmos) y registro de sesiones de fuerza, natación, carrera
+  y apnea, con modo claro y oscuro.
+- Pendiente: editar o borrar registros individuales, gráficas históricas por
+  ejercicio y exportación de datos.
 
 | Fase | Contenido | Estado |
 |---|---|---|

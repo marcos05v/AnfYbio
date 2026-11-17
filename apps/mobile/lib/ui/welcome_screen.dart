@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/providers.dart';
+import 'theme.dart';
+import 'widgets.dart';
 
 /// Primera apertura: pide el nombre y crea el usuario local.
 class WelcomeScreen extends ConsumerStatefulWidget {
@@ -29,31 +31,69 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
+    return CupertinoPageScaffold(
+      child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(screenPadding + 4),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('AnfYbio', style: Theme.of(context).textTheme.displaySmall),
-              const SizedBox(height: 8),
-              const Text('¿Cómo te llamas?'),
+              const Spacer(),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: resolveColor(context, accentColor),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Icon(
+                    CupertinoIcons.drop_fill,
+                    size: 32,
+                    color: resolveColor(context, onAccentColor),
+                  ),
+                ),
+              ),
               const SizedBox(height: 24),
-              TextField(
+              Text(
+                'AnfYbio',
+                style: textStyle(context, size: 36, weight: FontWeight.w700),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Fuerza y resistencia en un solo registro.',
+                style: textStyle(
+                  context,
+                  color: CupertinoColors.secondaryLabel,
+                ),
+              ),
+              const SizedBox(height: 36),
+              Text(
+                '¿Cómo te llamas?',
+                style: textStyle(context, weight: FontWeight.w600),
+              ),
+              const SizedBox(height: 10),
+              CupertinoTextField(
+                key: const Key('name'),
                 controller: _name,
+                placeholder: 'Tu nombre',
                 autofocus: true,
                 maxLength: 50,
                 textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre',
-                  border: OutlineInputBorder(),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 15,
                 ),
+                decoration: BoxDecoration(
+                  color: resolveColor(context, cardColor),
+                  borderRadius: BorderRadius.circular(cardRadius),
+                ),
+                style: textStyle(context),
                 onSubmitted: (_) => _start(),
               ),
-              const SizedBox(height: 12),
-              FilledButton(onPressed: _start, child: const Text('Empezar')),
+              const Spacer(flex: 2),
+              PrimaryButton(label: 'Empezar', onPressed: _start),
             ],
           ),
         ),

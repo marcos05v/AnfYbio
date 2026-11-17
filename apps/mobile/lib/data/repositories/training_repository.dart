@@ -274,6 +274,34 @@ class TrainingRepository {
     });
   }
 
+  /// Tamaño de alberca de la sesión; `null` si no es de natación.
+  Stream<SwimDetail?> watchSwimDetail(String sessionId) {
+    return (_db.select(_db.swimDetails)
+          ..where((d) => d.sessionId.equals(sessionId) & d.deletedAt.isNull()))
+        .watchSingleOrNull();
+  }
+
+  /// Bloques de una sesión de natación en el orden en que se nadaron.
+  Stream<List<SwimInterval>> watchSwimIntervalsOf(String sessionId) {
+    return (_db.select(_db.swimIntervals)
+          ..where((i) => i.sessionId.equals(sessionId) & i.deletedAt.isNull())
+          ..orderBy([(i) => OrderingTerm.asc(i.position)]))
+        .watch();
+  }
+
+  /// Parciales de todos los bloques de la sesión, ordenados por vuelta.
+  Stream<List<SwimLap>> watchSwimLapsOf(String sessionId) {
+    final intervalIds = _db.selectOnly(_db.swimIntervals)
+      ..addColumns([_db.swimIntervals.id])
+      ..where(_db.swimIntervals.sessionId.equals(sessionId));
+    return (_db.select(_db.swimLaps)
+          ..where(
+            (l) => l.intervalId.isInQuery(intervalIds) & l.deletedAt.isNull(),
+          )
+          ..orderBy([(l) => OrderingTerm.asc(l.lapNumber)]))
+        .watch();
+  }
+
   // ----------------------------------------------------------------- carrera
 
   /// Guarda la distancia de una sesión de carrera.
@@ -303,6 +331,13 @@ class TrainingRepository {
             );
       }
     });
+  }
+
+  /// Distancia de la sesión de carrera; `null` si aún no se registra.
+  Stream<RunDetail?> watchRunDetail(String sessionId) {
+    return (_db.select(_db.runDetails)
+          ..where((d) => d.sessionId.equals(sessionId) & d.deletedAt.isNull()))
+        .watchSingleOrNull();
   }
 
   // ------------------------------------------------------------------- apnea
@@ -338,6 +373,14 @@ class TrainingRepository {
             ),
           );
     });
+  }
+
+  /// Intentos de una sesión de apnea en el orden en que se hicieron.
+  Stream<List<ApneaAttempt>> watchApneaAttemptsOf(String sessionId) {
+    return (_db.select(_db.apneaAttempts)
+          ..where((a) => a.sessionId.equals(sessionId) & a.deletedAt.isNull())
+          ..orderBy([(a) => OrderingTerm.asc(a.position)]))
+        .watch();
   }
 
   // ------------------------------------------------------------------- carga

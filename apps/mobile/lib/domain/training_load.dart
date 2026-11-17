@@ -70,6 +70,42 @@ LoadSummary summarizeLoad(List<LoadEntry> entries, {required DateTime asOf}) {
   );
 }
 
+/// Carga total de cada una de las últimas [weeks] semanas, de la más
+/// antigua a la actual.
+///
+/// Cada "semana" es una ventana de 7 días que termina en [asOf] (la actual)
+/// o en múltiplos de 7 días antes; no depende de en qué día cae el lunes.
+List<double> weeklyLoads(
+  List<LoadEntry> entries, {
+  required DateTime asOf,
+  int weeks = 4,
+}) {
+  final today = _dayNumber(asOf);
+  final totals = List<double>.filled(weeks, 0);
+  for (final entry in entries) {
+    final age = today - _dayNumber(entry.day);
+    if (age < 0) continue;
+    final weeksAgo = age ~/ acuteDays;
+    if (weeksAgo < weeks) totals[weeks - 1 - weeksAgo] += entry.load;
+  }
+  return totals;
+}
+
+/// Cuántas semanas (ventanas de 7 días que terminan en [asOf]) hacen falta
+/// para abarcar desde el registro más antiguo hasta hoy. Cero si no hay
+/// registros.
+int weeksOfHistory(List<LoadEntry> entries, {required DateTime asOf}) {
+  final today = _dayNumber(asOf);
+  var weeks = 0;
+  for (final entry in entries) {
+    final age = today - _dayNumber(entry.day);
+    if (age < 0) continue;
+    final needed = age ~/ acuteDays + 1;
+    if (needed > weeks) weeks = needed;
+  }
+  return weeks;
+}
+
 /// Número de día de calendario. Se calcula en UTC a partir de año, mes y día
 /// para que un cambio de horario (día de 23 o 25 horas) no desplace la cuenta.
 int _dayNumber(DateTime date) =>

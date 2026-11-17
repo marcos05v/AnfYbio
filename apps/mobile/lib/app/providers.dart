@@ -50,3 +50,28 @@ final exercisesProvider = StreamProvider.family<List<Exercise>, String>(
   (ref, userId) =>
       ref.watch(exerciseRepositoryProvider).watchExercisesOf(userId),
 );
+
+final swimDetailProvider = StreamProvider.family<SwimDetail?, String>(
+  (ref, sessionId) =>
+      ref.watch(trainingRepositoryProvider).watchSwimDetail(sessionId),
+);
+
+final swimIntervalsProvider = StreamProvider.family<List<SwimInterval>, String>(
+  (ref, sessionId) =>
+      ref.watch(trainingRepositoryProvider).watchSwimIntervalsOf(sessionId),
+);
+
+final swimLapsProvider = StreamProvider.family<List<SwimLap>, String>(
+  (ref, sessionId) =>
+      ref.watch(trainingRepositoryProvider).watchSwimLapsOf(sessionId),
+);
+
+final runDetailProvider = StreamProvider.family<RunDetail?, String>(
+  (ref, sessionId) =>
+      ref.watch(trainingRepositoryProvider).watchRunDetail(sessionId),
+);
+
+final apneaAttemptsProvider = StreamProvider.family<List<ApneaAttempt>, String>(
+  (ref, sessionId) =>
+      ref.watch(trainingRepositoryProvider).watchApneaAttemptsOf(sessionId),
+);
