@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:anfybio/app/appearance.dart';
+import 'package:anfybio/app/backup.dart';
 import 'package:anfybio/app/providers.dart';
 import 'package:anfybio/data/database.dart';
+import 'package:anfybio/data/export/backup_exporter.dart';
 import 'package:anfybio/data/repositories/training_repository.dart';
 import 'package:anfybio/data/tables/sessions.dart';
 import 'package:anfybio/domain/weight.dart';
@@ -260,6 +264,63 @@ void main() {
       find.text('Hace 3 semanas'),
       findsNothing,
     ); // no hay historial previo
+    await shutDown(tester);
+  });
+
+  testWidgets('exportar respaldo entrega un archivo con los datos', (
+    tester,
+  ) async {
+    await createUser();
+    final shared = <Backup>[];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          sharedPreferencesProvider.overrideWithValue(preferences),
+          // En vez de abrir la hoja de compartir, se guarda lo que recibiría.
+          backupSharerProvider.overrideWithValue(
+            (backup, {origin}) async => shared.add(backup),
+          ),
+        ],
+        child: const AnfybioApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tap(tester, find.byIcon(CupertinoIcons.gear_alt));
+    await tap(tester, find.text('Exportar respaldo'));
+
+    expect(shared.single.fileName, startsWith('anfybio-respaldo-'));
+    final document = jsonDecode(shared.single.json) as Map<String, dynamic>;
+    expect((document['user'] as Map)['displayName'], 'Ana');
+    await shutDown(tester);
+  });
+
+  testWidgets('si la exportación falla, avisa en vez de cerrarse', (
+    tester,
+  ) async {
+    await createUser();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          sharedPreferencesProvider.overrideWithValue(preferences),
+          backupSharerProvider.overrideWithValue(
+            (backup, {origin}) async =>
+                throw const FormatException('sin espacio'),
+          ),
+        ],
+        child: const AnfybioApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tap(tester, find.byIcon(CupertinoIcons.gear_alt));
+    await tap(tester, find.text('Exportar respaldo'));
+
+    expect(find.text('No se pudo exportar'), findsOneWidget);
+    await tap(tester, find.text('Aceptar'));
+    expect(find.text('Exportar respaldo'), findsOneWidget);
     await shutDown(tester);
   });
 
