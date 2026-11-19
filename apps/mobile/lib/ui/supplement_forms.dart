@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 
+import '../domain/supplement_inventory.dart';
 import 'formatting.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -11,10 +12,20 @@ typedef SupplementDraftData = ({
   double dailyDose,
   String timing,
   int restockLeadDays,
+
+  /// Contenido del envase que ya se tiene, en la unidad del suplemento.
   double? initialQuantity,
+  DateTime? purchasedAt,
+
+  /// Lo que se calcula ya consumido de ese envase.
+  double alreadyConsumed,
 });
 
 /// Alta o edición de un suplemento.
+///
+/// Al dar de alta pregunta la presentación (pastillas, polvo u otra), el
+/// contenido del envase, cuándo se compró y si ya se empezó a tomar. Con eso
+/// estima lo que queda, para no arrancar el inventario en blanco.
 class SupplementForm extends StatefulWidget {
   const SupplementForm({
     super.key,
@@ -25,6 +36,7 @@ class SupplementForm extends StatefulWidget {
     this.dailyDose,
     this.timing,
     this.restockLeadDays = 7,
+    this.initialPurchaseDate,
     this.onDelete,
   });
 
@@ -34,6 +46,9 @@ class SupplementForm extends StatefulWidget {
   final double? dailyDose;
   final String? timing;
   final int restockLeadDays;
+
+  /// Fecha de compra con la que se abre el formulario; hoy si es nula.
+  final DateTime? initialPurchaseDate;
   final Future<void> Function(SupplementDraftData data) onSave;
   final Future<void> Function()? onDelete;
 
@@ -43,7 +58,9 @@ class SupplementForm extends StatefulWidget {
 
 class _SupplementFormState extends State<SupplementForm> {
   late final _name = TextEditingController(text: widget.name);
-  late final _unit = TextEditingController(text: widget.unitLabel);
+  late final _unit = TextEditingController(
+    text: _presentation == SupplementPresentation.other ? widget.unitLabel : '',
+  );
   late final _dose = TextEditingController(
     text: widget.dailyDose == null
         ? null
@@ -51,34 +68,113 @@ class _SupplementFormState extends State<SupplementForm> {
   );
   late final _lead = TextEditingController(text: '${widget.restockLeadDays}');
   late final _timing = TextEditingController(text: widget.timing);
-  final _initial = TextEditingController();
+  final _content = TextEditingController();
+
+  late SupplementPresentation _presentation = widget.unitLabel == null
+      ? SupplementPresentation.pills
+      : presentationOf(widget.unitLabel!);
+
+  /// El contenido de un polvo se puede escribir en kilos.
+  bool _inKilos = false;
+  late DateTime _purchasedOn = widget.initialPurchaseDate ?? DateTime.now();
+  bool _started = false;
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    // La estimación de lo que queda se recalcula al escribir.
+    _dose.addListener(_refresh);
+    _content.addListener(_refresh);
+  }
+
+  void _refresh() => setState(() {});
+
+  @override
   void dispose() {
-    for (final c in [_name, _unit, _dose, _lead, _timing, _initial]) {
+    for (final c in [_name, _unit, _dose, _lead, _timing, _content]) {
       c.dispose();
     }
     super.dispose();
   }
 
+  String get _unitLabel => switch (_presentation) {
+    SupplementPresentation.pills => pillsUnit,
+    SupplementPresentation.powder => powderUnit,
+    SupplementPresentation.other => _unit.text.trim(),
+  };
+
+  /// Contenido del envase en la unidad del suplemento (los kilos, en gramos).
+  double? get _quantity {
+    final value = parseNumber(_content.text);
+    if (value == null) return null;
+    final inKilos = _presentation == SupplementPresentation.powder && _inKilos;
+    return inKilos ? value * 1000 : value;
+  }
+
+  /// Lo que se calcula ya tomado del envase, si se marcó como empezado.
+  double _consumed(double dose, double quantity) => _started
+      ? estimatedConsumed(
+          dailyDose: dose,
+          quantity: quantity,
+          purchasedOn: _purchasedOn,
+          today: DateTime.now(),
+        )
+      : 0;
+
+  Future<void> _pickDate() async {
+    final today = DateTime.now();
+    var picked = _purchasedOn;
+    await showCupertinoModalPopup<void>(
+      context: context,
+      builder: (context) => Container(
+        height: 300,
+        color: resolveColor(context, sheetColor),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: CupertinoButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Listo'),
+                ),
+              ),
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.date,
+                  initialDateTime: picked,
+                  maximumDate: today,
+                  minimumDate: DateTime(today.year - 3),
+                  onDateTimeChanged: (date) => picked = date,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    setState(() => _purchasedOn = picked);
+  }
+
   Future<void> _save() async {
     final dose = parseNumber(_dose.text);
     final lead = int.tryParse(_lead.text.trim());
-    final initialText = _initial.text.trim();
-    final initial = initialText.isEmpty ? null : parseNumber(initialText);
+    final hasContent = _content.text.trim().isNotEmpty;
+    final quantity = _quantity;
 
     String? error;
     if (_name.text.trim().isEmpty) {
       error = 'Escribe el nombre del suplemento.';
-    } else if (_unit.text.trim().isEmpty) {
-      error = 'Escribe la unidad: g, cápsulas, scoops…';
+    } else if (_unitLabel.isEmpty) {
+      error = 'Escribe en qué se mide: ml, scoops, gotas…';
     } else if (dose == null || dose <= 0) {
-      error = 'Escribe cuánto tomas al día, en esa unidad.';
+      error = 'Escribe cuánto tomas al día.';
+    } else if (hasContent && (quantity == null || quantity <= 0)) {
+      error = 'El contenido del envase debe ser un número mayor que cero.';
     } else if (lead == null || lead < 0) {
       error = 'Los días de aviso deben ser un número entero.';
-    } else if (initialText.isNotEmpty && (initial == null || initial <= 0)) {
-      error = 'Lo que tienes ahora debe ser un número mayor que cero.';
     }
     if (error != null) {
       setState(() => _error = error);
@@ -88,11 +184,21 @@ class _SupplementFormState extends State<SupplementForm> {
     final navigator = Navigator.of(context);
     await widget.onSave((
       name: _name.text,
-      unitLabel: _unit.text,
+      unitLabel: _unitLabel,
       dailyDose: dose!,
       timing: _timing.text,
       restockLeadDays: lead!,
-      initialQuantity: initial,
+      initialQuantity: quantity,
+      // Mediodía local: la fecha no cambia de día al pasar a UTC.
+      purchasedAt: quantity == null
+          ? null
+          : DateTime(
+              _purchasedOn.year,
+              _purchasedOn.month,
+              _purchasedOn.day,
+              12,
+            ),
+      alreadyConsumed: quantity == null ? 0 : _consumed(dose, quantity),
     ));
     navigator.pop();
   }
@@ -103,9 +209,37 @@ class _SupplementFormState extends State<SupplementForm> {
     navigator.pop();
   }
 
+  /// Frase con lo que la app calcula que queda del envase.
+  String? _estimate() {
+    final dose = parseNumber(_dose.text);
+    final quantity = _quantity;
+    if (dose == null || dose <= 0 || quantity == null || quantity <= 0) {
+      return null;
+    }
+    final unit = _unitLabel;
+    if (!_started) {
+      return 'Empiezas con ${formatQuantity(quantity, unit)}: alcanza '
+          '${formatDaysLeft((quantity / dose).floor())}.';
+    }
+    final consumed = _consumed(dose, quantity);
+    final left = quantity - consumed;
+    return 'Tomando ${formatQuantity(dose, unit)} al día desde el '
+        '${formatShortDate(_purchasedOn)}, se calcula que llevas '
+        '${formatQuantity(consumed, unit)} y te quedan '
+        '${formatQuantity(left, unit)}. Podrás corregirlo después.';
+  }
+
   @override
   Widget build(BuildContext context) {
     const decimal = TextInputType.numberWithOptions(decimal: true);
+    final isPowder = _presentation == SupplementPresentation.powder;
+    final secondary = textStyle(
+      context,
+      size: 13,
+      color: CupertinoColors.secondaryLabel,
+    );
+    final estimate = widget.isEditing ? null : _estimate();
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -116,19 +250,41 @@ class _SupplementFormState extends State<SupplementForm> {
           placeholder: 'Suplemento (Creatina)',
           autofocus: !widget.isEditing && widget.name == null,
         ),
+        const SizedBox(height: 14),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text('¿En qué presentación viene?', style: secondary),
+        ),
+        CupertinoSlidingSegmentedControl<SupplementPresentation>(
+          groupValue: _presentation,
+          padding: const EdgeInsets.all(4),
+          children: const {
+            SupplementPresentation.pills: _Segment('Pastillas'),
+            SupplementPresentation.powder: _Segment('Polvo'),
+            SupplementPresentation.other: _Segment('Otra'),
+          },
+          onValueChanged: (value) {
+            if (value != null) setState(() => _presentation = value);
+          },
+        ),
         const SizedBox(height: 12),
         CardGroup(
           children: [
-            FormRow(
-              label: 'Unidad',
-              child: RowTextField(
-                key: const Key('supUnit'),
-                controller: _unit,
-                placeholder: 'g, cápsulas…',
+            if (_presentation == SupplementPresentation.other)
+              FormRow(
+                label: 'Se mide en',
+                child: RowTextField(
+                  key: const Key('supUnit'),
+                  controller: _unit,
+                  placeholder: 'ml, scoops, gotas…',
+                ),
               ),
-            ),
             FormRow(
-              label: 'Dosis diaria',
+              label: switch (_presentation) {
+                SupplementPresentation.pills => 'Pastillas al día',
+                SupplementPresentation.powder => 'Gramos al día',
+                SupplementPresentation.other => 'Cantidad al día',
+              },
               child: RowTextField(
                 key: const Key('supDose'),
                 controller: _dose,
@@ -136,16 +292,6 @@ class _SupplementFormState extends State<SupplementForm> {
                 keyboardType: decimal,
               ),
             ),
-            if (!widget.isEditing)
-              FormRow(
-                label: 'Tengo ahora',
-                child: RowTextField(
-                  key: const Key('supInitial'),
-                  controller: _initial,
-                  placeholder: 'Opcional',
-                  keyboardType: decimal,
-                ),
-              ),
             FormRow(
               label: 'Avisar con (días)',
               child: RowTextField(
@@ -157,18 +303,78 @@ class _SupplementFormState extends State<SupplementForm> {
             ),
           ],
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 10, 4, 0),
-          child: Text(
-            'Usa la misma unidad para todo: si el frasco trae 60 cápsulas y '
-            'tomas una al día, la unidad es "cápsulas" y la dosis es 1.',
-            style: textStyle(
-              context,
-              size: 13,
-              color: CupertinoColors.secondaryLabel,
+        if (!widget.isEditing) ...[
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            child: Text('El envase que tienes', style: secondary),
+          ),
+          CardGroup(
+            children: [
+              FormRow(
+                label: switch (_presentation) {
+                  SupplementPresentation.pills => 'Pastillas que trae',
+                  _ => 'Contenido',
+                },
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: RowTextField(
+                        key: const Key('supContent'),
+                        controller: _content,
+                        placeholder: '0',
+                        keyboardType: decimal,
+                      ),
+                    ),
+                    if (isPowder) ...[
+                      const SizedBox(width: 12),
+                      CupertinoSlidingSegmentedControl<bool>(
+                        groupValue: _inKilos,
+                        children: const {
+                          false: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 6),
+                            child: Text('g'),
+                          ),
+                          true: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 6),
+                            child: Text('kg'),
+                          ),
+                        },
+                        onValueChanged: (value) {
+                          if (value != null) setState(() => _inKilos = value);
+                        },
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              PickerRow(
+                key: const Key('supPurchaseDate'),
+                label: 'Lo compré el',
+                value: formatShortDate(_purchasedOn),
+                onPressed: _pickDate,
+              ),
+              FormRow(
+                label: 'Ya lo empecé a tomar',
+                child: CupertinoSwitch(
+                  key: const Key('supStarted'),
+                  value: _started,
+                  onChanged: (value) => setState(() => _started = value),
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 10, 4, 0),
+            child: Text(
+              estimate ??
+                  'Con el contenido del envase y la fecha de compra, la app '
+                      'calcula cuánto te queda.',
+              key: const Key('supEstimate'),
+              style: secondary,
             ),
           ),
-        ),
+        ],
         const SizedBox(height: 12),
         CardTextField(
           key: const Key('supTiming'),
@@ -186,6 +392,20 @@ class _SupplementFormState extends State<SupplementForm> {
           onDelete: widget.onDelete == null ? null : _delete,
         ),
       ],
+    );
+  }
+}
+
+class _Segment extends StatelessWidget {
+  const _Segment(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Text(label, style: textStyle(context, size: 15)),
     );
   }
 }
@@ -213,6 +433,10 @@ class QuantityForm extends StatefulWidget {
 
   /// Corregir existencias admite cero ("ya no queda nada").
   final bool allowZero;
+
+  /// Si la unidad son gramos, deja escribir la cantidad en kilos.
+  bool get _canUseKilos =>
+      presentationOf(unitLabel) == SupplementPresentation.powder;
   final double? initial;
   final Future<void> Function(double quantity, String note) onSave;
 
@@ -227,6 +451,7 @@ class _QuantityFormState extends State<QuantityForm> {
         : formatNumber(widget.initial!, decimals: 1),
   );
   final _note = TextEditingController();
+  bool _inKilos = false;
   String? _error;
 
   @override
@@ -245,7 +470,7 @@ class _QuantityFormState extends State<QuantityForm> {
       return;
     }
     final navigator = Navigator.of(context);
-    await widget.onSave(quantity, _note.text);
+    await widget.onSave(_inKilos ? quantity * 1000 : quantity, _note.text);
     navigator.pop();
   }
 
@@ -258,15 +483,42 @@ class _QuantityFormState extends State<QuantityForm> {
         CardGroup(
           children: [
             FormRow(
-              label: '${widget.label} (${widget.unitLabel})',
-              child: RowTextField(
-                key: const Key('quantity'),
-                controller: _quantity,
-                placeholder: '0',
-                autofocus: true,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
+              label: widget._canUseKilos
+                  ? widget.label
+                  : '${widget.label} (${widget.unitLabel})',
+              child: Row(
+                children: [
+                  Expanded(
+                    child: RowTextField(
+                      key: const Key('quantity'),
+                      controller: _quantity,
+                      placeholder: '0',
+                      autofocus: true,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                    ),
+                  ),
+                  if (widget._canUseKilos) ...[
+                    const SizedBox(width: 12),
+                    CupertinoSlidingSegmentedControl<bool>(
+                      groupValue: _inKilos,
+                      children: const {
+                        false: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 6),
+                          child: Text('g'),
+                        ),
+                        true: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 6),
+                          child: Text('kg'),
+                        ),
+                      },
+                      onValueChanged: (value) {
+                        if (value != null) setState(() => _inKilos = value);
+                      },
+                    ),
+                  ],
+                ],
               ),
             ),
           ],

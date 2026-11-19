@@ -65,6 +65,22 @@ class BatchesScreen extends ConsumerWidget {
         ref.watch(cookingBatchesProvider(user.id)).value ?? const [];
     final choices = _choices(ref);
     final repository = ref.read(cookingRepositoryProvider);
+    // Todos los renglones del plan, para saber qué comidas cubre cada lote.
+    final portions = <PlanPortion>[
+      for (final menu
+          in ref.watch(activePlanProvider(user.id)).value?.menus ??
+              const <MenuView>[])
+        for (final meal in menu.meals)
+          for (final item in meal.items)
+            (
+              dayType: menu.menu.dayType,
+              mealName: meal.meal.name,
+              itemName: item.name,
+              amount: item.amount,
+              unit: item.unit,
+              state: item.state,
+            ),
+    ];
 
     void openForm({CookingBatch? editing}) {
       showAppSheet<void>(
@@ -119,8 +135,8 @@ class BatchesScreen extends ConsumerWidget {
                       ),
                       children: [
                         Text(
-                          'El plan usa el lote más reciente de cada alimento '
-                          'para decirte cuántos gramos cocidos servir.',
+                          'Cada lote te dice cuántos gramos ya cocidos servirte '
+                          'en cada comida para cumplir tu plan.',
                           style: textStyle(
                             context,
                             size: 15,
@@ -128,15 +144,23 @@ class BatchesScreen extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        CardGroup(
-                          children: [
-                            for (final batch in batches)
-                              _BatchRow(
-                                batch: batch,
-                                onTap: () => openForm(editing: batch),
+                        for (final batch in batches) ...[
+                          _BatchCard(
+                            batch: batch,
+                            servings: batchServings(
+                              batch: (
+                                foodName: batch.foodName,
+                                rawG: batch.rawWeightG,
+                                cookedG: batch.cookedWeightG,
+                                withOtherIngredients:
+                                    batch.withOtherIngredients,
                               ),
-                          ],
-                        ),
+                              portions: portions,
+                            ),
+                            onTap: () => openForm(editing: batch),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
                       ],
                     ),
             ),
@@ -260,6 +284,110 @@ class _BatchRow extends StatelessWidget {
             size: 16,
             color: resolveColor(context, CupertinoColors.tertiaryLabel),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Un lote con las porciones del plan que cubre: cuánto servir en cada
+/// comida. El encabezado se toca para editar el lote.
+class _BatchCard extends StatelessWidget {
+  const _BatchCard({
+    required this.batch,
+    required this.servings,
+    required this.onTap,
+  });
+
+  final CookingBatch batch;
+  final List<BatchServing> servings;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final secondary = textStyle(
+      context,
+      size: 13,
+      color: CupertinoColors.secondaryLabel,
+    );
+    final divider = Container(
+      height: 0.5,
+      margin: const EdgeInsets.only(left: 16),
+      color: resolveColor(context, CupertinoColors.separator),
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: resolveColor(context, cardColor),
+        borderRadius: BorderRadius.circular(cardRadius),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _BatchRow(batch: batch, onTap: onTap),
+          divider,
+          if (servings.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Tu plan no pide este alimento en crudo, así que no hay '
+                'porciones que convertir.',
+                style: secondary,
+              ),
+            )
+          else ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Text(
+                batch.withOtherIngredients
+                    ? 'Sírvete, ya cocido (aproximado)'
+                    : 'Sírvete, ya cocido',
+                style: textStyle(
+                  context,
+                  size: 13,
+                  weight: FontWeight.w600,
+                  color: CupertinoColors.secondaryLabel,
+                ),
+              ),
+            ),
+            for (final serving in servings)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(serving.mealName, style: textStyle(context)),
+                          Text(
+                            '${dayTypeLabel(serving.dayType)} · el plan pide '
+                            '${formatNumber(serving.rawG, decimals: 0)} g en '
+                            'crudo',
+                            style: secondary,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      '${formatNumber(serving.cookedG, decimals: 0)} g',
+                      style: textStyle(
+                        context,
+                        size: 20,
+                        weight: FontWeight.w700,
+                        color: accentColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 8),
+          ],
         ],
       ),
     );

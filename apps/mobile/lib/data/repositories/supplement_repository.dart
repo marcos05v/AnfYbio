@@ -54,8 +54,12 @@ class SupplementRepository {
 
   // ------------------------------------------------------------- suplementos
 
-  /// Da de alta un suplemento. Con [initialQuantity] registra además lo que
-  /// ya se tiene, como primera compra.
+  /// Da de alta un suplemento. Con [initialQuantity] registra además el
+  /// envase que ya se tiene como primera compra, con fecha [purchasedAt].
+  ///
+  /// Si el envase ya está empezado, [alreadyConsumed] es lo que se calcula
+  /// que se ha tomado: se anota como un ajuste, no como tomas, para que no
+  /// cuente en la adherencia.
   Future<Supplement> addSupplement({
     required String userId,
     required String name,
@@ -64,6 +68,8 @@ class SupplementRepository {
     String? timing,
     int restockLeadDays = 7,
     double? initialQuantity,
+    DateTime? purchasedAt,
+    double alreadyConsumed = 0,
   }) {
     return _db.transaction(() async {
       final supplement = await _db
@@ -79,7 +85,20 @@ class SupplementRepository {
             ),
           );
       if (initialQuantity != null && initialQuantity > 0) {
-        await _insertPurchase(supplement, initialQuantity, null, null);
+        await _insertPurchase(supplement, initialQuantity, purchasedAt, null);
+        if (alreadyConsumed > 0) {
+          await _db
+              .into(_db.supplementIntakes)
+              .insert(
+                SupplementIntakesCompanion.insert(
+                  userId: userId,
+                  supplementId: supplement.id,
+                  takenAt: _now(),
+                  amount: alreadyConsumed,
+                  isAdjustment: const Value(true),
+                ),
+              );
+        }
       }
       return supplement;
     });

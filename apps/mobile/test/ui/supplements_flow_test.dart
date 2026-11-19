@@ -5,6 +5,7 @@ import 'package:anfybio/data/repositories/nutrition_repository.dart';
 import 'package:anfybio/data/repositories/supplement_repository.dart';
 import 'package:anfybio/domain/nutrition.dart';
 import 'package:anfybio/ui/app.dart';
+import 'package:anfybio/ui/supplement_forms.dart';
 import 'package:anfybio/ui/widgets.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/cupertino.dart';
@@ -50,7 +51,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tap(tester, find.byIcon(CupertinoIcons.capsule_fill));
+    await tap(tester, find.text('Suplementos'));
   }
 
   Future<void> shutDown(WidgetTester tester) async {
@@ -102,9 +103,13 @@ void main() {
 
       await tap(tester, find.text('Agregar suplemento'));
       await type(tester, 'supName', 'Creatina');
-      await type(tester, 'supUnit', 'g');
+      await tap(tester, find.text('Polvo'));
       await type(tester, 'supDose', '5');
-      await type(tester, 'supInitial', '300');
+      await type(tester, 'supContent', '300');
+      expect(
+        tester.widget<Text>(find.byKey(const Key('supEstimate'))).data,
+        'Empiezas con 300 g: alcanza 60 días.',
+      );
       await tap(tester, find.text('Guardar suplemento'));
 
       expect(find.text('Creatina'), findsOneWidget);
@@ -125,16 +130,119 @@ void main() {
     expect(find.text('De la guía de tu plan'), findsOneWidget);
     await tap(tester, find.text('Vitamina D3'));
 
-    // "2,000 Ul" se lee como 2000 UI.
-    String field(String key) =>
-        tester.widget<RowTextField>(find.byKey(Key(key))).controller.text;
-    expect((field('supUnit'), field('supDose')), ('UI', '2000'));
+    // La guía dice "2,000 Ul": es la concentración de cada pastilla, así
+    // que se propone llevarlo en pastillas, una al día.
+    final dose = tester.widget<RowTextField>(find.byKey(const Key('supDose')));
+    expect(dose.controller.text, '1');
+    expect(find.text('Pastillas al día'), findsOneWidget);
+    expect(find.byKey(const Key('supUnit')), findsNothing);
 
-    await type(tester, 'supInitial', '120000');
+    await type(tester, 'supContent', '60');
     await tap(tester, find.text('Guardar suplemento'));
-    expect(find.text('Quedan 120000 UI · alcanza 60 días'), findsOneWidget);
+    expect(find.text('Quedan 60 pastillas · alcanza 60 días'), findsOneWidget);
     // El otro suplemento de la guía sigue disponible para agregar.
     expect(find.text('Agregar desde mi plan'), findsOneWidget);
+    await shutDown(tester);
+  });
+
+  testWidgets('de la guía, un polvo se propone en gramos con su dosis', (
+    tester,
+  ) async {
+    await planWithGuide();
+    await openSupplements(tester);
+
+    await tap(tester, find.text('Agregar desde mi plan'));
+    await tap(tester, find.text('Creatina Monohidratada'));
+
+    final dose = tester.widget<RowTextField>(find.byKey(const Key('supDose')));
+    expect(dose.controller.text, '5');
+    expect(find.text('Gramos al día'), findsOneWidget);
+    await shutDown(tester);
+  });
+
+  testWidgets('el contenido de un polvo se puede escribir en kilos', (
+    tester,
+  ) async {
+    await openSupplements(tester);
+    await tap(tester, find.text('Agregar suplemento'));
+    await type(tester, 'supName', 'Creatina');
+    await tap(tester, find.text('Polvo'));
+    await type(tester, 'supDose', '5');
+    await type(tester, 'supContent', '1');
+    await tap(tester, find.text('kg'));
+    await tap(tester, find.text('Guardar suplemento'));
+
+    expect(find.text('Quedan 1000 g · alcanza 200 días'), findsOneWidget);
+    await shutDown(tester);
+  });
+
+  testWidgets('otra presentación pide en qué se mide', (tester) async {
+    await openSupplements(tester);
+    await tap(tester, find.text('Agregar suplemento'));
+    await type(tester, 'supName', 'Vitamina B12');
+    await tap(tester, find.text('Otra'));
+    await type(tester, 'supDose', '2');
+    await type(tester, 'supContent', '60');
+    await tap(tester, find.text('Guardar suplemento'));
+    expect(find.textContaining('en qué se mide'), findsOneWidget);
+
+    await type(tester, 'supUnit', 'ml');
+    await tap(tester, find.text('Guardar suplemento'));
+    expect(find.text('Quedan 60 ml · alcanza 30 días'), findsOneWidget);
+    await shutDown(tester);
+  });
+
+  testWidgets('un envase ya empezado estima lo que queda desde la compra', (
+    tester,
+  ) async {
+    SupplementDraftData? saved;
+    final tenDaysAgo = DateTime.now().subtract(const Duration(days: 10));
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: CupertinoPageScaffold(
+          child: SafeArea(
+            child: SingleChildScrollView(
+              child: SupplementForm(
+                initialPurchaseDate: tenDaysAgo,
+                onSave: (data) async => saved = data,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await type(tester, 'supName', 'Zinc');
+    await type(tester, 'supDose', '1');
+    await type(tester, 'supContent', '60');
+
+    // Sin marcar "ya lo empecé", se parte del envase completo.
+    String estimate() =>
+        tester.widget<Text>(find.byKey(const Key('supEstimate'))).data!;
+    expect(estimate(), 'Empiezas con 60 pastillas: alcanza 60 días.');
+
+    await tap(tester, find.byKey(const Key('supStarted')));
+    expect(
+      estimate(),
+      contains('llevas 10 pastillas y te quedan 50 pastillas'),
+    );
+
+    await tap(tester, find.text('Guardar suplemento'));
+    expect(saved!.unitLabel, 'pastillas');
+    expect((saved!.initialQuantity, saved!.alreadyConsumed), (60, 10));
+    expect(saved!.purchasedAt!.day, tenDaysAgo.day);
+  });
+
+  testWidgets('sin envase, el suplemento empieza sin existencias', (
+    tester,
+  ) async {
+    await openSupplements(tester);
+    await tap(tester, find.text('Agregar suplemento'));
+    await type(tester, 'supName', 'Zinc');
+    await type(tester, 'supDose', '1');
+    await tap(tester, find.text('Guardar suplemento'));
+
+    expect(find.text('Sin existencias'), findsOneWidget);
+    expect(await db.select(db.supplementPurchases).get(), isEmpty);
     await shutDown(tester);
   });
 
@@ -221,6 +329,22 @@ void main() {
       await shutDown(tester);
     });
 
+    testWidgets('una compra de polvo se puede registrar en kilos', (
+      tester,
+    ) async {
+      await creatine(stock: 30);
+      await openSupplements(tester);
+      await tap(tester, find.text('Creatina'));
+
+      await tap(tester, find.text('Registrar compra'));
+      await type(tester, 'quantity', '0,5');
+      await tap(tester, find.text('kg'));
+      await tap(tester, find.text('Guardar compra'));
+
+      expect(find.text('530 g'), findsOneWidget);
+      await shutDown(tester);
+    });
+
     testWidgets('corregir existencias deja un ajuste que no cuenta como toma', (
       tester,
     ) async {
@@ -301,7 +425,6 @@ void main() {
     await openSupplements(tester);
     await tap(tester, find.text('Agregar suplemento'));
     await type(tester, 'supName', 'Zinc');
-    await type(tester, 'supUnit', 'cápsulas');
     await tap(tester, find.text('Guardar suplemento'));
 
     expect(find.textContaining('cuánto tomas al día'), findsOneWidget);

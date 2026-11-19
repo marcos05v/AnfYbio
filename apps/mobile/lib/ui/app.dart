@@ -10,6 +10,7 @@ import 'sessions_screen.dart';
 import 'supplements_screen.dart';
 import 'theme.dart';
 import 'welcome_screen.dart';
+import 'widgets.dart';
 
 class AnfybioApp extends ConsumerWidget {
   const AnfybioApp({super.key});
@@ -72,10 +73,7 @@ class _HomeTabs extends StatelessWidget {
             icon: Icon(CupertinoIcons.square_list_fill),
             label: 'Alimentación',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.capsule_fill),
-            label: 'Suplementos',
-          ),
+          BottomNavigationBarItem(icon: PillBottleIcon(), label: 'Suplementos'),
         ],
       ),
       tabBuilder: (context, index) => CupertinoTabView(

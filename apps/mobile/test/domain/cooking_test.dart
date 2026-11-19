@@ -159,4 +159,78 @@ void main() {
       expect(serving(batches: const []), isNull);
     });
   });
+
+  group('qué servir de un lote según el plan', () {
+    const chicken = (
+      foodName: 'Pechuga de pollo',
+      rawG: 1000.0,
+      cookedG: 720.0,
+      withOtherIngredients: false,
+    );
+
+    PlanPortion portion(
+      String mealName,
+      String itemName, {
+      DayType dayType = DayType.training,
+      double? amount = 130,
+      FoodUnit? unit = FoodUnit.gram,
+      FoodState state = FoodState.raw,
+    }) => (
+      dayType: dayType,
+      mealName: mealName,
+      itemName: itemName,
+      amount: amount,
+      unit: unit,
+      state: state,
+    );
+
+    test('una fila por cada comida del plan que usa ese alimento', () {
+      final servings = batchServings(
+        batch: chicken,
+        portions: [
+          portion('Comida 1', 'Pechuga de pollo o filete de res magro'),
+          portion('Comida 2', 'Pechuga de pollo', amount: 120),
+          portion('Cena', 'Filete de pescado blanco', amount: 140),
+          portion(
+            'Cena',
+            'Pescado blanco o pechuga de pollo',
+            dayType: DayType.rest,
+            amount: 160,
+          ),
+        ],
+      );
+
+      expect(
+        servings.map((s) => (s.dayType, s.mealName, s.rawG, s.cookedG.round())),
+        [
+          (DayType.training, 'Comida 1', 130, 94),
+          (DayType.training, 'Comida 2', 120, 86),
+          (DayType.rest, 'Cena', 160, 115),
+        ],
+      );
+    });
+
+    test('no incluye lo que el plan no pide en crudo o no está en gramos', () {
+      final servings = batchServings(
+        batch: chicken,
+        portions: [
+          portion('A', 'Pechuga de pollo', state: FoodState.cooked),
+          portion('B', 'Pechuga de pollo', state: FoodState.unspecified),
+          portion('C', 'Pechuga de pollo', unit: FoodUnit.piece),
+          portion('D', 'Pechuga de pollo', amount: null),
+        ],
+      );
+      expect(servings, isEmpty);
+    });
+
+    test('un alimento que el plan no usa no tiene porciones', () {
+      expect(
+        batchServings(
+          batch: chicken,
+          portions: [portion('Comida', 'Lomo de cerdo')],
+        ),
+        isEmpty,
+      );
+    });
+  });
 }

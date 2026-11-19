@@ -225,4 +225,62 @@ void main() {
       expect(parseDose('500'), isNull);
     });
   });
+
+  group('presentación según la unidad', () {
+    test('pastillas, cápsulas y tabletas', () {
+      for (final unit in ['pastillas', 'Cápsulas', 'capsulas', 'tableta']) {
+        expect(presentationOf(unit), SupplementPresentation.pills);
+      }
+    });
+
+    test('gramos es polvo', () {
+      expect(presentationOf('g'), SupplementPresentation.powder);
+      expect(presentationOf(' Gramos '), SupplementPresentation.powder);
+    });
+
+    test('cualquier otra unidad es "otra"', () {
+      expect(presentationOf('ml'), SupplementPresentation.other);
+      expect(presentationOf('scoops'), SupplementPresentation.other);
+      expect(presentationOf('gotas'), SupplementPresentation.other);
+    });
+
+    test('las unidades propias de cada presentación se reconocen', () {
+      expect(presentationOf(pillsUnit), SupplementPresentation.pills);
+      expect(presentationOf(powderUnit), SupplementPresentation.powder);
+    });
+  });
+
+  group('consumo estimado de un envase ya empezado', () {
+    double consumed({
+      double dailyDose = 5,
+      double quantity = 300,
+      required DateTime purchasedOn,
+    }) => estimatedConsumed(
+      dailyDose: dailyDose,
+      quantity: quantity,
+      purchasedOn: purchasedOn,
+      today: today,
+    );
+
+    test('la dosis diaria por cada día desde la compra, sin contar hoy', () {
+      expect(consumed(purchasedOn: daysAgo(10)), 50);
+      expect(consumed(purchasedOn: daysAgo(1)), 5);
+    });
+
+    test('comprado hoy no se ha consumido nada', () {
+      expect(consumed(purchasedOn: today), 0);
+    });
+
+    test('no importa la hora de la compra, solo el día', () {
+      expect(consumed(purchasedOn: DateTime(2026, 11, 15, 23, 59)), 5);
+    });
+
+    test('nunca pasa de lo que traía el envase', () {
+      expect(consumed(purchasedOn: daysAgo(200)), 300);
+    });
+
+    test('una fecha futura no descuenta nada', () {
+      expect(consumed(purchasedOn: daysAgo(-3)), 0);
+    });
+  });
 }

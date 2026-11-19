@@ -44,23 +44,12 @@ class ProgressScreen extends ConsumerWidget {
                   CardGroup(
                     children: [
                       for (final exercise in exercises)
-                        CupertinoButton(
-                          padding: EdgeInsets.zero,
+                        NavigationRow(
+                          label: exercise.name,
                           onPressed: () => Navigator.of(context).push(
                             CupertinoPageRoute<void>(
                               builder: (_) =>
                                   ExerciseProgressScreen(exercise: exercise),
-                            ),
-                          ),
-                          child: FormRow(
-                            label: exercise.name,
-                            child: Icon(
-                              CupertinoIcons.chevron_forward,
-                              size: 16,
-                              color: resolveColor(
-                                context,
-                                CupertinoColors.tertiaryLabel,
-                              ),
                             ),
                           ),
                         ),

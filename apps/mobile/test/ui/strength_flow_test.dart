@@ -437,6 +437,35 @@ void main() {
     await shutDown(tester);
   });
 
+  testWidgets('un ejercicio con nombre largo cabe en la lista de progreso', (
+    tester,
+  ) async {
+    // Los ejercicios que vienen de una rutina suelen tener nombres largos.
+    final user = await db
+        .into(db.users)
+        .insertReturning(UsersCompanion.insert(displayName: 'Ana'));
+    const longName =
+        'Extensiones de Tríceps Trasnuca con polea alta y cuerda (Unilateral)';
+    await db
+        .into(db.exercises)
+        .insert(
+          ExercisesCompanion.insert(
+            userId: user.id,
+            name: longName,
+            defaultUnit: WeightUnit.kg,
+          ),
+        );
+    await pumpApp(tester);
+
+    await tap(tester, find.text('Progreso de fuerza'));
+
+    // Antes este nombre se salía de la fila y Flutter lo marcaba como error.
+    expect(tester.takeException(), isNull);
+    await tap(tester, find.text(longName));
+    expect(find.text('Aún no hay datos'), findsOneWidget);
+    await shutDown(tester);
+  });
+
   testWidgets('un ejercicio sin series válidas no muestra gráfica', (
     tester,
   ) async {

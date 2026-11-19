@@ -135,6 +135,46 @@ InventoryStatus inventoryStatus({
   return (amount: amount, unit: normalized);
 }
 
+/// En qué presentación viene un suplemento. De ella depende la unidad con la
+/// que se lleva su inventario.
+enum SupplementPresentation { pills, powder, other }
+
+/// Unidad con la que se cuentan las pastillas, cápsulas o tabletas.
+const String pillsUnit = 'pastillas';
+
+/// Unidad con la que se pesa un polvo.
+const String powderUnit = 'g';
+
+/// La presentación que corresponde a una unidad ya guardada. No se almacena
+/// aparte: se deduce de la unidad del suplemento.
+SupplementPresentation presentationOf(String unitLabel) {
+  final unit = unitLabel.trim().toLowerCase();
+  const pillWords = ['pastilla', 'capsula', 'cápsula', 'tableta', 'comprimido'];
+  if (pillWords.any(unit.startsWith)) return SupplementPresentation.pills;
+  if (const ['g', 'gr', 'gramo', 'gramos'].contains(unit)) {
+    return SupplementPresentation.powder;
+  }
+  return SupplementPresentation.other;
+}
+
+/// Cuánto se calcula que ya se consumió de un envase empezado: la dosis
+/// diaria por cada día transcurrido desde la compra, sin contar hoy y sin
+/// pasar de lo que traía el envase.
+///
+/// Es una estimación para no empezar el inventario en blanco; el usuario
+/// puede corregirla después con lo que realmente le queda.
+double estimatedConsumed({
+  required double dailyDose,
+  required double quantity,
+  required DateTime purchasedOn,
+  required DateTime today,
+}) {
+  final days = _dayNumber(today) - _dayNumber(purchasedOn);
+  if (days <= 0 || dailyDose <= 0) return 0;
+  final consumed = dailyDose * days;
+  return consumed < quantity ? consumed : quantity;
+}
+
 int _dayNumber(DateTime date) =>
     DateTime.utc(date.year, date.month, date.day).millisecondsSinceEpoch ~/
     Duration.millisecondsPerDay;

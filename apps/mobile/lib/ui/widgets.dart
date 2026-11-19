@@ -258,6 +258,69 @@ class SupplementTile extends StatelessWidget {
   }
 }
 
+/// Icono de un frasco de medicamento: tapa, cuerpo y una cruz en la etiqueta.
+///
+/// Está dibujado a mano porque el paquete de iconos de iOS no trae ninguno
+/// parecido. Toma tamaño y color del tema de iconos que lo rodea, así que se
+/// comporta como cualquier otro icono (por ejemplo, en la barra de pestañas).
+class PillBottleIcon extends StatelessWidget {
+  const PillBottleIcon({super.key, this.size, this.color});
+
+  final double? size;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = IconTheme.of(context);
+    final side = size ?? theme.size ?? 24;
+    return CustomPaint(
+      size: Size.square(side),
+      painter: _PillBottlePainter(
+        color ?? theme.color ?? CupertinoColors.label.resolveFrom(context),
+      ),
+    );
+  }
+}
+
+class _PillBottlePainter extends CustomPainter {
+  const _PillBottlePainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final paint = Paint()..color = color;
+
+    // Tapa, más ancha que el cuello.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.22, h * 0.06, w * 0.56, h * 0.17),
+        Radius.circular(w * 0.05),
+      ),
+      paint,
+    );
+
+    // Cuerpo, con una cruz recortada en la etiqueta.
+    final body = Path()
+      ..fillType = PathFillType.evenOdd
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(w * 0.16, h * 0.28, w * 0.68, h * 0.66),
+          Radius.circular(w * 0.12),
+        ),
+      )
+      ..addRect(Rect.fromLTWH(w * 0.44, h * 0.44, w * 0.12, h * 0.34))
+      ..addRect(Rect.fromLTWH(w * 0.33, h * 0.55, w * 0.34, h * 0.12));
+    canvas.drawPath(body, paint);
+  }
+
+  @override
+  bool shouldRepaint(_PillBottlePainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
 /// Icono de un suplemento, elegido por su nombre, en un cuadro de color.
 class SupplementIcon extends StatelessWidget {
   const SupplementIcon(this.name, {super.key});
@@ -390,6 +453,61 @@ class FormRow extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Fila que abre otra pantalla: un texto que ocupa todo el ancho disponible
+/// (y se parte en varias líneas si es largo) y una flecha a la derecha.
+///
+/// Para textos variables, como el nombre de un ejercicio, en lugar de
+/// [FormRow], cuya etiqueta está pensada para palabras cortas.
+class NavigationRow extends StatelessWidget {
+  const NavigationRow({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.detail,
+  });
+
+  final String label;
+
+  /// Texto secundario bajo la etiqueta.
+  final String? detail;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoButton(
+      padding: const EdgeInsets.fromLTRB(16, 13, 12, 13),
+      onPressed: onPressed,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: textStyle(context)),
+                if (detail != null)
+                  Text(
+                    detail!,
+                    style: textStyle(
+                      context,
+                      size: 13,
+                      color: CupertinoColors.secondaryLabel,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(
+            CupertinoIcons.chevron_forward,
+            size: 16,
+            color: resolveColor(context, CupertinoColors.tertiaryLabel),
+          ),
+        ],
       ),
     );
   }

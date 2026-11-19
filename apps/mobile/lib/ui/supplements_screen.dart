@@ -19,14 +19,25 @@ class SupplementsScreen extends ConsumerWidget {
 
   /// Abre el formulario de alta, opcionalmente con los datos de la guía.
   void _add(BuildContext context, WidgetRef ref, {SupplementGuideline? from}) {
+    // La guía da la dosis en gramos (un polvo) o en mg/UI por pastilla. En
+    // el segundo caso se propone una pastilla al día.
     final dose = parseDose(from?.dose);
+    final isPowder = dose?.unit == powderUnit;
     showAppSheet<void>(
       context,
       title: 'Nuevo suplemento',
       builder: (_) => SupplementForm(
         name: from?.name,
-        unitLabel: dose?.unit,
-        dailyDose: dose?.amount,
+        unitLabel: from == null
+            ? null
+            : isPowder
+            ? powderUnit
+            : pillsUnit,
+        dailyDose: from == null
+            ? null
+            : isPowder
+            ? dose!.amount
+            : 1,
         timing: from?.timing,
         onSave: (data) => ref
             .read(supplementRepositoryProvider)
@@ -38,6 +49,8 @@ class SupplementsScreen extends ConsumerWidget {
               timing: data.timing,
               restockLeadDays: data.restockLeadDays,
               initialQuantity: data.initialQuantity,
+              purchasedAt: data.purchasedAt,
+              alreadyConsumed: data.alreadyConsumed,
             ),
       ),
     );
@@ -165,8 +178,7 @@ class _NoSupplements extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            CupertinoIcons.capsule,
+          PillBottleIcon(
             size: 44,
             color: resolveColor(context, CupertinoColors.tertiaryLabel),
           ),

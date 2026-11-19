@@ -33,6 +33,10 @@ gramos cocidos servir:
 - Un renglón "sin especificar" no se convierte: aplicar un factor sin saber si
   la cantidad es en crudo daría una porción equivocada.
 
+Además, cada lote muestra **todas las comidas del plan que cubre**, de los
+dos menús, con lo que pide el plan en crudo y cuántos gramos cocidos servirse
+en cada una.
+
 ## Alternativas consideradas
 
 **Tabla de factores típicos por alimento.** No exigiría pesar nada. Se

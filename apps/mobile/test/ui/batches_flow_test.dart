@@ -149,6 +149,45 @@ void main() {
     await shutDown(tester);
   });
 
+  testWidgets('cada lote dice cuánto servir en cada comida del plan', (
+    tester,
+  ) async {
+    await CookingRepository(db).addBatch(
+      userId: userId,
+      foodName: 'Pechuga de pollo',
+      rawWeightG: 1000,
+      cookedWeightG: 720,
+    );
+    await openNutrition(tester);
+    await tap(tester, find.text('Lotes de cocción'));
+
+    expect(find.text('Sírvete, ya cocido'), findsOneWidget);
+    expect(find.text('Comida'), findsOneWidget);
+    expect(find.text('Descanso · el plan pide 130 g en crudo'), findsOneWidget);
+    expect(find.text('94 g'), findsOneWidget);
+    await shutDown(tester);
+  });
+
+  testWidgets('un lote de algo que el plan no pide en crudo lo explica', (
+    tester,
+  ) async {
+    await CookingRepository(db).addBatch(
+      userId: userId,
+      foodName: 'Arroz blanco',
+      rawWeightG: 200,
+      cookedWeightG: 520,
+    );
+    await openNutrition(tester);
+    await tap(tester, find.text('Lotes de cocción'));
+
+    expect(
+      find.textContaining('Tu plan no pide este alimento en crudo'),
+      findsOneWidget,
+    );
+    expect(find.text('Sírvete, ya cocido'), findsNothing);
+    await shutDown(tester);
+  });
+
   testWidgets('solo convierte lo que el plan pide en crudo', (tester) async {
     final cooking = CookingRepository(db);
     for (final food in ['Arroz blanco', 'Atún']) {

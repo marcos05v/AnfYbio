@@ -31,6 +31,18 @@ sus **compras** (lo que entra) y sus **tomas** (lo que sale).
 - La guía del plan sirve de punto de partida: la app propone nombre, dosis,
   unidad y momento de toma leyendo el texto de la guía.
 
+- **La presentación** (pastillas, polvo u otra) se pregunta al dar de alta y
+  fija la unidad: "pastillas", gramos (el contenido de un polvo se puede
+  escribir en kilos) o la que escriba el usuario. No se guarda aparte: se
+  deduce de la unidad.
+- **Un envase ya empezado** se da de alta con su fecha de compra: la app
+  estima lo consumido (dosis diaria × días desde la compra) y lo anota como
+  ajuste, para no arrancar en blanco ni inventar tomas que no cuentan en la
+  adherencia. Se corrige después con "Corregir existencias".
+- Desde la guía del plan, una dosis en gramos se propone como polvo; una en
+  mg o UI se toma como la concentración de cada pastilla y se propone una
+  pastilla al día.
+
 Es la versión 5 del esquema, con su prueba de migración.
 
 ## Alternativas consideradas

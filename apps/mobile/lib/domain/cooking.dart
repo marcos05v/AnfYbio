@@ -106,3 +106,60 @@ CookedServing? cookedServingFor({
   }
   return null;
 }
+
+/// Un renglón del plan, con lo necesario para saber si le sirve un lote.
+typedef PlanPortion = ({
+  DayType dayType,
+  String mealName,
+  String itemName,
+  double? amount,
+  FoodUnit? unit,
+  FoodState state,
+});
+
+/// Cuánto servir de un lote en una comida concreta del plan.
+class BatchServing {
+  const BatchServing({
+    required this.dayType,
+    required this.mealName,
+    required this.rawG,
+    required this.cookedG,
+  });
+
+  final DayType dayType;
+  final String mealName;
+
+  /// Lo que pide el plan, en crudo.
+  final double rawG;
+
+  /// Lo que hay que servir de este lote, ya cocido.
+  final double cookedG;
+}
+
+/// Las comidas del plan que se cubren con un lote, y cuántos gramos cocidos
+/// servir en cada una. Solo cuentan los renglones en gramos que el plan pide
+/// en crudo y que corresponden al alimento del lote; se devuelven en el
+/// orden del plan.
+List<BatchServing> batchServings({
+  required BatchInfo batch,
+  required Iterable<PlanPortion> portions,
+}) {
+  final factor = yieldFactor(rawG: batch.rawG, cookedG: batch.cookedG);
+  if (factor == null) return const [];
+  return [
+    for (final portion in portions)
+      if (portion.amount != null &&
+          portion.unit == FoodUnit.gram &&
+          portion.state == FoodState.raw &&
+          batchMatchesItem(
+            batchFood: batch.foodName,
+            itemName: portion.itemName,
+          ))
+        BatchServing(
+          dayType: portion.dayType,
+          mealName: portion.mealName,
+          rawG: portion.amount!,
+          cookedG: cookedPortionG(rawPortionG: portion.amount!, factor: factor),
+        ),
+  ];
+}

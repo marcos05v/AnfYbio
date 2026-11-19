@@ -52,6 +52,26 @@ void main() {
     },
   );
 
+  test('un envase ya empezado descuenta lo estimado como ajuste', () async {
+    final supplement = await repo.addSupplement(
+      userId: userId,
+      name: 'Zinc',
+      unitLabel: 'pastillas',
+      dailyDose: 1,
+      initialQuantity: 60,
+      purchasedAt: DateTime.utc(2026, 11, 6, 12),
+      alreadyConsumed: 10,
+    );
+
+    final loaded = await view(supplement.id);
+    expect(loaded.purchases.single.purchasedAt, DateTime.utc(2026, 11, 6, 12));
+    expect(loaded.statusAt(today).stock, 50);
+    // Es un ajuste: no aparece como toma ni cuenta para la adherencia.
+    expect(loaded.intakes.single.isAdjustment, isTrue);
+    expect(loaded.statusAt(today).adherence, isNull);
+    expect(loaded.statusAt(today).takenToday, isFalse);
+  });
+
   test('sin existencias iniciales empieza en cero', () async {
     final supplement = await creatine(initialQuantity: null);
 
