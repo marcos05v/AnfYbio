@@ -124,10 +124,18 @@ void main() {
     expect(splitName('Vitamina (D3) líquida'), ('Vitamina (D3) líquida', null));
   });
 
-  test('formatMinuteOfDay escribe la hora con dos dígitos de minutos', () {
-    expect(formatMinuteOfDay(570), '9:30');
-    expect(formatMinuteOfDay(540), '9:00');
-    expect(formatMinuteOfDay(21 * 60 + 5), '21:05');
-    expect(formatMinuteOfDay(0), '0:00');
+  test('formatMinuteOfDay escribe la hora en formato de 12 horas', () {
+    expect(formatMinuteOfDay(570), '9:30 a. m.');
+    expect(formatMinuteOfDay(21 * 60 + 5), '9:05 p. m.');
+    // Medianoche y mediodía son las 12.
+    expect(formatMinuteOfDay(0), '12:00 a. m.');
+    expect(formatMinuteOfDay(12 * 60), '12:00 p. m.');
+    expect(formatMinuteOfDay(12 * 60 + 59), '12:59 p. m.');
+    expect(formatMinuteOfDay(23 * 60 + 59), '11:59 p. m.');
+  });
+
+  test('splitClock12 separa la hora del periodo', () {
+    expect(splitClock12(570), ('9:30', 'a. m.'));
+    expect(splitClock12(13 * 60), ('1:00', 'p. m.'));
   });
 }

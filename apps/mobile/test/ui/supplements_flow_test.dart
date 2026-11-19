@@ -479,18 +479,18 @@ void main() {
       final scheduler = FakeScheduler();
       await openSupplements(tester, scheduler: scheduler);
       await tap(tester, find.text('Creatina'));
-      expect(
-        find.text('Sin recordatorio diario. Actívalo en Editar.'),
-        findsOneWidget,
-      );
+      expect(find.text('Sin recordatorio'), findsOneWidget);
 
       await tap(tester, find.text('Editar'));
       await tap(tester, find.byKey(const Key('supReminder')));
       expect(scheduler.permissionRequests, 1);
-      expect(find.text('9:00'), findsOneWidget); // hora propuesta
+      expect(find.text('9:00 a. m.'), findsOneWidget); // hora propuesta
       await tap(tester, find.text('Guardar cambios'));
 
-      expect(find.text('Recordatorio diario a las 9:00.'), findsOneWidget);
+      // La tarjeta del detalle muestra la hora en grande.
+      expect(find.text('RECORDATORIO DIARIO'), findsOneWidget);
+      expect(find.text('9:00'), findsOneWidget);
+      expect(find.text('a. m.'), findsOneWidget);
       final reminders = scheduler.scheduled.where(
         (n) => n.kind == NotificationKind.reminder,
       );
@@ -543,10 +543,7 @@ void main() {
         scheduler.scheduled.where((n) => n.kind == NotificationKind.reminder),
         isEmpty,
       );
-      expect(
-        find.text('Sin recordatorio diario. Actívalo en Editar.'),
-        findsOneWidget,
-      );
+      expect(find.text('Sin recordatorio'), findsOneWidget);
       await shutDown(tester);
     });
 
@@ -561,6 +558,90 @@ void main() {
       await tap(tester, find.text('Guardar suplemento'));
 
       expect(scheduler.permissionRequests, 1);
+      await shutDown(tester);
+    });
+
+    testWidgets(
+      'la campana del detalle pone el recordatorio con confirmación',
+      (tester) async {
+        await creatine();
+        final scheduler = FakeScheduler();
+        await openSupplements(tester, scheduler: scheduler);
+        await tap(tester, find.text('Creatina'));
+
+        await tap(tester, find.byKey(const Key('reminderBell')));
+        expect(find.text('Recordatorio diario'), findsOneWidget);
+        expect(
+          tester.widget<Text>(find.byKey(const Key('reminderClock'))).data,
+          '9:00',
+        );
+        // Sin confirmar no se guarda nada.
+        expect(
+          (await db.select(db.supplements).getSingle()).reminderMinute,
+          isNull,
+        );
+
+        await tap(tester, find.text('Poner recordatorio'));
+
+        expect(scheduler.permissionRequests, 1);
+        expect(
+          (await db.select(db.supplements).getSingle()).reminderMinute,
+          540,
+        );
+        expect(find.text('RECORDATORIO DIARIO'), findsOneWidget);
+        expect(
+          scheduler.scheduled.where((n) => n.kind == NotificationKind.reminder),
+          isNotEmpty,
+        );
+        await shutDown(tester);
+      },
+    );
+
+    testWidgets('desde la campana también se quita el recordatorio', (
+      tester,
+    ) async {
+      await SupplementRepository(db).addSupplement(
+        userId: userId,
+        name: 'Zinc',
+        unitLabel: 'pastillas',
+        dailyDose: 1,
+        reminderMinute: 21 * 60 + 30,
+        initialQuantity: 60,
+      );
+      await openSupplements(tester, scheduler: FakeScheduler());
+      // La lista muestra la hora con la campana.
+      expect(find.text('9:30 p. m.'), findsOneWidget);
+      await tap(tester, find.text('Zinc'));
+
+      await tap(tester, find.byKey(const Key('reminderCard')));
+      expect(find.text('Guardar recordatorio'), findsOneWidget);
+      await tap(tester, find.byIcon(CupertinoIcons.trash));
+      await tap(tester, find.text('Borrar'));
+
+      expect(find.text('Sin recordatorio'), findsOneWidget);
+      expect(
+        (await db.select(db.supplements).getSingle()).reminderMinute,
+        isNull,
+      );
+      await shutDown(tester);
+    });
+
+    testWidgets('sin permiso, la campana explica y no guarda', (tester) async {
+      await creatine();
+      await openSupplements(tester, scheduler: FakeScheduler(allowed: false));
+      await tap(tester, find.text('Creatina'));
+
+      await tap(tester, find.byKey(const Key('reminderBell')));
+      await tap(tester, find.text('Poner recordatorio'));
+
+      expect(
+        find.textContaining('Las notificaciones están desactivadas'),
+        findsOneWidget,
+      );
+      expect(
+        (await db.select(db.supplements).getSingle()).reminderMinute,
+        isNull,
+      );
       await shutDown(tester);
     });
   });

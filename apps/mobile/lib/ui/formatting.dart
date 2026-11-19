@@ -245,6 +245,17 @@ String formatDaysLeft(int days) => switch (days) {
       : (match.group(1)!, match.group(2)!);
 }
 
-/// Hora del día a partir de minutos desde la medianoche: 570 → "9:30".
-String formatMinuteOfDay(int minutes) =>
-    '${minutes ~/ 60}:${_two(minutes % 60)}';
+/// Hora del día en formato de 12 horas a partir de minutos desde la
+/// medianoche: 570 → "9:30 a. m.", 1290 → "9:30 p. m.", 0 → "12:00 a. m.".
+String formatMinuteOfDay(int minutes) {
+  final (clock, period) = splitClock12(minutes);
+  return '$clock $period';
+}
+
+/// La hora en dos partes, para mostrarlas con distinto tamaño:
+/// 570 → ("9:30", "a. m.").
+(String clock, String period) splitClock12(int minutes) {
+  final hour24 = minutes ~/ 60 % 24;
+  final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
+  return ('$hour12:${_two(minutes % 60)}', hour24 < 12 ? 'a. m.' : 'p. m.');
+}

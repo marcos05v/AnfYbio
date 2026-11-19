@@ -364,6 +364,29 @@ class _SupplementCard extends ConsumerWidget {
                             'Se acaba el ${formatShortDate(date)}',
                             style: secondary,
                           ),
+                        if (supplement.reminderMinute case final minute?)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  CupertinoIcons.bell_fill,
+                                  size: 14,
+                                  color: accent,
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  formatMinuteOfDay(minute),
+                                  style: textStyle(
+                                    context,
+                                    size: 14,
+                                    weight: FontWeight.w600,
+                                    color: accentColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
                   ),

@@ -132,6 +132,20 @@ class SupplementRepository {
     if (updated == 0) throw RecordNotFound(supplementId);
   }
 
+  /// Pone, cambia o quita (con `null`) el recordatorio diario.
+  Future<void> setReminder(String supplementId, int? reminderMinute) async {
+    final updated =
+        await (_db.update(_db.supplements)
+              ..where((s) => s.id.equals(supplementId) & s.deletedAt.isNull()))
+            .write(
+              SupplementsCompanion(
+                reminderMinute: Value(reminderMinute),
+                updatedAt: Value(_now()),
+              ),
+            );
+    if (updated == 0) throw RecordNotFound(supplementId);
+  }
+
   /// Borra el suplemento con sus compras y tomas (borrado lógico).
   Future<void> deleteSupplement(String supplementId) {
     return _db.transaction(() async {

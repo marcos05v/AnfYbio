@@ -206,7 +206,7 @@ class _SupplementFormState extends State<SupplementForm> {
               Expanded(
                 child: CupertinoDatePicker(
                   mode: CupertinoDatePickerMode.time,
-                  use24hFormat: true,
+                  use24hFormat: false,
                   minuteInterval: 5,
                   initialDateTime: DateTime(
                     2000,
@@ -640,6 +640,139 @@ class _QuantityFormState extends State<QuantityForm> {
         ],
         if (_error != null) FormError(_error!),
         FormActions(saveLabel: widget.saveLabel, onSave: _save),
+      ],
+    );
+  }
+}
+
+/// Hoja para poner, cambiar o quitar el recordatorio diario de un suplemento.
+///
+/// La hora se elige con una rueda de 12 horas (a. m. / p. m.) y se confirma
+/// con un botón. Antes de guardar pide permiso para notificar: sin permiso,
+/// el recordatorio no sonaría.
+class ReminderSheet extends StatefulWidget {
+  const ReminderSheet({
+    super.key,
+    required this.supplementName,
+    required this.onSave,
+    required this.requestPermission,
+    this.initialMinute,
+  });
+
+  final String supplementName;
+
+  /// Hora actual del recordatorio; nula si aún no tiene.
+  final int? initialMinute;
+
+  /// Guarda la hora elegida, o la quita con `null`.
+  final Future<void> Function(int? minute) onSave;
+  final Future<bool> Function() requestPermission;
+
+  @override
+  State<ReminderSheet> createState() => _ReminderSheetState();
+}
+
+class _ReminderSheetState extends State<ReminderSheet> {
+  late int _minute = widget.initialMinute ?? 9 * 60;
+  bool _denied = false;
+
+  Future<void> _save() async {
+    final allowed = await widget.requestPermission();
+    if (!mounted) return;
+    if (!allowed) {
+      setState(() => _denied = true);
+      return;
+    }
+    final navigator = Navigator.of(context);
+    await widget.onSave(_minute);
+    navigator.pop();
+  }
+
+  Future<void> _remove() async {
+    final navigator = Navigator.of(context);
+    await widget.onSave(null);
+    navigator.pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final (clock, period) = splitClock12(_minute);
+    final accent = resolveColor(context, accentColor);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Te avisaremos todos los días para tomar tu '
+          '${splitName(widget.supplementName).$1}.',
+          style: textStyle(
+            context,
+            size: 15,
+            color: CupertinoColors.secondaryLabel,
+          ),
+        ),
+        const SizedBox(height: 16),
+        // La hora elegida, grande, sobre la rueda.
+        Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                clock,
+                key: const Key('reminderClock'),
+                style: textStyle(
+                  context,
+                  size: 48,
+                  weight: FontWeight.w700,
+                  color: accent,
+                ).copyWith(height: 1.1),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                period,
+                style: textStyle(
+                  context,
+                  size: 22,
+                  weight: FontWeight.w600,
+                  color: accent,
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 180,
+          child: CupertinoDatePicker(
+            mode: CupertinoDatePickerMode.time,
+            use24hFormat: false,
+            minuteInterval: 5,
+            initialDateTime: DateTime(
+              2000,
+              1,
+              1,
+              _minute ~/ 60,
+              _minute % 60 - _minute % 5,
+            ),
+            onDateTimeChanged: (time) =>
+                setState(() => _minute = time.hour * 60 + time.minute),
+          ),
+        ),
+        if (_denied)
+          FormError(
+            'Las notificaciones están desactivadas. Actívalas en Ajustes del '
+            'iPhone > Notificaciones > AnfYbio y vuelve a intentarlo.',
+          ),
+        FormActions(
+          saveLabel: widget.initialMinute == null
+              ? 'Poner recordatorio'
+              : 'Guardar recordatorio',
+          onSave: _save,
+          deleteLabel: 'Quitar recordatorio',
+          onDelete: widget.initialMinute == null ? null : _remove,
+        ),
       ],
     );
   }

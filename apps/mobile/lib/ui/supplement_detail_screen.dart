@@ -69,42 +69,71 @@ class SupplementDetailScreen extends ConsumerWidget {
     void openSheet(String title, Widget form) =>
         showAppSheet<void>(context, title: title, builder: (_) => form);
 
+    void openReminder() => openSheet(
+      'Recordatorio diario',
+      ReminderSheet(
+        supplementName: supplement.name,
+        initialMinute: supplement.reminderMinute,
+        requestPermission: () =>
+            ref.read(notificationSchedulerProvider).requestPermission(),
+        onSave: (minute) => repository.setReminder(supplement.id, minute),
+      ),
+    );
+
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
         middle: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
         previousPageTitle: 'Atrás',
         border: null,
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: () => openSheet(
-            'Editar suplemento',
-            SupplementForm(
-              isEditing: true,
-              name: supplement.name,
-              unitLabel: unit,
-              dailyDose: supplement.dailyDose,
-              timing: supplement.timing,
-              restockLeadDays: supplement.restockLeadDays,
-              reminderMinute: supplement.reminderMinute,
-              onEnableReminder: () =>
-                  ref.read(notificationSchedulerProvider).requestPermission(),
-              onSave: (data) => repository.updateSupplement(
-                supplement.id,
-                name: data.name,
-                unitLabel: data.unitLabel,
-                dailyDose: data.dailyDose,
-                timing: data.timing,
-                restockLeadDays: data.restockLeadDays,
-                reminderMinute: data.reminderMinute,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CupertinoButton(
+              key: const Key('reminderBell'),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              minimumSize: Size.zero,
+              onPressed: openReminder,
+              child: Icon(
+                supplement.reminderMinute == null
+                    ? CupertinoIcons.bell
+                    : CupertinoIcons.bell_fill,
+                semanticLabel: 'Recordatorio',
               ),
-              onDelete: () async {
-                // Se sale del detalle antes de que el suplemento desaparezca.
-                Navigator.of(context).pop();
-                await repository.deleteSupplement(supplement.id);
-              },
             ),
-          ),
-          child: const Text('Editar'),
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () => openSheet(
+                'Editar suplemento',
+                SupplementForm(
+                  isEditing: true,
+                  name: supplement.name,
+                  unitLabel: unit,
+                  dailyDose: supplement.dailyDose,
+                  timing: supplement.timing,
+                  restockLeadDays: supplement.restockLeadDays,
+                  reminderMinute: supplement.reminderMinute,
+                  onEnableReminder: () => ref
+                      .read(notificationSchedulerProvider)
+                      .requestPermission(),
+                  onSave: (data) => repository.updateSupplement(
+                    supplement.id,
+                    name: data.name,
+                    unitLabel: data.unitLabel,
+                    dailyDose: data.dailyDose,
+                    timing: data.timing,
+                    restockLeadDays: data.restockLeadDays,
+                    reminderMinute: data.reminderMinute,
+                  ),
+                  onDelete: () async {
+                    // Se sale del detalle antes de que el suplemento desaparezca.
+                    Navigator.of(context).pop();
+                    await repository.deleteSupplement(supplement.id);
+                  },
+                ),
+              ),
+              child: const Text('Editar'),
+            ),
+          ],
         ),
       ),
       child: SafeArea(
@@ -139,6 +168,11 @@ class SupplementDetailScreen extends ConsumerWidget {
                       ),
                     ),
                   const SizedBox(height: 14),
+                  _ReminderCard(
+                    minute: supplement.reminderMinute,
+                    onTap: openReminder,
+                  ),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
@@ -193,19 +227,6 @@ class SupplementDetailScreen extends ConsumerWidget {
                                 '${formatQuantity(supplement.dailyDose, unit)} '
                                 'al día. Tras una semana de registros usará '
                                 'tu consumo real.',
-                      style: secondary,
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
-                    child: Text(
-                      switch (supplement.reminderMinute) {
-                        null => 'Sin recordatorio diario. Actívalo en Editar.',
-                        final minute =>
-                          'Recordatorio diario a las '
-                              '${formatMinuteOfDay(minute)}.',
-                      },
-                      key: const Key('reminderSummary'),
                       style: secondary,
                     ),
                   ),
@@ -293,6 +314,130 @@ class SupplementDetailScreen extends ConsumerWidget {
                     : 'Registrar toma de hoy',
                 onPressed: () => repository.logIntake(supplement.id),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// El recordatorio diario, destacado: la hora en grande con una campana. Sin
+/// recordatorio, invita a ponerlo. Se toca para cambiarlo.
+class _ReminderCard extends StatelessWidget {
+  const _ReminderCard({required this.minute, required this.onTap});
+
+  final int? minute;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final minute = this.minute;
+    final accent = resolveColor(context, accentColor);
+    final onAccent = resolveColor(context, onAccentColor);
+    final active = minute != null;
+
+    return CupertinoButton(
+      key: const Key('reminderCard'),
+      padding: EdgeInsets.zero,
+      onPressed: onTap,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+        decoration: BoxDecoration(
+          color: active ? accent : resolveColor(context, cardColor),
+          borderRadius: BorderRadius.circular(cardRadius),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: active
+                    ? onAccent.withValues(alpha: 0.18)
+                    : accent.withValues(alpha: 0.14),
+              ),
+              child: Icon(
+                active ? CupertinoIcons.bell_fill : CupertinoIcons.bell,
+                size: 22,
+                color: active ? onAccent : accent,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: active
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'RECORDATORIO DIARIO',
+                          style: textStyle(
+                            context,
+                            size: 12,
+                            weight: FontWeight.w600,
+                            color: onAccent.withValues(alpha: 0.85),
+                          ).copyWith(letterSpacing: 0.6),
+                        ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              splitClock12(minute).$1,
+                              style: textStyle(
+                                context,
+                                size: 32,
+                                weight: FontWeight.w700,
+                                color: onAccent,
+                              ).copyWith(height: 1.15),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              splitClock12(minute).$2,
+                              style: textStyle(
+                                context,
+                                size: 17,
+                                weight: FontWeight.w600,
+                                color: onAccent,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          'Todos los días',
+                          style: textStyle(
+                            context,
+                            size: 13,
+                            color: onAccent.withValues(alpha: 0.85),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Sin recordatorio',
+                          style: textStyle(context, weight: FontWeight.w600),
+                        ),
+                        Text(
+                          'Toca para que te avisemos cada día.',
+                          style: textStyle(
+                            context,
+                            size: 13,
+                            color: CupertinoColors.secondaryLabel,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+            Icon(
+              CupertinoIcons.chevron_forward,
+              size: 16,
+              color: active
+                  ? onAccent.withValues(alpha: 0.8)
+                  : resolveColor(context, CupertinoColors.tertiaryLabel),
             ),
           ],
         ),

@@ -168,6 +168,21 @@ void main() {
     expect((await view(supplement.id)).statusAt(today).daysLeft, 100);
   });
 
+  test('poner, cambiar y quitar el recordatorio', () async {
+    final supplement = await creatine();
+
+    await repo.setReminder(supplement.id, 21 * 60);
+    expect((await view(supplement.id)).supplement.reminderMinute, 1260);
+
+    await repo.setReminder(supplement.id, null);
+    expect((await view(supplement.id)).supplement.reminderMinute, isNull);
+
+    await expectLater(
+      repo.setReminder('no-existe', 600),
+      throwsA(isA<RecordNotFound>()),
+    );
+  });
+
   test('borrar el suplemento borra también sus compras y tomas', () async {
     final supplement = await creatine();
     await repo.logIntake(supplement.id);
