@@ -234,3 +234,17 @@ String formatDaysLeft(int days) => switch (days) {
   1 => '1 día',
   _ => '$days días',
 };
+
+/// Separa un nombre en título y aclaración entre paréntesis:
+/// "Omega 3 (EPAs / DHAs)" → ("Omega 3", "EPAs / DHAs"). Sin paréntesis
+/// final, la aclaración es nula.
+(String title, String? detail) splitName(String name) {
+  final match = RegExp(r'^(.+?)\s*\((.+)\)\s*$').firstMatch(name.trim());
+  return match == null
+      ? (name.trim(), null)
+      : (match.group(1)!, match.group(2)!);
+}
+
+/// Hora del día a partir de minutos desde la medianoche: 570 → "9:30".
+String formatMinuteOfDay(int minutes) =>
+    '${minutes ~/ 60}:${_two(minutes % 60)}';

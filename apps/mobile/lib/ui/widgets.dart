@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 
 import '../data/tables/sessions.dart';
+import 'formatting.dart';
 import 'theme.dart';
 
 /// Botón principal: ancho completo, 52 pt de alto y esquinas redondeadas.
@@ -211,9 +212,7 @@ class SupplementTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // "Omega 3 (EPAs / DHAs)" → título "Omega 3" y aclaración "EPAs / DHAs".
-    final match = RegExp(r'^(.+?)\s*\((.+)\)\s*$').firstMatch(name);
-    final title = match?.group(1) ?? name;
-    final detail = match?.group(2);
+    final (title, detail) = splitName(name);
     final secondary = textStyle(
       context,
       size: 13,

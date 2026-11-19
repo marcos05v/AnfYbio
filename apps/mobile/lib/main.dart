@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/appearance.dart';
+import 'app/notifications.dart';
 import 'ui/app.dart';
 
 Future<void> main() async {
@@ -10,7 +11,12 @@ Future<void> main() async {
   final preferences = await SharedPreferences.getInstance();
   runApp(
     ProviderScope(
-      overrides: [sharedPreferencesProvider.overrideWithValue(preferences)],
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(preferences),
+        notificationSchedulerProvider.overrideWithValue(
+          LocalNotificationScheduler(),
+        ),
+      ],
       child: const AnfybioApp(),
     ),
   );

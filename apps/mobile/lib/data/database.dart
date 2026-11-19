@@ -54,8 +54,9 @@ class AppDatabase extends _$AppDatabase {
   /// 3: rutina de entrenamiento, y qué día de ella siguió cada sesión.
   /// 4: lotes de cocción.
   /// 5: inventario de suplementos (Fase 3).
+  /// 6: hora del recordatorio de cada suplemento.
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -91,6 +92,12 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(supplementIntakes);
         await m.createIndex(supplementPurchasesSupplement);
         await m.createIndex(supplementIntakesSupplement);
+      }
+      // Solo si la tabla ya existía: si se acaba de crear en el paso
+      // anterior, createTable usó la definición actual, que ya trae la
+      // columna, y agregarla otra vez fallaría.
+      if (from == 5) {
+        await m.addColumn(supplements, supplements.reminderMinute);
       }
     },
     beforeOpen: (details) async {

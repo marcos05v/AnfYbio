@@ -112,4 +112,22 @@ void main() {
     expect(amount(null, null), '');
     expect(amount(null, null, isFree: true), 'Libre');
   });
+
+  test('splitName separa título y aclaración entre paréntesis', () {
+    expect(splitName('Omega 3 (EPAs / DHAs)'), ('Omega 3', 'EPAs / DHAs'));
+    expect(
+      splitName('Creatina Monohidratada (Sello Creapure de preferencia)'),
+      ('Creatina Monohidratada', 'Sello Creapure de preferencia'),
+    );
+    expect(splitName('  Zinc  '), ('Zinc', null));
+    // Un paréntesis que no está al final no es una aclaración.
+    expect(splitName('Vitamina (D3) líquida'), ('Vitamina (D3) líquida', null));
+  });
+
+  test('formatMinuteOfDay escribe la hora con dos dígitos de minutos', () {
+    expect(formatMinuteOfDay(570), '9:30');
+    expect(formatMinuteOfDay(540), '9:00');
+    expect(formatMinuteOfDay(21 * 60 + 5), '21:05');
+    expect(formatMinuteOfDay(0), '0:00');
+  });
 }

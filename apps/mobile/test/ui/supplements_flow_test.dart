@@ -1,9 +1,11 @@
 import 'package:anfybio/app/appearance.dart';
+import 'package:anfybio/app/notifications.dart';
 import 'package:anfybio/app/providers.dart';
 import 'package:anfybio/data/database.dart';
 import 'package:anfybio/data/repositories/nutrition_repository.dart';
 import 'package:anfybio/data/repositories/supplement_repository.dart';
 import 'package:anfybio/domain/nutrition.dart';
+import 'package:anfybio/domain/supplement_notifications.dart';
 import 'package:anfybio/ui/app.dart';
 import 'package:anfybio/ui/supplement_forms.dart';
 import 'package:anfybio/ui/widgets.dart';
@@ -12,6 +14,25 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// Registra lo que la app pediría programar, en lugar de usar el sistema.
+class FakeScheduler implements NotificationScheduler {
+  FakeScheduler({this.allowed = true});
+
+  final bool allowed;
+  int permissionRequests = 0;
+  List<PlannedNotification> scheduled = const [];
+
+  @override
+  Future<bool> requestPermission() async {
+    permissionRequests++;
+    return allowed;
+  }
+
+  @override
+  Future<void> replaceAll(List<PlannedNotification> notifications) async =>
+      scheduled = notifications;
+}
 
 void main() {
   late AppDatabase db;
@@ -40,12 +61,16 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Future<void> openSupplements(WidgetTester tester) async {
+  Future<void> openSupplements(
+    WidgetTester tester, {
+    NotificationScheduler scheduler = const NoopNotificationScheduler(),
+  }) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(db),
           sharedPreferencesProvider.overrideWithValue(preferences),
+          notificationSchedulerProvider.overrideWithValue(scheduler),
         ],
         child: const AnfybioApp(),
       ),
@@ -430,5 +455,113 @@ void main() {
     expect(find.textContaining('cuánto tomas al día'), findsOneWidget);
     expect(await db.select(db.supplements).get(), isEmpty);
     await shutDown(tester);
+  });
+
+  group('notificaciones', () {
+    testWidgets('cada suplemento con existencias tiene su aviso de reabasto', (
+      tester,
+    ) async {
+      await creatine();
+      final scheduler = FakeScheduler();
+      await openSupplements(tester, scheduler: scheduler);
+
+      final restock = scheduler.scheduled.single;
+      expect(restock.kind, NotificationKind.restock);
+      expect(restock.title, 'Reabastece tu Creatina');
+      expect(restock.body, 'Te alcanza para 7 días más.');
+      await shutDown(tester);
+    });
+
+    testWidgets('activar el recordatorio pide permiso y programa la semana', (
+      tester,
+    ) async {
+      await creatine();
+      final scheduler = FakeScheduler();
+      await openSupplements(tester, scheduler: scheduler);
+      await tap(tester, find.text('Creatina'));
+      expect(
+        find.text('Sin recordatorio diario. Actívalo en Editar.'),
+        findsOneWidget,
+      );
+
+      await tap(tester, find.text('Editar'));
+      await tap(tester, find.byKey(const Key('supReminder')));
+      expect(scheduler.permissionRequests, 1);
+      expect(find.text('9:00'), findsOneWidget); // hora propuesta
+      await tap(tester, find.text('Guardar cambios'));
+
+      expect(find.text('Recordatorio diario a las 9:00.'), findsOneWidget);
+      final reminders = scheduler.scheduled.where(
+        (n) => n.kind == NotificationKind.reminder,
+      );
+      expect(reminders.length, inInclusiveRange(6, 7)); // hoy, si aún no pasa
+      expect(reminders.first.title, 'Toma tu Creatina');
+      expect(reminders.first.body, '5 g');
+      expect(reminders.every((n) => n.at.hour == 9), isTrue);
+      await shutDown(tester);
+    });
+
+    testWidgets('si las notificaciones están desactivadas, lo explica', (
+      tester,
+    ) async {
+      await creatine();
+      await openSupplements(tester, scheduler: FakeScheduler(allowed: false));
+      await tap(tester, find.text('Creatina'));
+      await tap(tester, find.text('Editar'));
+
+      await tap(tester, find.byKey(const Key('supReminder')));
+
+      expect(
+        find.textContaining('Las notificaciones están desactivadas'),
+        findsOneWidget,
+      );
+      await shutDown(tester);
+    });
+
+    testWidgets('apagar el recordatorio deja de programarlo', (tester) async {
+      await SupplementRepository(db).addSupplement(
+        userId: userId,
+        name: 'Zinc',
+        unitLabel: 'pastillas',
+        dailyDose: 1,
+        reminderMinute: 21 * 60,
+        initialQuantity: 60,
+      );
+      final scheduler = FakeScheduler();
+      await openSupplements(tester, scheduler: scheduler);
+      expect(
+        scheduler.scheduled.where((n) => n.kind == NotificationKind.reminder),
+        isNotEmpty,
+      );
+
+      await tap(tester, find.text('Zinc'));
+      await tap(tester, find.text('Editar'));
+      await tap(tester, find.byKey(const Key('supReminder')));
+      await tap(tester, find.text('Guardar cambios'));
+
+      expect(
+        scheduler.scheduled.where((n) => n.kind == NotificationKind.reminder),
+        isEmpty,
+      );
+      expect(
+        find.text('Sin recordatorio diario. Actívalo en Editar.'),
+        findsOneWidget,
+      );
+      await shutDown(tester);
+    });
+
+    testWidgets('dar de alta el primer suplemento pide permiso', (
+      tester,
+    ) async {
+      final scheduler = FakeScheduler();
+      await openSupplements(tester, scheduler: scheduler);
+      await tap(tester, find.text('Agregar suplemento'));
+      await type(tester, 'supName', 'Zinc');
+      await type(tester, 'supDose', '1');
+      await tap(tester, find.text('Guardar suplemento'));
+
+      expect(scheduler.permissionRequests, 1);
+      await shutDown(tester);
+    });
   });
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../app/notifications.dart';
 import '../app/providers.dart';
 import '../data/database.dart';
 import '../data/repositories/supplement_repository.dart';
@@ -51,7 +52,16 @@ class SupplementsScreen extends ConsumerWidget {
               initialQuantity: data.initialQuantity,
               purchasedAt: data.purchasedAt,
               alreadyConsumed: data.alreadyConsumed,
+              reminderMinute: data.reminderMinute,
+            )
+            // Con el primer suplemento se pide permiso para avisar cuando
+            // haya que reabastecer (iOS solo pregunta una vez).
+            .then(
+              (_) =>
+                  ref.read(notificationSchedulerProvider).requestPermission(),
             ),
+        onEnableReminder: () =>
+            ref.read(notificationSchedulerProvider).requestPermission(),
       ),
     );
   }
@@ -227,9 +237,9 @@ class _RestockBanner extends StatelessWidget {
       for (final view in views)
         switch (view.statusAt(now)) {
           final s when s.stock <= 0 =>
-            '${view.supplement.name}: sin existencias',
+            '${splitName(view.supplement.name).$1}: sin existencias',
           final s =>
-            '${view.supplement.name}: alcanza ${formatDaysLeft(s.daysLeft)}',
+            '${splitName(view.supplement.name).$1}: alcanza ${formatDaysLeft(s.daysLeft)}',
         },
     ];
     return Container(
@@ -292,6 +302,7 @@ class _SupplementCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final supplement = view.supplement;
+    final (title, detail) = splitName(supplement.name);
     final status = view.statusAt(now);
     final secondary = textStyle(
       context,
@@ -328,9 +339,10 @@ class _SupplementCard extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          supplement.name,
+                          title,
                           style: textStyle(context, weight: FontWeight.w600),
                         ),
+                        if (detail != null) Text(detail, style: secondary),
                         Text(
                           status.stock <= 0
                               ? 'Sin existencias'

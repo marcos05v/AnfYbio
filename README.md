@@ -9,7 +9,7 @@ de la cantidad de funciones.
 
 ## Estado
 
-**Fases 1 y 2 completas; Fase 3 en desarrollo.**
+**Fases 1, 2 y 3 completas.**
 
 - Fase 1 — Entrenamiento: registro, edición y borrado de sesiones de fuerza,
   natación, carrera y apnea; 1RM estimado con gráficas por ejercicio; carga
@@ -18,9 +18,10 @@ de la cantidad de funciones.
 - Fase 2 — Nutrición: plan de alimentación con menús por tipo de día, captura
   manual o importación desde PDF con revisión, guía de suplementos, y lotes de
   cocción que convierten las porciones del plan de crudo a cocido.
-- Fase 3 — Suplementos, hecho: inventario con compras, tomas y ajustes; días
-  restantes y fecha en que se acaba; adherencia; aviso de reabastecimiento
-  dentro de la app. Pendiente: recordatorios y avisos como notificaciones.
+- Fase 3 — Suplementos: inventario por presentación (pastillas, polvo u otra)
+  con compras, tomas y ajustes; días restantes y fecha en que se acaba;
+  adherencia; recordatorio diario de toma y aviso de reabastecimiento como
+  notificaciones locales.
 - Adelantado de la Fase 4: rutina de entrenamiento (manual o importada desde
   PDF) y sesiones de fuerza que siguen el día que toca según el día de la
   semana.
@@ -32,7 +33,7 @@ cada renglón; no hay catálogo de equivalentes (ADR-0008).
 |---|---|---|
 | 1 | Entrenamiento: fuerza, natación, carrera, apnea, carga sRPE, exportación | Completa |
 | 2 | Nutrición: plan alimenticio, lotes de cocción, sustituciones | Completa |
-| 3 | Suplementos: inventario, recordatorios, adherencia | En desarrollo |
+| 3 | Suplementos: inventario, recordatorios, adherencia | Completa |
 | 4 | Catálogo de ejercicios e importación desde PDF | Pendiente |
 
 ## Principios

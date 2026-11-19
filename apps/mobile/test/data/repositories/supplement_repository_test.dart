@@ -157,11 +157,13 @@ void main() {
       dailyDose: 3,
       timing: '',
       restockLeadDays: 14,
+      reminderMinute: 9 * 60 + 30,
     );
 
     final edited = (await view(supplement.id)).supplement;
     expect((edited.name, edited.dailyDose), ('Creatina monohidratada', 3));
     expect((edited.timing, edited.restockLeadDays), (null, 14));
+    expect(edited.reminderMinute, 570);
     expect(edited.updatedAt, clock);
     expect((await view(supplement.id)).statusAt(today).daysLeft, 100);
   });

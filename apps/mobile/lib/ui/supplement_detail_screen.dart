@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../app/notifications.dart';
 import '../app/providers.dart';
 import 'formatting.dart';
 import 'supplement_forms.dart';
@@ -36,6 +37,7 @@ class SupplementDetailScreen extends ConsumerWidget {
 
     final repository = ref.read(supplementRepositoryProvider);
     final supplement = view.supplement;
+    final (title, detail) = splitName(supplement.name);
     final unit = supplement.unitLabel;
     final now = DateTime.now();
     final status = view.statusAt(now);
@@ -69,7 +71,7 @@ class SupplementDetailScreen extends ConsumerWidget {
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
-        middle: Text(supplement.name),
+        middle: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
         previousPageTitle: 'Atrás',
         border: null,
         trailing: CupertinoButton(
@@ -83,6 +85,9 @@ class SupplementDetailScreen extends ConsumerWidget {
               dailyDose: supplement.dailyDose,
               timing: supplement.timing,
               restockLeadDays: supplement.restockLeadDays,
+              reminderMinute: supplement.reminderMinute,
+              onEnableReminder: () =>
+                  ref.read(notificationSchedulerProvider).requestPermission(),
               onSave: (data) => repository.updateSupplement(
                 supplement.id,
                 name: data.name,
@@ -90,6 +95,7 @@ class SupplementDetailScreen extends ConsumerWidget {
                 dailyDose: data.dailyDose,
                 timing: data.timing,
                 restockLeadDays: data.restockLeadDays,
+                reminderMinute: data.reminderMinute,
               ),
               onDelete: () async {
                 // Se sale del detalle antes de que el suplemento desaparezca.
@@ -114,6 +120,25 @@ class SupplementDetailScreen extends ConsumerWidget {
                   24,
                 ),
                 children: [
+                  // El nombre completo, que en la barra no cabe.
+                  Text(
+                    title,
+                    style: textStyle(
+                      context,
+                      size: 26,
+                      weight: FontWeight.w700,
+                    ),
+                  ),
+                  if (detail != null)
+                    Text(
+                      detail,
+                      style: textStyle(
+                        context,
+                        size: 15,
+                        color: CupertinoColors.secondaryLabel,
+                      ),
+                    ),
+                  const SizedBox(height: 14),
                   Row(
                     children: [
                       Expanded(
@@ -168,6 +193,19 @@ class SupplementDetailScreen extends ConsumerWidget {
                                 '${formatQuantity(supplement.dailyDose, unit)} '
                                 'al día. Tras una semana de registros usará '
                                 'tu consumo real.',
+                      style: secondary,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
+                    child: Text(
+                      switch (supplement.reminderMinute) {
+                        null => 'Sin recordatorio diario. Actívalo en Editar.',
+                        final minute =>
+                          'Recordatorio diario a las '
+                              '${formatMinuteOfDay(minute)}.',
+                      },
+                      key: const Key('reminderSummary'),
                       style: secondary,
                     ),
                   ),

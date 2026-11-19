@@ -10915,6 +10915,18 @@ class $SupplementsTable extends Supplements
     requiredDuringInsert: false,
     defaultValue: const Constant(7),
   );
+  static const VerificationMeta _reminderMinuteMeta = const VerificationMeta(
+    'reminderMinute',
+  );
+  @override
+  late final GeneratedColumn<int> reminderMinute = GeneratedColumn<int>(
+    'reminder_minute',
+    aliasedName,
+    true,
+    check: () => ComparableExpr(reminderMinute).isBetweenValues(0, 24 * 60 - 1),
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -10927,6 +10939,7 @@ class $SupplementsTable extends Supplements
     dailyDose,
     timing,
     restockLeadDays,
+    reminderMinute,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -11008,6 +11021,15 @@ class $SupplementsTable extends Supplements
         ),
       );
     }
+    if (data.containsKey('reminder_minute')) {
+      context.handle(
+        _reminderMinuteMeta,
+        reminderMinute.isAcceptableOrUnknown(
+          data['reminder_minute']!,
+          _reminderMinuteMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -11057,6 +11079,10 @@ class $SupplementsTable extends Supplements
         DriftSqlType.int,
         data['${effectivePrefix}restock_lead_days'],
       )!,
+      reminderMinute: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reminder_minute'],
+      ),
     );
   }
 
@@ -11081,6 +11107,10 @@ class Supplement extends DataClass implements Insertable<Supplement> {
 
   /// Con cuántos días de anticipación avisar que hay que reabastecer.
   final int restockLeadDays;
+
+  /// Hora del recordatorio diario, en minutos desde la medianoche local
+  /// (9:30 = 570). Nula si no hay recordatorio.
+  final int? reminderMinute;
   const Supplement({
     required this.id,
     required this.createdAt,
@@ -11092,6 +11122,7 @@ class Supplement extends DataClass implements Insertable<Supplement> {
     required this.dailyDose,
     this.timing,
     required this.restockLeadDays,
+    this.reminderMinute,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -11110,6 +11141,9 @@ class Supplement extends DataClass implements Insertable<Supplement> {
       map['timing'] = Variable<String>(timing);
     }
     map['restock_lead_days'] = Variable<int>(restockLeadDays);
+    if (!nullToAbsent || reminderMinute != null) {
+      map['reminder_minute'] = Variable<int>(reminderMinute);
+    }
     return map;
   }
 
@@ -11129,6 +11163,9 @@ class Supplement extends DataClass implements Insertable<Supplement> {
           ? const Value.absent()
           : Value(timing),
       restockLeadDays: Value(restockLeadDays),
+      reminderMinute: reminderMinute == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderMinute),
     );
   }
 
@@ -11148,6 +11185,7 @@ class Supplement extends DataClass implements Insertable<Supplement> {
       dailyDose: serializer.fromJson<double>(json['dailyDose']),
       timing: serializer.fromJson<String?>(json['timing']),
       restockLeadDays: serializer.fromJson<int>(json['restockLeadDays']),
+      reminderMinute: serializer.fromJson<int?>(json['reminderMinute']),
     );
   }
   @override
@@ -11164,6 +11202,7 @@ class Supplement extends DataClass implements Insertable<Supplement> {
       'dailyDose': serializer.toJson<double>(dailyDose),
       'timing': serializer.toJson<String?>(timing),
       'restockLeadDays': serializer.toJson<int>(restockLeadDays),
+      'reminderMinute': serializer.toJson<int?>(reminderMinute),
     };
   }
 
@@ -11178,6 +11217,7 @@ class Supplement extends DataClass implements Insertable<Supplement> {
     double? dailyDose,
     Value<String?> timing = const Value.absent(),
     int? restockLeadDays,
+    Value<int?> reminderMinute = const Value.absent(),
   }) => Supplement(
     id: id ?? this.id,
     createdAt: createdAt ?? this.createdAt,
@@ -11189,6 +11229,9 @@ class Supplement extends DataClass implements Insertable<Supplement> {
     dailyDose: dailyDose ?? this.dailyDose,
     timing: timing.present ? timing.value : this.timing,
     restockLeadDays: restockLeadDays ?? this.restockLeadDays,
+    reminderMinute: reminderMinute.present
+        ? reminderMinute.value
+        : this.reminderMinute,
   );
   Supplement copyWithCompanion(SupplementsCompanion data) {
     return Supplement(
@@ -11204,6 +11247,9 @@ class Supplement extends DataClass implements Insertable<Supplement> {
       restockLeadDays: data.restockLeadDays.present
           ? data.restockLeadDays.value
           : this.restockLeadDays,
+      reminderMinute: data.reminderMinute.present
+          ? data.reminderMinute.value
+          : this.reminderMinute,
     );
   }
 
@@ -11219,7 +11265,8 @@ class Supplement extends DataClass implements Insertable<Supplement> {
           ..write('unitLabel: $unitLabel, ')
           ..write('dailyDose: $dailyDose, ')
           ..write('timing: $timing, ')
-          ..write('restockLeadDays: $restockLeadDays')
+          ..write('restockLeadDays: $restockLeadDays, ')
+          ..write('reminderMinute: $reminderMinute')
           ..write(')'))
         .toString();
   }
@@ -11236,6 +11283,7 @@ class Supplement extends DataClass implements Insertable<Supplement> {
     dailyDose,
     timing,
     restockLeadDays,
+    reminderMinute,
   );
   @override
   bool operator ==(Object other) =>
@@ -11250,7 +11298,8 @@ class Supplement extends DataClass implements Insertable<Supplement> {
           other.unitLabel == this.unitLabel &&
           other.dailyDose == this.dailyDose &&
           other.timing == this.timing &&
-          other.restockLeadDays == this.restockLeadDays);
+          other.restockLeadDays == this.restockLeadDays &&
+          other.reminderMinute == this.reminderMinute);
 }
 
 class SupplementsCompanion extends UpdateCompanion<Supplement> {
@@ -11264,6 +11313,7 @@ class SupplementsCompanion extends UpdateCompanion<Supplement> {
   final Value<double> dailyDose;
   final Value<String?> timing;
   final Value<int> restockLeadDays;
+  final Value<int?> reminderMinute;
   final Value<int> rowid;
   const SupplementsCompanion({
     this.id = const Value.absent(),
@@ -11276,6 +11326,7 @@ class SupplementsCompanion extends UpdateCompanion<Supplement> {
     this.dailyDose = const Value.absent(),
     this.timing = const Value.absent(),
     this.restockLeadDays = const Value.absent(),
+    this.reminderMinute = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SupplementsCompanion.insert({
@@ -11289,6 +11340,7 @@ class SupplementsCompanion extends UpdateCompanion<Supplement> {
     required double dailyDose,
     this.timing = const Value.absent(),
     this.restockLeadDays = const Value.absent(),
+    this.reminderMinute = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : userId = Value(userId),
        name = Value(name),
@@ -11305,6 +11357,7 @@ class SupplementsCompanion extends UpdateCompanion<Supplement> {
     Expression<double>? dailyDose,
     Expression<String>? timing,
     Expression<int>? restockLeadDays,
+    Expression<int>? reminderMinute,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -11318,6 +11371,7 @@ class SupplementsCompanion extends UpdateCompanion<Supplement> {
       if (dailyDose != null) 'daily_dose': dailyDose,
       if (timing != null) 'timing': timing,
       if (restockLeadDays != null) 'restock_lead_days': restockLeadDays,
+      if (reminderMinute != null) 'reminder_minute': reminderMinute,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -11333,6 +11387,7 @@ class SupplementsCompanion extends UpdateCompanion<Supplement> {
     Value<double>? dailyDose,
     Value<String?>? timing,
     Value<int>? restockLeadDays,
+    Value<int?>? reminderMinute,
     Value<int>? rowid,
   }) {
     return SupplementsCompanion(
@@ -11346,6 +11401,7 @@ class SupplementsCompanion extends UpdateCompanion<Supplement> {
       dailyDose: dailyDose ?? this.dailyDose,
       timing: timing ?? this.timing,
       restockLeadDays: restockLeadDays ?? this.restockLeadDays,
+      reminderMinute: reminderMinute ?? this.reminderMinute,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -11383,6 +11439,9 @@ class SupplementsCompanion extends UpdateCompanion<Supplement> {
     if (restockLeadDays.present) {
       map['restock_lead_days'] = Variable<int>(restockLeadDays.value);
     }
+    if (reminderMinute.present) {
+      map['reminder_minute'] = Variable<int>(reminderMinute.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -11402,6 +11461,7 @@ class SupplementsCompanion extends UpdateCompanion<Supplement> {
           ..write('dailyDose: $dailyDose, ')
           ..write('timing: $timing, ')
           ..write('restockLeadDays: $restockLeadDays, ')
+          ..write('reminderMinute: $reminderMinute, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -24482,6 +24542,7 @@ typedef $$SupplementsTableCreateCompanionBuilder =
       required double dailyDose,
       Value<String?> timing,
       Value<int> restockLeadDays,
+      Value<int?> reminderMinute,
       Value<int> rowid,
     });
 typedef $$SupplementsTableUpdateCompanionBuilder =
@@ -24496,6 +24557,7 @@ typedef $$SupplementsTableUpdateCompanionBuilder =
       Value<double> dailyDose,
       Value<String?> timing,
       Value<int> restockLeadDays,
+      Value<int?> reminderMinute,
       Value<int> rowid,
     });
 
@@ -24617,6 +24679,11 @@ class $$SupplementsTableFilterComposer
 
   ColumnFilters<int> get restockLeadDays => $composableBuilder(
     column: $table.restockLeadDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reminderMinute => $composableBuilder(
+    column: $table.reminderMinute,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -24748,6 +24815,11 @@ class $$SupplementsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get reminderMinute => $composableBuilder(
+    column: $table.reminderMinute,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$UsersTableOrderingComposer get userId {
     final $$UsersTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -24807,6 +24879,11 @@ class $$SupplementsTableAnnotationComposer
 
   GeneratedColumn<int> get restockLeadDays => $composableBuilder(
     column: $table.restockLeadDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get reminderMinute => $composableBuilder(
+    column: $table.reminderMinute,
     builder: (column) => column,
   );
 
@@ -24928,6 +25005,7 @@ class $$SupplementsTableTableManager
                 Value<double> dailyDose = const Value.absent(),
                 Value<String?> timing = const Value.absent(),
                 Value<int> restockLeadDays = const Value.absent(),
+                Value<int?> reminderMinute = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SupplementsCompanion(
                 id: id,
@@ -24940,6 +25018,7 @@ class $$SupplementsTableTableManager
                 dailyDose: dailyDose,
                 timing: timing,
                 restockLeadDays: restockLeadDays,
+                reminderMinute: reminderMinute,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -24954,6 +25033,7 @@ class $$SupplementsTableTableManager
                 required double dailyDose,
                 Value<String?> timing = const Value.absent(),
                 Value<int> restockLeadDays = const Value.absent(),
+                Value<int?> reminderMinute = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SupplementsCompanion.insert(
                 id: id,
@@ -24966,6 +25046,7 @@ class $$SupplementsTableTableManager
                 dailyDose: dailyDose,
                 timing: timing,
                 restockLeadDays: restockLeadDays,
+                reminderMinute: reminderMinute,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

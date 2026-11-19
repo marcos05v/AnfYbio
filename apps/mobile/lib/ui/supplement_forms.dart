@@ -19,6 +19,9 @@ typedef SupplementDraftData = ({
 
   /// Lo que se calcula ya consumido de ese envase.
   double alreadyConsumed,
+
+  /// Hora del recordatorio diario, en minutos desde la medianoche.
+  int? reminderMinute,
 });
 
 /// Alta o edición de un suplemento.
@@ -37,6 +40,8 @@ class SupplementForm extends StatefulWidget {
     this.timing,
     this.restockLeadDays = 7,
     this.initialPurchaseDate,
+    this.reminderMinute,
+    this.onEnableReminder,
     this.onDelete,
   });
 
@@ -49,6 +54,13 @@ class SupplementForm extends StatefulWidget {
 
   /// Fecha de compra con la que se abre el formulario; hoy si es nula.
   final DateTime? initialPurchaseDate;
+
+  /// Hora del recordatorio con la que se abre; nula si no tiene.
+  final int? reminderMinute;
+
+  /// Se llama al activar el recordatorio, para pedir permiso de notificar.
+  /// Devuelve si están permitidas.
+  final Future<bool> Function()? onEnableReminder;
   final Future<void> Function(SupplementDraftData data) onSave;
   final Future<void> Function()? onDelete;
 
@@ -78,6 +90,10 @@ class _SupplementFormState extends State<SupplementForm> {
   bool _inKilos = false;
   late DateTime _purchasedOn = widget.initialPurchaseDate ?? DateTime.now();
   bool _started = false;
+
+  /// Hora del recordatorio diario; nula si está apagado.
+  late int? _reminder = widget.reminderMinute;
+  bool _notificationsDenied = false;
   String? _error;
 
   @override
@@ -158,6 +174,59 @@ class _SupplementFormState extends State<SupplementForm> {
     setState(() => _purchasedOn = picked);
   }
 
+  Future<void> _toggleReminder(bool on) async {
+    setState(() {
+      _reminder = on ? 9 * 60 : null;
+      _notificationsDenied = false;
+    });
+    if (!on || widget.onEnableReminder == null) return;
+    final allowed = await widget.onEnableReminder!();
+    if (mounted) setState(() => _notificationsDenied = !allowed);
+  }
+
+  Future<void> _pickReminderTime() async {
+    final current = _reminder ?? 9 * 60;
+    var picked = current;
+    await showCupertinoModalPopup<void>(
+      context: context,
+      builder: (context) => Container(
+        height: 300,
+        color: resolveColor(context, sheetColor),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: CupertinoButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Listo'),
+                ),
+              ),
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.time,
+                  use24hFormat: true,
+                  minuteInterval: 5,
+                  initialDateTime: DateTime(
+                    2000,
+                    1,
+                    1,
+                    current ~/ 60,
+                    current % 60 - current % 5,
+                  ),
+                  onDateTimeChanged: (time) =>
+                      picked = time.hour * 60 + time.minute,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    setState(() => _reminder = picked);
+  }
+
   Future<void> _save() async {
     final dose = parseNumber(_dose.text);
     final lead = int.tryParse(_lead.text.trim());
@@ -199,6 +268,7 @@ class _SupplementFormState extends State<SupplementForm> {
               12,
             ),
       alreadyConsumed: quantity == null ? 0 : _consumed(dose, quantity),
+      reminderMinute: _reminder,
     ));
     navigator.pop();
   }
@@ -303,6 +373,31 @@ class _SupplementFormState extends State<SupplementForm> {
             ),
           ],
         ),
+        const SizedBox(height: 12),
+        CardGroup(
+          children: [
+            FormRow(
+              label: 'Recordatorio diario',
+              child: CupertinoSwitch(
+                key: const Key('supReminder'),
+                value: _reminder != null,
+                onChanged: _toggleReminder,
+              ),
+            ),
+            if (_reminder case final minute?)
+              PickerRow(
+                key: const Key('supReminderTime'),
+                label: 'Hora',
+                value: formatMinuteOfDay(minute),
+                onPressed: _pickReminderTime,
+              ),
+          ],
+        ),
+        if (_notificationsDenied)
+          FormError(
+            'Las notificaciones están desactivadas. Actívalas en Ajustes del '
+            'iPhone > Notificaciones > AnfYbio.',
+          ),
         if (!widget.isEditing) ...[
           const SizedBox(height: 14),
           Padding(

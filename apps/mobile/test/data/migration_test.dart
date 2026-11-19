@@ -33,7 +33,7 @@ void main() {
       );
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 5);
+    await verifier.migrateAndValidate(db, 6);
 
     final user = await db.select(db.users).getSingle();
     final session = await db.select(db.sessions).getSingle();
@@ -69,7 +69,7 @@ void main() {
       );
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 5);
+    await verifier.migrateAndValidate(db, 6);
 
     final plan = await db.select(db.nutritionPlans).getSingle();
     final session = await db.select(db.sessions).getSingle();
@@ -104,7 +104,7 @@ void main() {
         );
 
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 5);
+      await verifier.migrateAndValidate(db, 6);
 
       final day = await db.select(db.routineDays).getSingle();
       final session = await db.select(db.sessions).getSingle();
@@ -115,32 +115,61 @@ void main() {
     },
   );
 
-  test('de la versión 4 a la 5: se conservan los lotes de cocción', () async {
-    final schema = await verifier.schemaAt(4);
-    const stamp = "'2026-11-14T13:00:00.000Z'";
-    schema.rawDatabase
-      ..execute(
-        "INSERT INTO users (id, created_at, updated_at, display_name) VALUES "
-        "('u1', $stamp, $stamp, 'Marcos')",
-      )
-      ..execute(
-        "INSERT INTO cooking_batches (id, created_at, updated_at, user_id, "
-        "food_name, raw_weight_g, cooked_weight_g, cooked_at) VALUES "
-        "('b1', $stamp, $stamp, 'u1', 'Pollo', 1000, 720, $stamp)",
-      );
+  test(
+    'de la versión 4 a la actual: se conservan los lotes de cocción',
+    () async {
+      final schema = await verifier.schemaAt(4);
+      const stamp = "'2026-11-14T13:00:00.000Z'";
+      schema.rawDatabase
+        ..execute(
+          "INSERT INTO users (id, created_at, updated_at, display_name) VALUES "
+          "('u1', $stamp, $stamp, 'Marcos')",
+        )
+        ..execute(
+          "INSERT INTO cooking_batches (id, created_at, updated_at, user_id, "
+          "food_name, raw_weight_g, cooked_weight_g, cooked_at) VALUES "
+          "('b1', $stamp, $stamp, 'u1', 'Pollo', 1000, 720, $stamp)",
+        );
 
-    final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 5);
+      final db = AppDatabase(schema.newConnection());
+      await verifier.migrateAndValidate(db, 6);
 
-    final batch = await db.select(db.cookingBatches).getSingle();
-    expect((batch.foodName, batch.cookedWeightG), ('Pollo', 720));
-    expect(await db.select(db.supplements).get(), isEmpty);
-    await db.close();
-  });
+      final batch = await db.select(db.cookingBatches).getSingle();
+      expect((batch.foodName, batch.cookedWeightG), ('Pollo', 720));
+      expect(await db.select(db.supplements).get(), isEmpty);
+      await db.close();
+    },
+  );
+
+  test(
+    'de la versión 5 a la 6: los suplementos quedan sin recordatorio',
+    () async {
+      final schema = await verifier.schemaAt(5);
+      const stamp = "'2026-11-16T13:00:00.000Z'";
+      schema.rawDatabase
+        ..execute(
+          "INSERT INTO users (id, created_at, updated_at, display_name) VALUES "
+          "('u1', $stamp, $stamp, 'Marcos')",
+        )
+        ..execute(
+          "INSERT INTO supplements (id, created_at, updated_at, user_id, name, "
+          "unit_label, daily_dose, restock_lead_days) VALUES "
+          "('s1', $stamp, $stamp, 'u1', 'Creatina', 'g', 5, 7)",
+        );
+
+      final db = AppDatabase(schema.newConnection());
+      await verifier.migrateAndValidate(db, 6);
+
+      final supplement = await db.select(db.supplements).getSingle();
+      expect((supplement.name, supplement.dailyDose), ('Creatina', 5));
+      expect(supplement.reminderMinute, isNull);
+      await db.close();
+    },
+  );
 
   test('una instalación nueva crea directamente el esquema actual', () async {
-    final db = AppDatabase(await verifier.startAt(5));
-    await verifier.migrateAndValidate(db, 5);
+    final db = AppDatabase(await verifier.startAt(6));
+    await verifier.migrateAndValidate(db, 6);
     await db.close();
   });
 }

@@ -24,6 +24,12 @@ class Supplements extends Table with SyncColumns {
   IntColumn get restockLeadDays => integer()
       .withDefault(const Constant(7))
       .check(restockLeadDays.isBiggerOrEqualValue(0))();
+
+  /// Hora del recordatorio diario, en minutos desde la medianoche local
+  /// (9:30 = 570). Nula si no hay recordatorio.
+  IntColumn get reminderMinute => integer().nullable().check(
+    reminderMinute.isBetweenValues(0, 24 * 60 - 1),
+  )();
 }
 
 /// Una compra: lo que entra al inventario.

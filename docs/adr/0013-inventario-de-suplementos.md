@@ -64,6 +64,6 @@ que es justo lo que se quiere medir.
 
 - La predicción es tan buena como el registro: si se toma sin registrar, la
   app cree que queda más. Para eso existe "Corregir existencias".
-- **Pendiente:** los recordatorios de toma y el aviso de reabastecimiento como
-  notificaciones del sistema. Hoy el aviso solo se ve al abrir la app.
+- Los recordatorios y el aviso como notificaciones se resolvieron en el
+  ADR-0014.
 - El inventario entra en el respaldo.

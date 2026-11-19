@@ -67,6 +67,7 @@ class SupplementRepository {
     required double dailyDose,
     String? timing,
     int restockLeadDays = 7,
+    int? reminderMinute,
     double? initialQuantity,
     DateTime? purchasedAt,
     double alreadyConsumed = 0,
@@ -82,6 +83,7 @@ class SupplementRepository {
               dailyDose: dailyDose,
               timing: Value(_clean(timing)),
               restockLeadDays: Value(restockLeadDays),
+              reminderMinute: Value(reminderMinute),
             ),
           );
       if (initialQuantity != null && initialQuantity > 0) {
@@ -111,6 +113,7 @@ class SupplementRepository {
     required double dailyDose,
     required String? timing,
     required int restockLeadDays,
+    required int? reminderMinute,
   }) async {
     final updated =
         await (_db.update(_db.supplements)
@@ -122,6 +125,7 @@ class SupplementRepository {
                 dailyDose: Value(dailyDose),
                 timing: Value(_clean(timing)),
                 restockLeadDays: Value(restockLeadDays),
+                reminderMinute: Value(reminderMinute),
                 updatedAt: Value(_now()),
               ),
             );
