@@ -29,9 +29,20 @@ class FakeScheduler implements NotificationScheduler {
     return allowed;
   }
 
+  String? soundFile;
+  final tests = <String?>[];
+
   @override
-  Future<void> replaceAll(List<PlannedNotification> notifications) async =>
-      scheduled = notifications;
+  Future<void> replaceAll(
+    List<PlannedNotification> notifications, {
+    String? soundFile,
+  }) async {
+    scheduled = notifications;
+    this.soundFile = soundFile;
+  }
+
+  @override
+  Future<void> showTest({String? soundFile}) async => tests.add(soundFile);
 }
 
 void main() {
@@ -562,14 +573,14 @@ void main() {
     });
 
     testWidgets(
-      'la campana del detalle pone el recordatorio con confirmación',
+      'la tarjeta del detalle pone el recordatorio con confirmación',
       (tester) async {
         await creatine();
         final scheduler = FakeScheduler();
         await openSupplements(tester, scheduler: scheduler);
         await tap(tester, find.text('Creatina'));
 
-        await tap(tester, find.byKey(const Key('reminderBell')));
+        await tap(tester, find.byKey(const Key('reminderCard')));
         expect(find.text('Recordatorio diario'), findsOneWidget);
         expect(
           tester.widget<Text>(find.byKey(const Key('reminderClock'))).data,
@@ -597,7 +608,7 @@ void main() {
       },
     );
 
-    testWidgets('desde la campana también se quita el recordatorio', (
+    testWidgets('desde la tarjeta también se quita el recordatorio', (
       tester,
     ) async {
       await SupplementRepository(db).addSupplement(
@@ -626,12 +637,12 @@ void main() {
       await shutDown(tester);
     });
 
-    testWidgets('sin permiso, la campana explica y no guarda', (tester) async {
+    testWidgets('sin permiso, la hoja lo explica y no guarda', (tester) async {
       await creatine();
       await openSupplements(tester, scheduler: FakeScheduler(allowed: false));
       await tap(tester, find.text('Creatina'));
 
-      await tap(tester, find.byKey(const Key('reminderBell')));
+      await tap(tester, find.byKey(const Key('reminderCard')));
       await tap(tester, find.text('Poner recordatorio'));
 
       expect(
@@ -642,6 +653,68 @@ void main() {
         (await db.select(db.supplements).getSingle()).reminderMinute,
         isNull,
       );
+      await shutDown(tester);
+    });
+
+    testWidgets('las notificaciones llevan el suplemento para "Ya lo tomé"', (
+      tester,
+    ) async {
+      final supplement = await creatine();
+      await SupplementRepository(db).setReminder(supplement.id, 22 * 60);
+      final scheduler = FakeScheduler();
+      await openSupplements(tester, scheduler: scheduler);
+
+      expect(
+        scheduler.scheduled.every((n) => n.supplementId == supplement.id),
+        isTrue,
+      );
+      await shutDown(tester);
+    });
+
+    testWidgets('por defecto suenan con la campanita', (tester) async {
+      await creatine();
+      final scheduler = FakeScheduler();
+      await openSupplements(tester, scheduler: scheduler);
+
+      expect(scheduler.soundFile, 'anfybio_campanita.caf');
+      await shutDown(tester);
+    });
+
+    testWidgets('elegir otro sonido lo prueba y reprograma con él', (
+      tester,
+    ) async {
+      await creatine();
+      final scheduler = FakeScheduler();
+      await openSupplements(tester, scheduler: scheduler);
+      await tap(tester, find.text('Entrenar'));
+      await tap(tester, find.byIcon(CupertinoIcons.gear_alt));
+
+      await tap(tester, find.byKey(const Key('soundPicker')));
+      await tap(tester, find.text('Suave'));
+
+      expect(scheduler.tests, ['anfybio_suave.caf']);
+      expect(scheduler.soundFile, 'anfybio_suave.caf');
+      expect(preferences.getString('notificationSound'), 'soft');
+
+      // El sonido del sistema no usa archivo.
+      await tap(tester, find.byKey(const Key('soundPicker')));
+      await tap(tester, find.text('Predeterminado de iOS'));
+      expect(scheduler.soundFile, isNull);
+      await shutDown(tester);
+    });
+
+    testWidgets('sin permiso, probar la notificación lo explica', (
+      tester,
+    ) async {
+      final scheduler = FakeScheduler(allowed: false);
+      await openSupplements(tester, scheduler: scheduler);
+      await tap(tester, find.text('Entrenar'));
+      await tap(tester, find.byIcon(CupertinoIcons.gear_alt));
+
+      await tap(tester, find.text('Probar notificación'));
+
+      expect(find.text('Notificaciones desactivadas'), findsOneWidget);
+      expect(scheduler.tests, isEmpty);
       await shutDown(tester);
     });
   });

@@ -47,7 +47,15 @@ part 'database.g.dart';
 class AppDatabase extends _$AppDatabase {
   /// En pruebas se pasa una base en memoria; en la app se usa el archivo real.
   AppDatabase([QueryExecutor? executor])
-    : super(executor ?? driftDatabase(name: 'anfybio'));
+    : super(
+        executor ??
+            driftDatabase(
+              name: 'anfybio',
+              // El botón "Ya lo tomé" de una notificación registra la toma
+              // desde otro isolate; así ambos usan la misma conexión.
+              native: const DriftNativeOptions(shareAcrossIsolates: true),
+            ),
+      );
 
   /// 1: entrenamiento (Fase 1).
   /// 2: plan de alimentación y guía de suplementos (Fase 2).

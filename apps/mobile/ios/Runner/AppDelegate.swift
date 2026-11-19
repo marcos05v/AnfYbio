@@ -2,6 +2,7 @@ import Flutter
 import PDFKit
 import UIKit
 import UserNotifications
+import flutter_local_notifications
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -16,6 +17,11 @@ import UserNotifications
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+    // El botón "Ya lo tomé" corre en un motor de Flutter aparte cuando la app
+    // está cerrada; necesita los mismos plugins (base de datos, rutas).
+    FlutterLocalNotificationsPlugin.setPluginRegistrantCallback { registry in
+      GeneratedPluginRegistrant.register(with: registry)
+    }
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     registerPdfTextChannel(messenger: engineBridge.applicationRegistrar.messenger())
   }

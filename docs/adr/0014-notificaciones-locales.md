@@ -37,6 +37,19 @@ propio iPhone las dispara a la hora programada, aunque la app esté cerrada.
 - La zona horaria se toma del teléfono (`flutter_timezone`) para que la hora
   programada sea la hora local.
 
+### Ampliación: botón "Ya lo tomé" y sonido propio
+
+- Los recordatorios llevan el botón **"Ya lo tomé"**, que registra la toma
+  sin abrir la app. Con la app cerrada, iOS arranca un motor de Flutter
+  aparte que ejecuta `handleNotificationActionInBackground`; por eso la base
+  se abre con `shareAcrossIsolates`, para que ese motor y la app usen la
+  misma conexión. Si ese día ya había una toma, no registra otra.
+- **Sonido propio**: tres sonidos sintetizados para el proyecto
+  (`tool/make_sounds.py`), sin licencias de terceros, más el del sistema. Es
+  una preferencia del teléfono. iOS solo reproduce sonidos que vienen en la
+  app; en lugar de agregarlos al proyecto de Xcode, se copian de los recursos
+  a `Library/Sounds` la primera vez.
+
 ## Alternativas consideradas
 
 **Notificaciones push desde un servidor.** Permitirían avisos aunque la app
@@ -50,13 +63,20 @@ que ya se tomó.
 **Guardar la hora en las preferencias del dispositivo.** Evita migrar el
 esquema. Se descartó porque se perdería al restaurar un respaldo.
 
+**Usar un tono del iPhone o una canción.** iOS no da acceso a sus tonos ni
+a la música del usuario para notificaciones de otras apps.
+
+**Sonido continuo tipo alarma, aunque el teléfono esté en silencio.** Solo
+lo permiten las alertas críticas, que Apple reserva para apps médicas o de
+seguridad con un permiso especial.
+
 ## Consecuencias
 
 - Si la app no se abre en más de una semana, los recordatorios se agotan
   hasta la siguiente apertura. El aviso de reabastecimiento futuro sí queda
   programado.
-- La programación real (`LocalNotificationScheduler`) no tiene pruebas
-  automáticas: depende del sistema. Las pruebas usan un programador falso que
+- La programación real (`LocalNotificationScheduler`) y el botón en segundo
+  plano no tienen pruebas automáticas: dependen del sistema. Las pruebas usan un programador falso que
   registra lo que se programaría; el comportamiento en el iPhone se comprueba
   a mano.
 - Al escribir la prueba de migración apareció un error de orden: una tabla

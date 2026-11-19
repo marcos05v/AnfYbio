@@ -12,12 +12,15 @@ const int maxPendingNotifications = 60;
 /// Lo que hace falta de un suplemento para planear sus notificaciones.
 class SupplementForNotifications {
   const SupplementForNotifications({
+    required this.id,
     required this.name,
     required this.doseLabel,
     required this.status,
     this.timing,
     this.reminderMinute,
   });
+
+  final String id;
 
   /// Nombre corto, para el título.
   final String name;
@@ -37,6 +40,7 @@ enum NotificationKind { reminder, restock }
 class PlannedNotification {
   const PlannedNotification({
     required this.id,
+    required this.supplementId,
     required this.at,
     required this.title,
     required this.body,
@@ -44,6 +48,10 @@ class PlannedNotification {
   });
 
   final int id;
+
+  /// El suplemento al que se refiere: el botón "Ya lo tomé" registra la toma
+  /// de este suplemento.
+  final String supplementId;
 
   /// Momento en hora local.
   final DateTime at;
@@ -81,7 +89,15 @@ List<PlannedNotification> planSupplementNotifications({
             .clamp(1, reminderHorizonDays);
 
   final planned =
-      <({DateTime at, String title, String body, NotificationKind kind})>[];
+      <
+        ({
+          String supplementId,
+          DateTime at,
+          String title,
+          String body,
+          NotificationKind kind,
+        })
+      >[];
 
   for (final supplement in supplements) {
     final status = supplement.status;
@@ -92,6 +108,7 @@ List<PlannedNotification> planSupplementNotifications({
         if (!at.isAfter(now)) continue;
         if (day == 0 && status.takenToday) continue;
         planned.add((
+          supplementId: supplement.id,
           at: at,
           title: 'Toma tu ${supplement.name}',
           body: [supplement.doseLabel, ?supplement.timing].join(' · '),
@@ -125,6 +142,7 @@ List<PlannedNotification> planSupplementNotifications({
         ? status.daysLeft
         : restockLeadDays(supplement);
     planned.add((
+      supplementId: supplement.id,
       at: alertAt.isAfter(now) ? alertAt : nextMorning(),
       title: 'Reabastece tu ${supplement.name}',
       body: status.stock <= 0
@@ -143,6 +161,7 @@ List<PlannedNotification> planSupplementNotifications({
     for (final (index, p) in planned.take(maxPendingNotifications).indexed)
       PlannedNotification(
         id: index,
+        supplementId: p.supplementId,
         at: p.at,
         title: p.title,
         body: p.body,

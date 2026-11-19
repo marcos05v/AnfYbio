@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../app/appearance.dart';
 import '../app/notifications.dart';
 import '../app/providers.dart';
 import '../data/repositories/supplement_repository.dart';
@@ -34,6 +35,8 @@ class _NotificationSyncState extends ConsumerState<NotificationSync> {
     ref.listenManual(supplementsProvider(widget.userId), (_, next) {
       if (next.value case final views?) _schedule(views);
     }, fireImmediately: true);
+    // Cambiar el sonido reprograma todo con el nuevo.
+    ref.listenManual(notificationSoundProvider, (_, _) => _reschedule());
   }
 
   @override
@@ -55,6 +58,7 @@ class _NotificationSyncState extends ConsumerState<NotificationSync> {
         () {
           final s = view.supplement;
           final item = SupplementForNotifications(
+            id: s.id,
             name: splitName(s.name).$1,
             doseLabel: formatQuantity(s.dailyDose, s.unitLabel),
             timing: s.timing,
@@ -73,6 +77,7 @@ class _NotificationSyncState extends ConsumerState<NotificationSync> {
             now: now,
             restockLeadDays: (s) => leadDays[s]!,
           ),
+          soundFile: ref.read(notificationSoundProvider).fileName,
         );
   }
 

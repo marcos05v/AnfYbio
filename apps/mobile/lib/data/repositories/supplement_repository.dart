@@ -276,6 +276,45 @@ class SupplementRepository {
         );
   }
 
+  /// Registra la toma del día desde el botón "Ya lo tomé" de una
+  /// notificación. Si ese día ya hay una toma registrada no hace nada, para
+  /// no contarla dos veces. Devuelve si registró algo.
+  ///
+  /// [now] es la hora local; el día se compara en hora local.
+  Future<bool> logIntakeIfNotTakenToday(
+    String supplementId, {
+    required DateTime now,
+  }) {
+    return _db.transaction(() async {
+      final supplement =
+          await (_db.select(
+                _db.supplements,
+              )..where((s) => s.id.equals(supplementId) & s.deletedAt.isNull()))
+              .getSingleOrNull();
+      // El suplemento pudo borrarse después de programar la notificación.
+      if (supplement == null) return false;
+
+      final intakes =
+          await (_db.select(_db.supplementIntakes)..where(
+                (i) =>
+                    i.supplementId.equals(supplementId) &
+                    i.deletedAt.isNull() &
+                    i.isAdjustment.equals(false),
+              ))
+              .get();
+      final takenToday = intakes.any((i) {
+        final day = i.takenAt.toLocal();
+        return day.year == now.year &&
+            day.month == now.month &&
+            day.day == now.day;
+      });
+      if (takenToday) return false;
+
+      await logIntake(supplementId, takenAt: now);
+      return true;
+    });
+  }
+
   /// Borra una toma o un ajuste.
   Future<void> deleteIntake(String intakeId) async {
     final now = Value(_now());

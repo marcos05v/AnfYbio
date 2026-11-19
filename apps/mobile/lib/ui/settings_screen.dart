@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/appearance.dart';
 import '../app/backup.dart';
+import '../app/notifications.dart';
 import '../data/database.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -62,6 +63,13 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            const SectionHeader('Notificaciones'),
+            const _NotificationSettings(),
+            const _Footnote(
+              'Al elegir un sonido llega una notificación de prueba. En cada '
+              'recordatorio, desliza hacia abajo para ver el botón "Ya lo '
+              'tomé": registra la toma sin abrir la app.',
+            ),
             const SectionHeader('Datos'),
             CardGroup(children: [_ExportRow(userId: user.id)]),
             const _Footnote(
@@ -72,6 +80,91 @@ class SettingsScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Sonido de las notificaciones y una notificación de prueba.
+class _NotificationSettings extends ConsumerWidget {
+  const _NotificationSettings();
+
+  /// Muestra la notificación de prueba; si no hay permiso, explica cómo darlo.
+  Future<void> _test(BuildContext context, WidgetRef ref) async {
+    final scheduler = ref.read(notificationSchedulerProvider);
+    if (!await scheduler.requestPermission()) {
+      if (!context.mounted) return;
+      await showCupertinoDialog<void>(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: const Text('Notificaciones desactivadas'),
+          content: const Text(
+            'Actívalas en Ajustes del iPhone > Notificaciones > AnfYbio.',
+          ),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Aceptar'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    await scheduler.showTest(
+      soundFile: ref.read(notificationSoundProvider).fileName,
+    );
+  }
+
+  Future<void> _pickSound(BuildContext context, WidgetRef ref) async {
+    final current = ref.read(notificationSoundProvider);
+    final chosen = await showCupertinoModalPopup<NotificationSound>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('Sonido de las notificaciones'),
+        actions: [
+          for (final sound in NotificationSound.values)
+            CupertinoActionSheetAction(
+              isDefaultAction: sound == current,
+              onPressed: () => Navigator.of(context).pop(sound),
+              child: Text(sound.label),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+      ),
+    );
+    if (chosen == null) return;
+    await ref.read(notificationSoundProvider.notifier).select(chosen);
+    // Se escucha al elegirlo.
+    if (context.mounted) await _test(context, ref);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sound = ref.watch(notificationSoundProvider);
+    return CardGroup(
+      children: [
+        PickerRow(
+          key: const Key('soundPicker'),
+          label: 'Sonido',
+          value: sound.label,
+          onPressed: () => _pickSound(context, ref),
+        ),
+        CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () => _test(context, ref),
+          child: FormRow(
+            label: 'Probar notificación',
+            child: Icon(
+              CupertinoIcons.bell,
+              size: 20,
+              color: resolveColor(context, accentColor),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

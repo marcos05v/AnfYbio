@@ -168,6 +168,62 @@ void main() {
     expect((await view(supplement.id)).statusAt(today).daysLeft, 100);
   });
 
+  group('"Ya lo tomé" desde la notificación', () {
+    final evening = DateTime(2026, 11, 16, 21);
+
+    test('registra la dosis del día', () async {
+      final supplement = await creatine();
+
+      final logged = await repo.logIntakeIfNotTakenToday(
+        supplement.id,
+        now: evening,
+      );
+
+      expect(logged, isTrue);
+      final intake = (await view(supplement.id)).intakes.single;
+      expect((intake.amount, intake.isAdjustment), (5, false));
+      expect(intake.takenAt.toLocal(), evening);
+    });
+
+    test('no cuenta dos veces si ya se tomó ese día', () async {
+      final supplement = await creatine();
+      await repo.logIntake(supplement.id, takenAt: DateTime(2026, 11, 16, 8));
+
+      final logged = await repo.logIntakeIfNotTakenToday(
+        supplement.id,
+        now: evening,
+      );
+
+      expect(logged, isFalse);
+      expect((await view(supplement.id)).intakes, hasLength(1));
+    });
+
+    test('una toma de ayer o un ajuste no cuentan como la de hoy', () async {
+      final supplement = await creatine();
+      await repo.logIntake(supplement.id, takenAt: DateTime(2026, 11, 15, 22));
+      await repo.adjustStock(supplement.id, actualStock: 250, now: evening);
+
+      expect(
+        await repo.logIntakeIfNotTakenToday(supplement.id, now: evening),
+        isTrue,
+      );
+    });
+
+    test('si el suplemento se borró, no hace nada', () async {
+      final supplement = await creatine();
+      await repo.deleteSupplement(supplement.id);
+
+      expect(
+        await repo.logIntakeIfNotTakenToday(supplement.id, now: evening),
+        isFalse,
+      );
+      expect(
+        await repo.logIntakeIfNotTakenToday('no-existe', now: evening),
+        isFalse,
+      );
+    });
+  });
+
   test('poner, cambiar y quitar el recordatorio', () async {
     final supplement = await creatine();
 

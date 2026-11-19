@@ -96,3 +96,42 @@ class RoutineDayOneController extends Notifier<int> {
 final routineDayOneProvider = NotifierProvider<RoutineDayOneController, int>(
   RoutineDayOneController.new,
 );
+
+/// Sonido de las notificaciones de la app. Es una preferencia del teléfono.
+enum NotificationSound {
+  system('Predeterminado de iOS', null),
+  chime('Campanita', 'anfybio_campanita.caf'),
+  soft('Suave', 'anfybio_suave.caf'),
+  pulse('Pulso', 'anfybio_pulso.caf');
+
+  const NotificationSound(this.label, this.fileName);
+
+  final String label;
+
+  /// Archivo en assets/sounds; nulo para el sonido del sistema.
+  final String? fileName;
+}
+
+class NotificationSoundController extends Notifier<NotificationSound> {
+  static const _key = 'notificationSound';
+
+  @override
+  NotificationSound build() {
+    final saved = ref.watch(sharedPreferencesProvider).getString(_key);
+    return NotificationSound.values.firstWhere(
+      (s) => s.name == saved,
+      // Por defecto, uno propio: se distingue de las demás apps.
+      orElse: () => NotificationSound.chime,
+    );
+  }
+
+  Future<void> select(NotificationSound sound) async {
+    state = sound;
+    await ref.read(sharedPreferencesProvider).setString(_key, sound.name);
+  }
+}
+
+final notificationSoundProvider =
+    NotifierProvider<NotificationSoundController, NotificationSound>(
+      NotificationSoundController.new,
+    );

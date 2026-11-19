@@ -85,55 +85,37 @@ class SupplementDetailScreen extends ConsumerWidget {
         middle: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
         previousPageTitle: 'Atrás',
         border: null,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CupertinoButton(
-              key: const Key('reminderBell'),
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              minimumSize: Size.zero,
-              onPressed: openReminder,
-              child: Icon(
-                supplement.reminderMinute == null
-                    ? CupertinoIcons.bell
-                    : CupertinoIcons.bell_fill,
-                semanticLabel: 'Recordatorio',
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () => openSheet(
+            'Editar suplemento',
+            SupplementForm(
+              isEditing: true,
+              name: supplement.name,
+              unitLabel: unit,
+              dailyDose: supplement.dailyDose,
+              timing: supplement.timing,
+              restockLeadDays: supplement.restockLeadDays,
+              reminderMinute: supplement.reminderMinute,
+              onEnableReminder: () =>
+                  ref.read(notificationSchedulerProvider).requestPermission(),
+              onSave: (data) => repository.updateSupplement(
+                supplement.id,
+                name: data.name,
+                unitLabel: data.unitLabel,
+                dailyDose: data.dailyDose,
+                timing: data.timing,
+                restockLeadDays: data.restockLeadDays,
+                reminderMinute: data.reminderMinute,
               ),
+              onDelete: () async {
+                // Se sale del detalle antes de que el suplemento desaparezca.
+                Navigator.of(context).pop();
+                await repository.deleteSupplement(supplement.id);
+              },
             ),
-            CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: () => openSheet(
-                'Editar suplemento',
-                SupplementForm(
-                  isEditing: true,
-                  name: supplement.name,
-                  unitLabel: unit,
-                  dailyDose: supplement.dailyDose,
-                  timing: supplement.timing,
-                  restockLeadDays: supplement.restockLeadDays,
-                  reminderMinute: supplement.reminderMinute,
-                  onEnableReminder: () => ref
-                      .read(notificationSchedulerProvider)
-                      .requestPermission(),
-                  onSave: (data) => repository.updateSupplement(
-                    supplement.id,
-                    name: data.name,
-                    unitLabel: data.unitLabel,
-                    dailyDose: data.dailyDose,
-                    timing: data.timing,
-                    restockLeadDays: data.restockLeadDays,
-                    reminderMinute: data.reminderMinute,
-                  ),
-                  onDelete: () async {
-                    // Se sale del detalle antes de que el suplemento desaparezca.
-                    Navigator.of(context).pop();
-                    await repository.deleteSupplement(supplement.id);
-                  },
-                ),
-              ),
-              child: const Text('Editar'),
-            ),
-          ],
+          ),
+          child: const Text('Editar'),
         ),
       ),
       child: SafeArea(

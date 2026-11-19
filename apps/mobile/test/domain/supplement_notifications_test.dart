@@ -30,6 +30,7 @@ void main() {
     InventoryStatus? inventory,
     String? timing,
   }) => SupplementForNotifications(
+    id: 'id-$name',
     name: name,
     doseLabel: '5 g',
     timing: timing,
@@ -60,6 +61,21 @@ void main() {
       expect(result.first.at, DateTime(2026, 11, 16, 9, 30));
       expect(result.last.at, DateTime(2026, 11, 22, 9, 30));
       expect(result.first.title, 'Toma tu Creatina');
+    });
+
+    test('cada notificación sabe de qué suplemento es', () {
+      final result = plan([
+        supplement(name: 'Zinc', reminderMinute: 600),
+        supplement(name: 'Creatina'),
+      ]);
+      expect(
+        result.where((n) => n.supplementId == 'id-Zinc').map((n) => n.kind),
+        containsAll([NotificationKind.reminder, NotificationKind.restock]),
+      );
+      expect(
+        result.where((n) => n.supplementId == 'id-Creatina').single.kind,
+        NotificationKind.restock,
+      );
     });
 
     test('el cuerpo lleva la dosis y cuándo tomarlo', () {

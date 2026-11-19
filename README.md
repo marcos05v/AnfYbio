@@ -20,8 +20,8 @@ de la cantidad de funciones.
   cocción que convierten las porciones del plan de crudo a cocido.
 - Fase 3 — Suplementos: inventario por presentación (pastillas, polvo u otra)
   con compras, tomas y ajustes; días restantes y fecha en que se acaba;
-  adherencia; recordatorio diario de toma y aviso de reabastecimiento como
-  notificaciones locales.
+  adherencia; recordatorio diario de toma (con botón "Ya lo tomé" y sonido
+  propio) y aviso de reabastecimiento como notificaciones locales.
 - Adelantado de la Fase 4: rutina de entrenamiento (manual o importada desde
   PDF) y sesiones de fuerza que siguen el día que toca según el día de la
   semana.
