@@ -6,6 +6,7 @@ import '../app/plan_import.dart';
 import '../app/providers.dart';
 import '../data/database.dart';
 import '../data/repositories/routine_repository.dart';
+import '../catalog/catalog_exercise.dart';
 import '../catalog/exercise_matching.dart';
 import '../domain/routine.dart';
 import '../import/routine_parser.dart';
@@ -141,7 +142,7 @@ class RoutineScreen extends ConsumerWidget {
       for (final day in view?.days ?? const <RoutineDayView>[])
         for (final exercise in day.exercises)
           ?aliases[normalizeText(exercise.name)],
-    }.toList();
+    }.where(isCatalogLink).toList();
     if (ids.isEmpty) {
       return _explain(
         context,

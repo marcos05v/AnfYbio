@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../catalog/catalog_exercise.dart';
 import '../../catalog/exercise_matching.dart';
 import '../database.dart';
 
@@ -31,6 +32,9 @@ class CatalogLinkRepository {
 
   /// Enlaza el nombre [name] con [catalogId] y, si se indica, también el
   /// ejercicio [exerciseId]. Si el nombre ya tenía otro enlace, se reemplaza.
+  ///
+  /// Con [notInCatalogId] el nombre queda revisado como ejercicio propio: se
+  /// recuerda la decisión, pero el ejercicio no apunta a nada del catálogo.
   Future<void> link({
     required String userId,
     required String name,
@@ -61,9 +65,26 @@ class CatalogLinkRepository {
           ),
         );
       }
-      if (exerciseId != null) await _setExercise(exerciseId, catalogId);
+      if (exerciseId != null) {
+        await _setExercise(
+          exerciseId,
+          isCatalogLink(catalogId) ? catalogId : null,
+        );
+      }
     });
   }
+
+  /// Marca el nombre como revisado y sin equivalente en el catálogo.
+  Future<void> markNotInCatalog({
+    required String userId,
+    required String name,
+    String? exerciseId,
+  }) => link(
+    userId: userId,
+    name: name,
+    catalogId: notInCatalogId,
+    exerciseId: exerciseId,
+  );
 
   /// Quita el enlace del nombre y, si se indica, del ejercicio.
   Future<void> unlink({

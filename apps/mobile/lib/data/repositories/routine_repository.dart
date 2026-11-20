@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart';
 
+import '../../catalog/catalog_exercise.dart';
 import '../../catalog/exercise_matching.dart';
 import '../../domain/routine.dart';
 import '../../domain/weight.dart';
@@ -393,7 +394,7 @@ class RoutineRepository {
                   )
                   ..limit(1))
                 .getSingleOrNull();
-        if (alias != null) {
+        if (alias != null && isCatalogLink(alias.catalogId)) {
           await (_db.update(_db.exercises)
                 ..where((e) => e.id.equals(exercise.id)))
               .write(ExercisesCompanion(catalogId: Value(alias.catalogId)));

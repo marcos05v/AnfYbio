@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:anfybio/app/appearance.dart';
 import 'package:anfybio/app/catalog.dart';
 import 'package:anfybio/app/providers.dart';
+import 'package:anfybio/catalog/catalog_exercise.dart';
 import 'package:anfybio/catalog/exercise_catalog.dart';
 import 'package:anfybio/catalog/exercise_images.dart';
 import 'package:anfybio/data/database.dart';
@@ -155,6 +156,12 @@ void main() {
     );
     // Sugerir no enlaza nada.
     expect(await db.select(db.exerciseAliases).get(), isEmpty);
+    expect(
+      tester.widget<Text>(find.byKey(Key('suggestionPrompt-${bench.id}'))).data,
+      '¿Es este?',
+    );
+    // La sugerencia viene con su foto para reconocerla.
+    expect(images.requested, contains('$benchId/0.jpg'));
 
     await tap(tester, find.byKey(Key('confirm-${bench.id}')));
 
@@ -167,7 +174,7 @@ void main() {
     expect(exercise.catalogId, benchId);
     expect(
       find.text(
-        'Faltan 2 ejercicios. Confirma cada sugerencia o elige '
+        'Faltan 2 ejercicios. Confirma cada sugerencia o busca '
         'otro: la próxima vez esos nombres se enlazan solos.',
       ),
       findsOneWidget,
@@ -190,6 +197,41 @@ void main() {
       await CatalogLinkRepository(db).catalogIdFor(userId, 'Xqzw raro'),
       'Face_Pull',
     );
+    await shutDown(tester);
+  });
+
+  testWidgets('la foto de la sugerencia abre la ficha con instrucciones', (
+    tester,
+  ) async {
+    await openRoutine(tester);
+    await tap(tester, find.byKey(const Key('pendingLinks')));
+    final bench = await routineExercise('Press de banca plano con barra');
+
+    await tap(tester, find.byKey(Key('suggestionPhoto-${bench.id}')));
+
+    expect(find.text('Cómo hacerlo'), findsOneWidget);
+    // Ver la ficha no enlaza nada.
+    expect(await db.select(db.exerciseAliases).get(), isEmpty);
+    await shutDown(tester);
+  });
+
+  testWidgets('"No está en el catálogo" lo deja como propio', (tester) async {
+    await openRoutine(tester);
+    final rare = await routineExercise('Xqzw raro');
+    await tap(tester, find.byKey(const Key('pendingLinks')));
+
+    await tap(tester, find.byKey(Key('other-${rare.id}')));
+    await tap(tester, find.byKey(const Key('notInCatalog')));
+
+    expect(find.byKey(Key('other-${rare.id}')), findsNothing);
+    expect(
+      await CatalogLinkRepository(db).catalogIdFor(userId, 'Xqzw raro'),
+      notInCatalogId,
+    );
+    // De vuelta en la rutina ya no cuenta como pendiente.
+    await tap(tester, find.text('Atrás'));
+    expect(find.text('2 ejercicios sin enlazar'), findsOneWidget);
+    expect(find.byKey(Key('own-${rare.id}')), findsOneWidget);
     await shutDown(tester);
   });
 

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/catalog.dart';
 import '../app/providers.dart';
+import '../catalog/catalog_exercise.dart';
 import '../catalog/exercise_matching.dart';
 import '../data/database.dart';
 import '../domain/one_rep_max.dart';
@@ -177,11 +178,11 @@ class _StrengthSessionScreenState extends ConsumerState<StrengthSessionScreen> {
         rows: _setRows(done),
         effectiveDone: done.where((s) => !s.isWarmup).length,
         addButton: _addSetButton(() => _addRoutineSet(routineExercise, sets)),
-        onShowCatalog: catalogId == null
+        onShowCatalog: !isCatalogLink(catalogId)
             ? null
             : () => Navigator.of(context).push(
                 CupertinoPageRoute<void>(
-                  builder: (_) => CatalogExerciseScreen(catalogId: catalogId),
+                  builder: (_) => CatalogExerciseScreen(catalogId: catalogId!),
                 ),
               ),
       );

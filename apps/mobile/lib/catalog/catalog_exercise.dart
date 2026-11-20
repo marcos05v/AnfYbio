@@ -64,6 +64,16 @@ class CatalogExercise {
   }
 }
 
+/// Marca de un nombre que el usuario revisó y no está en el catálogo
+/// (por ejemplo, "Press California"): queda como ejercicio propio, sin fotos,
+/// y ya no se cuenta como pendiente de enlazar. Ningún id del catálogo
+/// empieza con guion bajo.
+const notInCatalogId = '_propio';
+
+/// Si [catalogId] apunta a un ejercicio real del catálogo.
+bool isCatalogLink(String? catalogId) =>
+    catalogId != null && catalogId != notInCatalogId;
+
 /// Nombres en español de los valores fijos del catálogo.
 const muscleLabels = {
   'abdominals': 'Abdomen',

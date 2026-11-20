@@ -7,6 +7,55 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/catalog.dart';
 import 'theme.dart';
 
+/// Miniatura cuadrada con la primera foto de un ejercicio, para listas.
+/// Sin internet (o sin foto) muestra un ícono en su lugar.
+class ExerciseThumbnail extends ConsumerStatefulWidget {
+  const ExerciseThumbnail({super.key, required this.images, this.size = 52});
+
+  final List<String> images;
+  final double size;
+
+  @override
+  ConsumerState<ExerciseThumbnail> createState() => _ExerciseThumbnailState();
+}
+
+class _ExerciseThumbnailState extends ConsumerState<ExerciseThumbnail> {
+  late final Future<File?> _file = widget.images.isEmpty
+      ? Future.value()
+      : ref.read(exerciseImageStoreProvider).image(widget.images.first);
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: SizedBox.square(
+        dimension: widget.size,
+        child: FutureBuilder<File?>(
+          future: _file,
+          builder: (context, snapshot) {
+            final file = snapshot.data;
+            if (file == null) {
+              return ColoredBox(
+                color: resolveColor(context, CupertinoColors.systemFill),
+                child: Icon(
+                  CupertinoIcons.photo,
+                  size: widget.size * 0.4,
+                  color: resolveColor(context, CupertinoColors.tertiaryLabel),
+                ),
+              );
+            }
+            return ColoredBox(
+              // Las fotos del catálogo tienen fondo blanco.
+              color: CupertinoColors.white,
+              child: Image.file(file, fit: BoxFit.cover),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 /// Las dos fotos de un ejercicio (posición inicial y final), alternándose
 /// como una animación simple.
 class ExerciseImagesView extends ConsumerStatefulWidget {

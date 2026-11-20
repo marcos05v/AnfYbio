@@ -8,6 +8,7 @@ import '../catalog/exercise_matching.dart';
 import '../data/database.dart';
 import '../data/repositories/routine_repository.dart';
 import 'catalog_exercise_screen.dart';
+import 'exercise_images_view.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -47,7 +48,8 @@ Future<void> unlinkRoutineExercise(
       );
 }
 
-/// Abre el buscador y, si se elige un ejercicio, lo enlaza.
+/// Abre el buscador y, si se elige un ejercicio (o se indica que no está en
+/// el catálogo), lo guarda.
 Future<void> pickAndLink(
   BuildContext context,
   WidgetRef ref, {
@@ -55,7 +57,7 @@ Future<void> pickAndLink(
   required RoutineExercise routineExercise,
 }) async {
   final chosen = await Navigator.of(context, rootNavigator: true).push(
-    CupertinoPageRoute<CatalogExercise>(
+    CupertinoPageRoute<String>(
       fullscreenDialog: true,
       builder: (_) => CatalogPickerScreen(
         title: routineExercise.name,
@@ -68,7 +70,7 @@ Future<void> pickAndLink(
     ref,
     userId: userId,
     routineExercise: routineExercise,
-    catalogId: chosen.id,
+    catalogId: chosen,
   );
 }
 
@@ -91,6 +93,28 @@ class CatalogLinkButton extends ConsumerWidget {
     final catalogId = aliases[normalizeText(routineExercise.name)];
     final accent = resolveColor(context, accentColor);
 
+    if (catalogId == notInCatalogId) {
+      // Revisado y sin equivalente: se puede volver a buscar.
+      return CupertinoButton(
+        key: Key('own-${routineExercise.id}'),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        minimumSize: Size.zero,
+        onPressed: () => pickAndLink(
+          context,
+          ref,
+          userId: userId,
+          routineExercise: routineExercise,
+        ),
+        child: Text(
+          'Propio',
+          style: textStyle(
+            context,
+            size: 14,
+            color: CupertinoColors.secondaryLabel,
+          ),
+        ),
+      );
+    }
     if (catalogId == null) {
       return CupertinoButton(
         key: Key('link-${routineExercise.id}'),
@@ -153,7 +177,8 @@ class CatalogLinkButton extends ConsumerWidget {
   }
 }
 
-/// Busca en el catálogo y devuelve el ejercicio elegido.
+/// Busca en el catálogo y devuelve el id del ejercicio elegido, o
+/// [notInCatalogId] si el usuario indica que no está.
 class CatalogPickerScreen extends ConsumerStatefulWidget {
   const CatalogPickerScreen({
     super.key,
@@ -233,6 +258,34 @@ class _CatalogPickerScreenState extends ConsumerState<CatalogPickerScreen> {
                 }),
               ),
             ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: CupertinoButton(
+                key: const Key('notInCatalog'),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: screenPadding,
+                  vertical: 4,
+                ),
+                minimumSize: Size.zero,
+                onPressed: () => Navigator.of(context).pop(notInCatalogId),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(CupertinoIcons.xmark_circle, size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      'No está en el catálogo',
+                      style: textStyle(
+                        context,
+                        size: 15,
+                        weight: FontWeight.w600,
+                        color: accentColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             Expanded(
               child: FutureBuilder<List<CatalogMatch>>(
                 future: _results,
@@ -259,15 +312,20 @@ class _CatalogPickerScreenState extends ConsumerState<CatalogPickerScreen> {
                           for (final match in matches)
                             CupertinoButton(
                               padding: const EdgeInsets.fromLTRB(
-                                16,
                                 12,
+                                10,
                                 12,
-                                12,
+                                10,
                               ),
                               onPressed: () =>
-                                  Navigator.of(context).pop(match.exercise),
+                                  Navigator.of(context).pop(match.exercise.id),
                               child: Row(
                                 children: [
+                                  ExerciseThumbnail(
+                                    key: ValueKey(match.exercise.id),
+                                    images: match.exercise.images,
+                                  ),
+                                  const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment:
@@ -358,7 +416,7 @@ class LinkReviewScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Todos los ejercicios están enlazados',
+                        'Todos los ejercicios están revisados',
                         textAlign: TextAlign.center,
                         style: textStyle(
                           context,
@@ -380,10 +438,10 @@ class LinkReviewScreen extends ConsumerWidget {
                 children: [
                   Text(
                     pending.length == 1
-                        ? 'Falta 1 ejercicio. Confirma la sugerencia o elige '
+                        ? 'Falta 1 ejercicio. Confirma la sugerencia o busca '
                               'otro: la próxima vez ese nombre se enlaza solo.'
                         : 'Faltan ${pending.length} ejercicios. Confirma cada '
-                              'sugerencia o elige otro: la próxima vez esos '
+                              'sugerencia o busca otro: la próxima vez esos '
                               'nombres se enlazan solos.',
                     style: textStyle(
                       context,
@@ -457,7 +515,33 @@ class _ReviewRowState extends ConsumerState<_ReviewRow> {
               else if (match == null)
                 Text('Sin sugerencias: elígelo a mano.', style: secondary)
               else ...[
-                Text('¿Es este?', style: secondary),
+                // Con poco parecido se dice tal cual: puede que el ejercicio
+                // no esté en el catálogo.
+                Text(
+                  match.score >= confidentMatchScore
+                      ? '¿Es este?'
+                      : 'No encontré uno igual. ¿Es este?',
+                  key: Key('suggestionPrompt-${widget.routineExercise.id}'),
+                  style: secondary,
+                ),
+                const SizedBox(height: 8),
+                // La foto ayuda a reconocerlo; al tocarla se abre la ficha
+                // con las instrucciones.
+                GestureDetector(
+                  key: Key('suggestionPhoto-${widget.routineExercise.id}'),
+                  onTap: () => Navigator.of(context).push(
+                    CupertinoPageRoute<void>(
+                      builder: (_) =>
+                          CatalogExerciseScreen(catalogId: match.exercise.id),
+                    ),
+                  ),
+                  child: ExerciseImagesView(
+                    key: ValueKey(match.exercise.id),
+                    images: match.exercise.images,
+                    height: 170,
+                  ),
+                ),
+                const SizedBox(height: 8),
                 Text(
                   match.exercise.name,
                   key: Key('suggestion-${widget.routineExercise.id}'),
@@ -515,7 +599,7 @@ class _ReviewRowState extends ConsumerState<_ReviewRow> {
                         routineExercise: widget.routineExercise,
                       ),
                       child: Text(
-                        match == null ? 'Buscar' : 'Elegir otro',
+                        match == null ? 'Buscar' : 'No, buscar otro',
                         style: textStyle(
                           context,
                           size: 15,

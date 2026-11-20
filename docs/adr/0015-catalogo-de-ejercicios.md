@@ -46,15 +46,28 @@ con nombres e instrucciones en inglés.
   parecido total), con singulares en español, sinónimos ("jalón al mentón" =
   "remo al mentón"), el equipo a medio peso y penalizaciones por variantes
   contradictorias (plano frente a declinado, sentado frente a de pie).
+- También iguala nombres distintos del mismo ejercicio antes de comparar
+  ("pullover en polea" = jalón con brazos rectos, "remo en polea baja" = remo
+  sentado en polea, "jalón de tríceps" = extensión de tríceps en polea) y
+  toma el equipo del dato del catálogo, no solo del nombre. Barra y barra Z
+  cuentan como cercanas, no como contradicción.
 - **Nada se enlaza sin confirmación.** La revisión propone el mejor
-  candidato; el usuario lo confirma o elige otro en el buscador.
+  candidato con su foto; el usuario lo confirma o busca otro. Si el
+  parecido es bajo, la pregunta lo dice ("No encontré uno igual").
 - Cada confirmación guarda un **alias**: nombre normalizado → id del
   catálogo (tabla `exercise_aliases`, versión 7 del esquema). Un nombre se
   confirma una sola vez; un ejercicio nuevo con ese nombre hereda el enlace.
+- **"No está en el catálogo"**: el alias guarda la marca `_propio` (ningún id
+  del catálogo empieza con guion bajo, y no hace falta cambiar el esquema).
+  El nombre deja de contarse como pendiente, pero el ejercicio no apunta a
+  nada del catálogo. Así quedan, por ejemplo, el press California o la
+  sentadilla sumo en máquina, que no están en ninguna base gratuita con
+  fotos (se revisó también wger).
 
-Medición con 39 nombres típicos de una rutina (prueba
-`bundled_catalog_test.dart`): **87 % aparece entre las 3 primeras
-sugerencias y 69 % en primer lugar.**
+Medición con 46 nombres típicos de una rutina (prueba
+`bundled_catalog_test.dart`): **100 % aparece entre las 3 primeras
+sugerencias y 83 % en primer lugar** (antes de los sinónimos: 87 % y 69 % con
+39 nombres). La prueba exige al menos 90 % y 70 %.
 
 ## Alternativas consideradas
 

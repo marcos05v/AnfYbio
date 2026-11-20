@@ -1,3 +1,4 @@
+import 'package:anfybio/catalog/catalog_exercise.dart';
 import 'package:anfybio/data/database.dart';
 import 'package:anfybio/data/repositories/catalog_link_repository.dart';
 import 'package:anfybio/data/repositories/routine_repository.dart';
@@ -125,5 +126,64 @@ void main() {
 
     expect(created.catalogId, benchId);
     expect((await db.select(db.exercises).getSingle()).catalogId, benchId);
+  });
+
+  test(
+    '"no está en el catálogo" se recuerda sin enlazar el ejercicio',
+    () async {
+      final own = await exercise('Press California');
+      await repo.link(
+        userId: userId,
+        name: own.name,
+        catalogId: benchId,
+        exerciseId: own.id,
+      );
+
+      await repo.markNotInCatalog(
+        userId: userId,
+        name: own.name,
+        exerciseId: own.id,
+      );
+
+      // El nombre queda revisado…
+      expect(
+        await repo.catalogIdFor(userId, 'press california'),
+        notInCatalogId,
+      );
+      // …pero el ejercicio no apunta a nada del catálogo.
+      expect((await db.select(db.exercises).getSingle()).catalogId, isNull);
+    },
+  );
+
+  test('la marca de ejercicio propio no se hereda como enlace', () async {
+    await repo.markNotInCatalog(userId: userId, name: 'Press California');
+    final routines = RoutineRepository(db);
+    await routines.saveRoutine(
+      userId,
+      const RoutineDraft(
+        name: 'Rutina',
+        days: [
+          RoutineDayDraft(
+            name: 'Tríceps',
+            exercises: [RoutineExerciseDraft(name: 'Press California')],
+          ),
+        ],
+      ),
+    );
+    final routineExercise = (await routines.activeRoutine(userId))!
+        .days
+        .single
+        .exercises
+        .single;
+
+    final created = await routines.exerciseFor(routineExercise.id);
+
+    expect(created.catalogId, isNull);
+  });
+
+  test('isCatalogLink distingue enlaces reales', () {
+    expect(isCatalogLink(benchId), isTrue);
+    expect(isCatalogLink(notInCatalogId), isFalse);
+    expect(isCatalogLink(null), isFalse);
   });
 }

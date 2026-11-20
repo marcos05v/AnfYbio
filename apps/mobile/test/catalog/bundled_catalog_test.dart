@@ -111,6 +111,14 @@ void main() {
       'Pájaros en Polea': 'Cable_Rear_Delt_Fly',
       'Face pull': 'Face_Pull',
       'Pullover con mancuerna': 'Bent-Arm_Dumbbell_Pullover',
+      // Mismo ejercicio con otro nombre (sinónimos del buscador).
+      'Pullover en polea': 'Straight-Arm_Pulldown',
+      'Pull over con cuerda': 'Rope_Straight-Arm_Pulldown',
+      'Jalón de tríceps con cuerda': 'Triceps_Pushdown_-_Rope_Attachment',
+      'Activación de Aductores en Máquina o con Banda': 'Thigh_Adductor',
+      'Pájaros con Mancuernas en banco inclinado': 'Reverse_Flyes',
+      'Curl con barra Z': 'EZ-Bar_Curl',
+      'Press francés con barra Z': 'EZ-Bar_Skullcrusher',
     };
 
     test('los nombres esperados existen en el catálogo', () async {
@@ -119,7 +127,7 @@ void main() {
       }
     });
 
-    test('al menos el 80 % aparece entre las 3 primeras sugerencias', () async {
+    test('al menos el 90 % aparece entre las 3 primeras sugerencias', () async {
       final misses = <String>[];
       var first = 0;
       for (final MapEntry(key: name, value: id) in expected.entries) {
@@ -136,7 +144,8 @@ void main() {
         '${(first / expected.length * 100).round()} % en primer lugar. '
         'Fallos:\n  ${misses.join('\n  ')}',
       );
-      expect(hitRate, greaterThanOrEqualTo(0.8));
+      expect(hitRate, greaterThanOrEqualTo(0.9));
+      expect(first / expected.length, greaterThanOrEqualTo(0.7));
     });
   });
 }
