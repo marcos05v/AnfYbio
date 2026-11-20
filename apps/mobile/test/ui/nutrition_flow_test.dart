@@ -176,6 +176,59 @@ void main() {
     await shutDown(tester);
   });
 
+  testWidgets('con días altos y bajos, el usuario elige y se recuerda', (
+    tester,
+  ) async {
+    await NutritionRepository(db).savePlan(
+      userId,
+      const NutritionPlanDraft(
+        name: 'Plan alto y bajo',
+        menus: [
+          MenuDraft(
+            dayType: DayType.high,
+            title: 'Días altos',
+            meals: [
+              MealDraft(
+                name: 'Comida',
+                items: [
+                  ItemDraft(name: 'Arroz', amount: 90, unit: FoodUnit.gram),
+                ],
+              ),
+            ],
+          ),
+          MenuDraft(
+            dayType: DayType.low,
+            title: 'Días bajos',
+            meals: [
+              MealDraft(
+                name: 'Comida',
+                items: [
+                  ItemDraft(name: 'Tostadas', amount: 3, unit: FoodUnit.piece),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    await openNutrition(tester);
+
+    // Solo los menús de este plan, empezando por el primero.
+    expect(find.text('Entrenamiento'), findsNothing);
+    expect(find.text('Arroz'), findsOneWidget);
+    expect(find.textContaining('Toca el menú que te toca hoy'), findsOneWidget);
+
+    await tap(tester, find.text('Día bajo'));
+    expect(find.text('Tostadas'), findsOneWidget);
+    expect(preferences.getString('dayTypeOverride'), endsWith(':low'));
+
+    // Elegir el primero también se recuerda: aquí no hay detección.
+    await tap(tester, find.text('Día alto'));
+    expect(find.text('Arroz'), findsOneWidget);
+    expect(preferences.getString('dayTypeOverride'), endsWith(':high'));
+    await shutDown(tester);
+  });
+
   testWidgets('la guía de suplementos se ve en cualquier tipo de día', (
     tester,
   ) async {

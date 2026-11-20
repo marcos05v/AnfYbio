@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/appearance.dart';
 import '../app/backup.dart';
 import '../app/notifications.dart';
+import '../app/sync.dart';
 import '../data/database.dart';
+import 'server_screen.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -70,6 +72,12 @@ class SettingsScreen extends ConsumerWidget {
               'recordatorio, desliza hacia abajo para ver el botón "Ya lo '
               'tomé": registra la toma sin abrir la app.',
             ),
+            const SectionHeader('Sincronización'),
+            CardGroup(children: [const _ServerRow()]),
+            const _Footnote(
+              'Respalda tus datos en el servidor de tu Mac y úsalos en otro '
+              'iPhone. Funciona en el Wi-Fi de tu casa.',
+            ),
             const SectionHeader('Datos'),
             CardGroup(children: [_ExportRow(userId: user.id)]),
             const _Footnote(
@@ -80,6 +88,25 @@ class SettingsScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Estado de la conexión con el servidor; abre su pantalla.
+class _ServerRow extends ConsumerWidget {
+  const _ServerRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(syncControllerProvider);
+    return NavigationRow(
+      key: const Key('serverRow'),
+      label: 'Servidor',
+      detail: status.connected
+          ? 'Conectado como ${status.username}'
+          : 'Sin conectar',
+      onPressed: () => Navigator.of(context)
+          .push(CupertinoPageRoute<void>(builder: (_) => const ServerScreen())),
     );
   }
 }

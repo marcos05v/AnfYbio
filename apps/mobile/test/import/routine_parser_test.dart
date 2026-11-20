@@ -199,4 +199,115 @@ void main() {
       expect(result.draft.days, isEmpty);
     });
   });
+
+  group('formato libre (otro entrenador)', () {
+    late ParsedRoutine result;
+    late RoutineDraft routine;
+
+    setUpAll(() {
+      result = parseRoutine(
+        File('test/fixtures/rutina_formato_libre_ejemplo.txt')
+            .readAsStringSync(),
+      );
+      routine = result.draft;
+    });
+
+    RoutineExerciseDraft find(String name) =>
+        routine.exercises.singleWhere((e) => e.name == name);
+
+    test('días en mayúsculas y numeración rota', () {
+      expect(routine.name, 'Plan de entrenamiento Ejemplo');
+      expect(routine.days.map((d) => d.name), [
+        'Pierna (Glúteo y Femoral)',
+        'Torso + HIIT',
+        'Glúteo',
+      ]);
+      // "2. 3. Puente…" y el renglón sin número que sigue son dos ejercicios.
+      expect(routine.days.first.exercises.map((e) => e.name).take(3), [
+        'Calentamiento dinámico',
+        'Puente de Glúteo Pesado (con barra)',
+        'Peso Muerto con Mancuernas (pies separados)',
+      ]);
+    });
+
+    test('"N series x A-B reps", también partido en dos renglones', () {
+      final bridge = find('Puente de Glúteo Pesado (con barra)');
+      expect((bridge.workSets, bridge.repsMin, bridge.repsMax), (5, 8, 10));
+      expect(bridge.note, 'Pesadas');
+
+      final deadlift = find('Peso Muerto con Mancuernas (pies separados)');
+      expect((deadlift.workSets, deadlift.repsMax), (4, 10));
+    });
+
+    test('"4 x15 reps" sin la palabra series', () {
+      final dips = find('Fondos asistidos');
+      expect((dips.workSets, dips.repsMin, dips.repsMax), (4, 15, 15));
+    });
+
+    test('la biserie presta sus series y une los ejercicios con etiqueta', () {
+      final lunges = find('Zancadas con mancuernas');
+      expect((lunges.workSets, lunges.repsMin), (3, 10));
+      expect(lunges.note, 'Por pierna');
+      expect(lunges.supersetWithPrevious, isFalse);
+      expect(find('Curl Femoral acostado').supersetWithPrevious, isTrue);
+    });
+
+    test('un encabezado de biserie partido en varios renglones', () {
+      // "1. BISERIE 2" / "-" / "(3 series):"
+      final seated = find('Curl Femoral sentado');
+      expect(seated.workSets, 3);
+      expect(find('Patada de glúteo en polea').repsMax, 15);
+      // "3. BISERIE 1" / "-" / "ESPALDA (4 series en total):"
+      expect(find('Remo en polea baja').workSets, 4);
+      final facePull = find('Face pull');
+      expect((facePull.workSets, facePull.repsNote), (4, 'al fallo'));
+      expect(facePull.supersetWithPrevious, isTrue);
+    });
+
+    test('un ejercicio numerado después de la biserie la cierra', () {
+      expect(find('Hiperextensiones').supersetWithPrevious, isFalse);
+      expect(find('Fondos asistidos').supersetWithPrevious, isFalse);
+      expect(find('Elevaciones de talón').supersetWithPrevious, isFalse);
+    });
+
+    test('etiquetas con dos puntos y numeradas ("3. D1: …")', () {
+      expect(find('Puente en máquina').supersetWithPrevious, isFalse);
+      expect(find('Patada en polea').supersetWithPrevious, isTrue);
+    });
+
+    test('drop set y repeticiones extra quedan en la nota', () {
+      expect(find('Curl Femoral sentado').note, contains('drop set'));
+      expect(find('Remo en polea baja').note, 'Completas + 10 reps parciales');
+    });
+
+    test('calentamiento y cardio guardan la duración, sin avisos', () {
+      final warmup = find('Calentamiento dinámico');
+      expect(warmup.workSets, isNull);
+      expect(warmup.repsNote, '10 min');
+      expect(warmup.warning, isNull);
+      expect(warmup.note, contains('2 series de 20 reps'));
+
+      final cardio = find('Cardio');
+      expect((cardio.repsNote, cardio.note), ('30 min', 'Tipo LISS'));
+    });
+
+    test('las repeticiones pueden ir antes de las series', () {
+      final activation = find('Activación');
+      expect((activation.workSets, activation.repsMin), (1, 20));
+      expect(activation.note, 'Abducción en polea ligeras por pierna');
+    });
+
+    test('un bloque en mayúsculas es un grupo con sus rondas', () {
+      final plank = find('Plancha');
+      expect(plank.groupLabel, 'ABDOMEN: TODOS LOS DÍAS DE TORSO (4 rondas)');
+      expect((plank.workSets, plank.repsNote), (4, '1 min'));
+      expect(find('Crunch').repsNote, '30 seg');
+      // Va en varios días: se avisa para que se copie a mano.
+      expect(result.warnings.single, contains('va en varios días'));
+    });
+
+    test('nada más queda por revisar', () {
+      expect(routine.exercises.where((e) => e.warning != null), isEmpty);
+    });
+  });
 }

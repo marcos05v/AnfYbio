@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../domain/load_mode.dart';
 import '../../domain/weight.dart';
 import '../database.dart';
 
@@ -15,6 +16,19 @@ class ExerciseRepository {
           ..where((e) => e.userId.equals(userId) & e.deletedAt.isNull())
           ..orderBy([(e) => OrderingTerm.asc(e.name.lower())]))
         .watch();
+  }
+
+  /// Guarda qué significa el peso anotado en este ejercicio (ADR-0022). No
+  /// toca las series ya registradas: solo cómo se leen.
+  Future<void> setLoadMode(String exerciseId, LoadMode mode, {DateTime? now}) {
+    return (_db.update(
+      _db.exercises,
+    )..where((e) => e.id.equals(exerciseId))).write(
+      ExercisesCompanion(
+        loadMode: Value(mode),
+        updatedAt: Value(now ?? DateTime.now().toUtc()),
+      ),
+    );
   }
 
   Future<Exercise> createExercise({

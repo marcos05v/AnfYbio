@@ -17,17 +17,18 @@ class ParsedNutritionPlan {
 
 /// Convierte el texto de un plan de alimentación en un borrador (ADR-0009).
 ///
-/// Espera la estructura con la que la nutrióloga escribe sus planes:
+/// Reconoce las dos formas de escribir planes que se han visto:
 ///
 /// ```
 /// Título del plan
-/// Menú 1: Días de Entrenamiento
+/// Menú 1: Días de Entrenamiento          🟩 DÍAS ALTOS: Tren inferior
 /// Indicaciones de pesaje: …
-/// • 1. Desayuno (indicación de horario)
-/// ◦ Alimento (crudo): 130 g
+/// • 1. Desayuno (indicación de horario)  1. Al despertar
+/// ◦ Alimento (crudo): 130 g              ◦ 130 g de alimento (en crudo).
 /// Guía de Suplementación
-/// Nombre del suplemento
-/// • Dosis: …   • Momento de toma: …   • Beneficio: …
+/// Nombre del suplemento                  •
+/// • Dosis: …   • Momento de toma: …      Nombre:
+/// • Beneficio: …                         Dosis: …   Objetivo: …
 /// ```
 ///
 /// No adivina: lo que no reconoce lo deja como está y lo marca con una
@@ -52,13 +53,12 @@ ParsedNutritionPlan parseNutritionPlan(String text, {String? fileName}) {
   String? weighingNotes;
 
   for (final line in _joinContinuations(foodLines)) {
-    final menuMatch = _menuHeader.firstMatch(line);
-    if (menuMatch != null) {
-      final title = menuMatch.group(1)!.trim();
+    final title = _menuTitle(line);
+    if (title != null) {
       menus.add(_Menu(title, _dayTypeOf(title, menus.length, warnings)));
     } else if (_weighingHeader.hasMatch(line)) {
       weighingNotes ??= line;
-    } else if (line.startsWith('•')) {
+    } else if (line.startsWith('•') || _numberedMeal.hasMatch(line)) {
       if (menus.isEmpty) {
         warnings.add(
           'El plan no indica si es para días de entrenamiento o de '
@@ -66,7 +66,9 @@ ParsedNutritionPlan parseNutritionPlan(String text, {String? fileName}) {
         );
         menus.add(_Menu('Menú', DayType.training));
       }
-      menus.last.meals.add(_parseMeal(line.substring(1)));
+      menus.last.meals.add(
+        _parseMeal(line.startsWith('•') ? line.substring(1) : line),
+      );
     } else if (line.startsWith('◦') || line.startsWith('✦')) {
       if (menus.isEmpty || menus.last.meals.isEmpty) {
         warnings.add(
@@ -112,12 +114,35 @@ ParsedNutritionPlan parseNutritionPlan(String text, {String? fileName}) {
 }
 
 final _menuHeader = RegExp(r'^Men[uú]\s*\d*\s*:\s*(.+)$', caseSensitive: false);
+
+/// "🟩 DÍAS ALTOS: Tren Inferior", "Días bajos", "Días de descanso".
+final _dayHeader = RegExp(
+  r'^D[IÍií]AS?\s+(ALTOS?|BAJOS?|DE\s+ENTRENAMIENTO|DE\s+DESCANSO)\b',
+  caseSensitive: false,
+);
+
+/// Lo que va antes de la primera letra o número: viñetas y emojis.
+final _leadingSymbols = RegExp(r'^[^\p{L}\p{N}]+', unicode: true);
+
+/// "1. Al Despertar": una comida numerada sin viñeta. Se exige que empiece
+/// con letra para no confundirla con una cantidad.
+final _numberedMeal = RegExp(r'^\d+\s*[.)]\s+\p{L}', unicode: true);
+
+/// El título del menú si el renglón es un encabezado de menú.
+String? _menuTitle(String line) {
+  if (_menuHeader.firstMatch(line) case final match?) {
+    return match.group(1)!.trim();
+  }
+  final text = line.replaceFirst(_leadingSymbols, '');
+  return _dayHeader.hasMatch(text) ? text : null;
+}
+
 final _weighingHeader = RegExp(
   r'^Indicaciones de pesaje',
   caseSensitive: false,
 );
 final _supplementsHeader = RegExp(
-  r'^Gu[ií]a de Suplement',
+  r'^Gu[iíÍI]a de Suplement',
   caseSensitive: false,
 );
 
@@ -147,7 +172,8 @@ List<String> _joinContinuations(List<String> lines) {
         line.startsWith('•') ||
         line.startsWith('◦') ||
         line.startsWith('✦') ||
-        _menuHeader.hasMatch(line) ||
+        _numberedMeal.hasMatch(line) ||
+        _menuTitle(line) != null ||
         _weighingHeader.hasMatch(line);
     if (!startsNew && _isOpen(joined)) {
       joined[joined.length - 1] = '${joined.last} $line';
@@ -172,6 +198,8 @@ DayType _dayTypeOf(String title, int index, List<String> warnings) {
   final text = title.toLowerCase();
   // "Descanso / Sin entrenamiento" contiene las dos palabras: va primero.
   if (text.contains('descanso')) return DayType.rest;
+  if (RegExp(r'\baltos?\b').hasMatch(text)) return DayType.high;
+  if (RegExp(r'\bbajos?\b').hasMatch(text)) return DayType.low;
   if (text.contains('entren')) return DayType.training;
   warnings.add(
     'No se reconoció si el menú "$title" es de entrenamiento o de descanso.',
@@ -193,35 +221,74 @@ final _leadingQuantity = RegExp(
   caseSensitive: false,
 );
 final _stateInParentheses = RegExp(
-  r'\s*\((crud[oa]s?|cocid[oa]s?|(?:en )?seco)\)',
+  r'\s*\((?:en\s+)?(crud[oa]s?|cocid[oa]s?|seco)\)',
   caseSensitive: false,
 );
 
+/// "2 tostadas horneadas": número entero y luego el alimento.
+final _leadingCount = RegExp(r'^(\d+)\s+(\p{L}.*)$', unicode: true);
+
+/// Medidas que no son piezas: con ellas el número no se interpreta.
+final _measureWord = RegExp(
+  r'^(ml|l|kg|oz|tazas?|cdas?|cdtas?|cucharadas?|cucharaditas?|scoops?|g|gr|gramos?)\b',
+  caseSensitive: false,
+);
+
+/// Etiquetas que a veces van antes del alimento: "Opcional: pepino".
+final _itemLabel = RegExp(r'^(opcional|extra)$', caseSensitive: false);
+
 /// Un renglón de alimento: "Nombre (crudo): 130 g" y sus variantes.
 ItemDraft _parseItem(String text) {
-  final line = text.trim();
+  // El punto final es de redacción, no del nombre.
+  final line = text.trim().replaceFirst(RegExp(r'\.$'), '');
   var name = line;
   String? quantity;
+  String? label;
 
   final colon = line.indexOf(':');
-  if (colon >= 0) {
-    name = line.substring(0, colon).trim();
-    quantity = line.substring(colon + 1).trim();
+  final left = colon >= 0 ? line.substring(0, colon).trim() : '';
+  final right = colon >= 0 ? line.substring(colon + 1).trim() : line;
+  final quantityFirst = colon >= 0 ? _leadingQuantity.firstMatch(right) : null;
+  if (quantityFirst != null) {
+    // "Más proteína: 140 g de pechuga": la etiqueta queda como nota.
+    label = left;
+    name = quantityFirst.group(3)!.trim();
+    quantity = '${quantityFirst.group(1)} ${quantityFirst.group(2)}';
+  } else if (colon >= 0 && _itemLabel.hasMatch(left)) {
+    // "Opcional: pepino con limón": sin cantidad.
+    label = left;
+    name = right;
+  } else if (colon >= 0) {
+    name = left;
+    quantity = right;
   } else if (_leadingQuantity.firstMatch(line) case final match?) {
     // "1 scoop de Proteína en polvo": la cantidad va antes del nombre.
     name = match.group(3)!.trim();
     quantity = '${match.group(1)} ${match.group(2)}';
+  } else if (_leadingCount.firstMatch(line) case final match?
+      when !_measureWord.hasMatch(match.group(2)!)) {
+    // "2 tostadas horneadas": un número sin unidad son piezas.
+    name = match.group(2)!.trim();
+    quantity = '${match.group(1)} piezas';
   }
 
-  final (state, stateWarning) = _stateOf(name);
+  final (state, foundStateWarning) = _stateOf(name);
   name = name.replaceAll(_stateInParentheses, '').trim();
+  // Una cifra que sigue en el nombre es otra cantidad: "1 manzana ó 1 taza
+  // de fresas", "pan (2 rebanadas) con 90 g de pavo". No se adivina cuál.
+  final stateWarning =
+      foundStateWarning ??
+      (RegExp(r'\d').hasMatch(name)
+          ? 'El renglón trae más de una cantidad; revisa cuál usar.'
+          : null);
 
   if (quantity == null || quantity.isEmpty) {
     // Sin cantidad: "Verduras mixtas", "…alguna otra verdura libre".
     return ItemDraft(
       name: name,
       state: state,
-      isFree: RegExp(r'\blibres?$', caseSensitive: false).hasMatch(name),
+      isFree: RegExp(r'\blibres?\b', caseSensitive: false).hasMatch(name),
+      note: label,
       warning: stateWarning,
     );
   }
@@ -232,7 +299,7 @@ ItemDraft _parseItem(String text) {
     amount: q.amount,
     unit: q.unit,
     isFree: q.isFree,
-    note: q.note,
+    note: [?label, ?q.note].join(' · ').ifEmptyNull,
     state: state,
     warning: q.warning ?? stateWarning,
   );
@@ -354,7 +421,7 @@ String? _cleanNote(String text) {
 }
 
 final _supplementField = RegExp(
-  r'^(?:•\s*)?(Dosis(?: diaria)?|Momento(?: de toma)?|Beneficios?)\s*:\s*(.*)$',
+  r'^(?:•\s*)?(Dosis(?: diaria)?|Momento(?: de toma)?|Beneficios?|Objetivos?)\s*:\s*(.*)$',
   caseSensitive: false,
 );
 
@@ -366,10 +433,10 @@ List<SupplementDraft> _parseSupplements(List<String> lines) {
   String? current;
 
   void flush() {
-    if (name != null) {
+    if (name case final supplementName? when supplementName.isNotEmpty) {
       supplements.add(
         SupplementDraft(
-          name: name,
+          name: supplementName,
           dose: fields['d'],
           timing: fields['m'],
           benefit: fields['b'],
@@ -381,16 +448,27 @@ List<SupplementDraft> _parseSupplements(List<String> lines) {
   }
 
   for (final line in lines) {
+    if (line == '•') {
+      // Una viñeta sola separa un suplemento del siguiente.
+      flush();
+      name = null;
+      continue;
+    }
     final field = _supplementField.firstMatch(line);
     if (field != null) {
-      current = field.group(1)!.toLowerCase()[0]; // d, m o b
+      // d, m o b; el "objetivo" es el beneficio.
+      final key = field.group(1)!.toLowerCase()[0];
+      current = key == 'o' ? 'b' : key;
       fields[current!] = field.group(2)!.trim();
     } else if (current != null && !_looksLikeName(line, fields)) {
       // Continuación del campo anterior, partido en dos renglones.
       fields[current!] = '${fields[current!]} $line';
     } else {
       flush();
-      name = line.replaceFirst(RegExp(r'^•\s*'), '');
+      name = line
+          .replaceFirst(RegExp(r'^•\s*'), '')
+          .replaceFirst(RegExp(r':$'), '')
+          .trim();
     }
   }
   flush();
@@ -402,4 +480,8 @@ List<SupplementDraft> _parseSupplements(List<String> lines) {
 bool _looksLikeName(String line, Map<String, String> fields) {
   final benefit = fields['b'];
   return benefit != null && benefit.trimRight().endsWith('.');
+}
+
+extension on String {
+  String? get ifEmptyNull => isEmpty ? null : this;
 }

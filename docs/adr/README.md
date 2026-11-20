@@ -29,6 +29,9 @@ lo reemplaza y el anterior se marca como "Reemplazado por ADR-XXXX".
 | [0017](0017-cuentas-con-usuario-y-contrasena.md) | Cuentas con usuario y contraseña, y token JWT | Aceptado |
 | [0018](0018-servidor-nestjs-prisma-postgres.md) | Servidor con NestJS, Prisma y PostgreSQL, sin Docker | Aceptado |
 | [0019](0019-conexion-en-la-red-local.md) | Conexión en la red de la casa por nombre `.local` | Aceptado |
+| [0020](0020-sincronizacion-en-la-app.md) | Sincronización en la app | Aceptado |
+| [0021](0021-lectura-tolerante-de-planes.md) | Lectura tolerante de planes y revisión con planes reales | Aceptado |
+| [0022](0022-como-se-mide-el-peso.md) | Cómo se mide el peso de cada ejercicio | Aceptado |
 
 ## Decisiones abiertas
 

@@ -191,6 +191,8 @@ String formatDistance(int meters) => meters < 1000
 String dayTypeLabel(DayType dayType) => switch (dayType) {
   DayType.training => 'Entrenamiento',
   DayType.rest => 'Descanso',
+  DayType.high => 'Día alto',
+  DayType.low => 'Día bajo',
 };
 
 String foodStateLabel(FoodState state) => switch (state) {

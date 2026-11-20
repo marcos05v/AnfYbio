@@ -6,6 +6,7 @@ import '../app/providers.dart';
 import '../catalog/catalog_exercise.dart';
 import '../catalog/exercise_matching.dart';
 import '../data/database.dart';
+import '../domain/load_mode.dart';
 import '../domain/one_rep_max.dart';
 import '../domain/routine.dart';
 import '../domain/weight.dart';
@@ -149,6 +150,12 @@ class _StrengthSessionScreenState extends ConsumerState<StrengthSessionScreen> {
     final exercises =
         ref.watch(exercisesProvider(widget.userId)).value ?? const [];
     final names = {for (final e in exercises) e.id: e.name};
+    final byId = {for (final e in exercises) e.id: e};
+    // Cómo se mide cada ejercicio, para mostrar "c/u" o "por lado".
+    LoadMode modeOf(String exerciseId) => switch (byId[exerciseId]) {
+      final exercise? => ref.watch(loadModeProvider(exercise)),
+      null => LoadMode.total,
+    };
 
     // Si la sesión sigue un día de rutina, se muestra lo que toca.
     final routineDayId = ref
@@ -175,7 +182,7 @@ class _StrengthSessionScreenState extends ConsumerState<StrengthSessionScreen> {
       return _PlannedExercise(
         exercise: routineExercise,
         marker: marker,
-        rows: _setRows(done),
+        rows: _setRows(done, modeOf),
         effectiveDone: done.where((s) => !s.isWarmup).length,
         addButton: _addSetButton(() => _addRoutineSet(routineExercise, sets)),
         onShowCatalog: !isCatalogLink(catalogId)
@@ -234,7 +241,7 @@ class _StrengthSessionScreenState extends ConsumerState<StrengthSessionScreen> {
               names[entry.key] ?? '…',
               trailing: _addSetButton(() => _addSet(after: entry.value.last)),
             ),
-            CardGroup(children: _setRows(entry.value)),
+            CardGroup(children: _setRows(entry.value, modeOf)),
           ],
       ],
     );
@@ -242,13 +249,17 @@ class _StrengthSessionScreenState extends ConsumerState<StrengthSessionScreen> {
 
   /// Las series efectivas se numeran 1, 2, 3…; las de calentamiento no
   /// consumen número y llevan su propia marca.
-  List<Widget> _setRows(List<StrengthSet> sets) {
+  List<Widget> _setRows(
+    List<StrengthSet> sets,
+    LoadMode Function(String exerciseId) modeOf,
+  ) {
     var number = 0;
     return [
       for (final set in sets)
         _SetRow(
           number: set.isWarmup ? null : ++number,
           set: set,
+          mode: modeOf(set.exerciseId),
           onTap: () => _editSet(set),
         ),
     ];
@@ -384,9 +395,17 @@ class _PlannedExercise extends StatelessWidget {
 }
 
 class _SetRow extends StatelessWidget {
-  const _SetRow({required this.number, required this.set, required this.onTap});
+  const _SetRow({
+    required this.number,
+    required this.set,
+    required this.mode,
+    required this.onTap,
+  });
 
   final VoidCallback onTap;
+
+  /// Qué significa el peso: "20 kg c/u" no es lo mismo que "20 kg".
+  final LoadMode mode;
 
   /// Número de serie efectiva; `null` si es de calentamiento.
   final int? number;
@@ -408,14 +427,14 @@ class _SetRow extends StatelessWidget {
       muted: number == null,
       onTap: onTap,
       title:
-          '${formatNumber(set.weight, decimals: 2)} ${set.weightUnit.name}'
+          '${formatLoad(set.weight, set.weightUnit, mode, number: (w) => formatNumber(w, decimals: 2))}'
           ' × ${set.reps}',
       details: [
         [
           if (number == null) 'Calentamiento',
           if (set.rpe != null) 'RPE ${formatNumber(set.rpe!)}',
           if (oneRepMax != null)
-            '1RM ≈ ${formatNumber(oneRepMax)} kg'
+            '1RM ≈ ${formatNumber(oneRepMax)} kg${loadModeSuffix(mode)}'
                 '${isReliableForOneRepMax(set.reps) ? '' : ' (poco confiable)'}',
         ].join(' · '),
       ],
@@ -450,6 +469,9 @@ class _AddSetFormState extends ConsumerState<_AddSetForm> {
   late String? _exerciseId = widget.initial?.exerciseId;
   late WeightUnit _unit = widget.initial?.unit ?? WeightUnit.kg;
   late bool _isWarmup = widget.initial?.isWarmup ?? false;
+
+  /// Forma de medir elegida en este formulario; `null` usa la del ejercicio.
+  LoadMode? _mode;
   String? _error;
 
   @override
@@ -464,6 +486,7 @@ class _AddSetFormState extends ConsumerState<_AddSetForm> {
     setState(() {
       _exerciseId = exercise.id;
       _unit = exercise.defaultUnit; // la unidad habitual de ese ejercicio
+      _mode = null; // y su forma de medir
     });
   }
 
@@ -502,6 +525,46 @@ class _AddSetFormState extends ConsumerState<_AddSetForm> {
     }
   }
 
+  Future<void> _pickMode(LoadMode current) async {
+    final chosen = await showCupertinoModalPopup<LoadMode>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('¿Qué peso anotas?'),
+        message: const Text(
+          'Se aplica a todas las series de este ejercicio. Tu progreso no '
+          'cambia: solo cómo se lee el número.',
+        ),
+        actions: [
+          for (final mode in LoadMode.values)
+            CupertinoActionSheetAction(
+              key: Key('loadMode-${mode.name}'),
+              isDefaultAction: mode == current,
+              onPressed: () => Navigator.of(context).pop(mode),
+              child: Column(
+                children: [
+                  Text(loadModeLabel(mode)),
+                  Text(
+                    loadModeHint(mode),
+                    textAlign: TextAlign.center,
+                    style: textStyle(
+                      context,
+                      size: 13,
+                      color: CupertinoColors.secondaryLabel,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+      ),
+    );
+    if (chosen != null && mounted) setState(() => _mode = chosen);
+  }
+
   Future<void> _save() async {
     final weight = parseNumber(_weight.text);
     final reps = int.tryParse(_reps.text.trim());
@@ -521,6 +584,23 @@ class _AddSetFormState extends ConsumerState<_AddSetForm> {
     if (error != null) {
       setState(() => _error = error);
       return;
+    }
+
+    // Guardar una serie confirma cómo se mide el ejercicio: desde aquí es un
+    // dato del usuario y ya no depende del catálogo (ADR-0022).
+    final exercise = ref
+        .read(exercisesProvider(widget.userId))
+        .value
+        ?.where((e) => e.id == _exerciseId)
+        .firstOrNull;
+    if (exercise != null) {
+      final LoadMode fromExercise = ref.read(loadModeProvider(exercise));
+      final LoadMode mode = _mode ?? fromExercise;
+      if (exercise.loadMode != mode) {
+        await ref
+            .read(exerciseRepositoryProvider)
+            .setLoadMode(exercise.id, mode);
+      }
     }
 
     final repository = ref.read(trainingRepositoryProvider);
@@ -563,6 +643,10 @@ class _AddSetFormState extends ConsumerState<_AddSetForm> {
         ref.watch(exercisesProvider(widget.userId)).value ?? const [];
     final selected = exercises.where((e) => e.id == _exerciseId).firstOrNull;
     const decimal = TextInputType.numberWithOptions(decimal: true);
+    final LoadMode fromExercise = selected == null
+        ? LoadMode.total
+        : ref.watch(loadModeProvider(selected));
+    final LoadMode mode = _mode ?? fromExercise;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -582,7 +666,12 @@ class _AddSetFormState extends ConsumerState<_AddSetForm> {
         CardGroup(
           children: [
             FormRow(
-              label: 'Peso',
+              label: switch (mode) {
+                LoadMode.total => 'Peso',
+                LoadMode.perHand => 'Peso c/u',
+                LoadMode.perSide => 'Por lado',
+                LoadMode.bodyweight => 'Lastre',
+              },
               child: Row(
                 children: [
                   Expanded(
@@ -613,6 +702,13 @@ class _AddSetFormState extends ConsumerState<_AddSetForm> {
                 ],
               ),
             ),
+            if (selected != null)
+              PickerRow(
+                key: const Key('loadMode'),
+                label: 'Se mide',
+                value: loadModeLabel(mode),
+                onPressed: () => _pickMode(mode),
+              ),
             FormRow(
               label: 'Repeticiones',
               child: RowTextField(

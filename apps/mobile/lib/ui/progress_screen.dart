@@ -2,8 +2,10 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../app/catalog.dart';
 import '../app/providers.dart';
 import '../data/database.dart';
+import '../domain/load_mode.dart';
 import '../domain/one_rep_max.dart';
 import '../domain/one_rep_max_history.dart';
 import 'formatting.dart';
@@ -119,7 +121,19 @@ class _ExerciseProgressScreenState
                     ),
                   ),
                   Text(
-                    'El peso que podrías levantar una sola vez.',
+                    switch (ref.watch(loadModeProvider(widget.exercise))) {
+                      LoadMode.total =>
+                        'El peso que podrías levantar una sola vez.',
+                      LoadMode.perHand =>
+                        'El peso que podrías levantar una sola vez, por '
+                            'mancuerna.',
+                      LoadMode.perSide =>
+                        'El peso que podrías levantar una sola vez, por lado.',
+                      LoadMode.bodyweight =>
+                        'El lastre que podrías agregar a tu peso para una '
+                            'sola repetición.',
+                    },
+                    key: const Key('oneRepMaxMeaning'),
                     style: secondary.copyWith(fontSize: 15),
                   ),
                   const SizedBox(height: 16),

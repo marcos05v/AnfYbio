@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/backup.dart';
 import '../app/providers.dart';
 import '../data/export/backup_importer.dart';
+import 'server_screen.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -125,6 +126,15 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
               ),
               const Spacer(flex: 2),
               PrimaryButton(label: 'Empezar', onPressed: _start),
+              CupertinoButton(
+                key: const Key('welcomeLogin'),
+                onPressed: () => Navigator.of(context).push(
+                  CupertinoPageRoute<void>(
+                    builder: (_) => const ServerScreen(loginOnly: true),
+                  ),
+                ),
+                child: const Text('Ya tengo cuenta en el servidor'),
+              ),
               CupertinoButton(
                 onPressed: _restore,
                 child: const Text('Restaurar un respaldo'),

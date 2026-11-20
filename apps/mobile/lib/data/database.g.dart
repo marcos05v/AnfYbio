@@ -466,6 +466,15 @@ class $ExercisesTable extends Exercises
     requiredDuringInsert: false,
   );
   @override
+  late final GeneratedColumnWithTypeConverter<LoadMode?, String> loadMode =
+      GeneratedColumn<String>(
+        'load_mode',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<LoadMode?>($ExercisesTable.$converterloadModen);
+  @override
   List<GeneratedColumn> get $columns => [
     id,
     createdAt,
@@ -475,6 +484,7 @@ class $ExercisesTable extends Exercises
     name,
     defaultUnit,
     catalogId,
+    loadMode,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -574,6 +584,12 @@ class $ExercisesTable extends Exercises
         DriftSqlType.string,
         data['${effectivePrefix}catalog_id'],
       ),
+      loadMode: $ExercisesTable.$converterloadModen.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}load_mode'],
+        ),
+      ),
     );
   }
 
@@ -584,6 +600,10 @@ class $ExercisesTable extends Exercises
 
   static JsonTypeConverter2<WeightUnit, String, String> $converterdefaultUnit =
       const EnumNameConverter<WeightUnit>(WeightUnit.values);
+  static JsonTypeConverter2<LoadMode, String, String> $converterloadMode =
+      const EnumNameConverter<LoadMode>(LoadMode.values);
+  static JsonTypeConverter2<LoadMode?, String?, String?> $converterloadModen =
+      JsonTypeConverter2.asNullable($converterloadMode);
 }
 
 class Exercise extends DataClass implements Insertable<Exercise> {
@@ -599,6 +619,11 @@ class Exercise extends DataClass implements Insertable<Exercise> {
 
   /// Id del catálogo de ejercicios (Fase 4). Nulo mientras no exista catálogo.
   final String? catalogId;
+
+  /// Qué significa el peso anotado: total, por mancuerna, por lado o lastre
+  /// (ADR-0022). Nulo mientras el usuario no lo confirme; entonces se deduce
+  /// del catálogo.
+  final LoadMode? loadMode;
   const Exercise({
     required this.id,
     required this.createdAt,
@@ -608,6 +633,7 @@ class Exercise extends DataClass implements Insertable<Exercise> {
     required this.name,
     required this.defaultUnit,
     this.catalogId,
+    this.loadMode,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -628,6 +654,11 @@ class Exercise extends DataClass implements Insertable<Exercise> {
     if (!nullToAbsent || catalogId != null) {
       map['catalog_id'] = Variable<String>(catalogId);
     }
+    if (!nullToAbsent || loadMode != null) {
+      map['load_mode'] = Variable<String>(
+        $ExercisesTable.$converterloadModen.toSql(loadMode),
+      );
+    }
     return map;
   }
 
@@ -645,6 +676,9 @@ class Exercise extends DataClass implements Insertable<Exercise> {
       catalogId: catalogId == null && nullToAbsent
           ? const Value.absent()
           : Value(catalogId),
+      loadMode: loadMode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(loadMode),
     );
   }
 
@@ -664,6 +698,9 @@ class Exercise extends DataClass implements Insertable<Exercise> {
         serializer.fromJson<String>(json['defaultUnit']),
       ),
       catalogId: serializer.fromJson<String?>(json['catalogId']),
+      loadMode: $ExercisesTable.$converterloadModen.fromJson(
+        serializer.fromJson<String?>(json['loadMode']),
+      ),
     );
   }
   @override
@@ -680,6 +717,9 @@ class Exercise extends DataClass implements Insertable<Exercise> {
         $ExercisesTable.$converterdefaultUnit.toJson(defaultUnit),
       ),
       'catalogId': serializer.toJson<String?>(catalogId),
+      'loadMode': serializer.toJson<String?>(
+        $ExercisesTable.$converterloadModen.toJson(loadMode),
+      ),
     };
   }
 
@@ -692,6 +732,7 @@ class Exercise extends DataClass implements Insertable<Exercise> {
     String? name,
     WeightUnit? defaultUnit,
     Value<String?> catalogId = const Value.absent(),
+    Value<LoadMode?> loadMode = const Value.absent(),
   }) => Exercise(
     id: id ?? this.id,
     createdAt: createdAt ?? this.createdAt,
@@ -701,6 +742,7 @@ class Exercise extends DataClass implements Insertable<Exercise> {
     name: name ?? this.name,
     defaultUnit: defaultUnit ?? this.defaultUnit,
     catalogId: catalogId.present ? catalogId.value : this.catalogId,
+    loadMode: loadMode.present ? loadMode.value : this.loadMode,
   );
   Exercise copyWithCompanion(ExercisesCompanion data) {
     return Exercise(
@@ -714,6 +756,7 @@ class Exercise extends DataClass implements Insertable<Exercise> {
           ? data.defaultUnit.value
           : this.defaultUnit,
       catalogId: data.catalogId.present ? data.catalogId.value : this.catalogId,
+      loadMode: data.loadMode.present ? data.loadMode.value : this.loadMode,
     );
   }
 
@@ -727,7 +770,8 @@ class Exercise extends DataClass implements Insertable<Exercise> {
           ..write('userId: $userId, ')
           ..write('name: $name, ')
           ..write('defaultUnit: $defaultUnit, ')
-          ..write('catalogId: $catalogId')
+          ..write('catalogId: $catalogId, ')
+          ..write('loadMode: $loadMode')
           ..write(')'))
         .toString();
   }
@@ -742,6 +786,7 @@ class Exercise extends DataClass implements Insertable<Exercise> {
     name,
     defaultUnit,
     catalogId,
+    loadMode,
   );
   @override
   bool operator ==(Object other) =>
@@ -754,7 +799,8 @@ class Exercise extends DataClass implements Insertable<Exercise> {
           other.userId == this.userId &&
           other.name == this.name &&
           other.defaultUnit == this.defaultUnit &&
-          other.catalogId == this.catalogId);
+          other.catalogId == this.catalogId &&
+          other.loadMode == this.loadMode);
 }
 
 class ExercisesCompanion extends UpdateCompanion<Exercise> {
@@ -766,6 +812,7 @@ class ExercisesCompanion extends UpdateCompanion<Exercise> {
   final Value<String> name;
   final Value<WeightUnit> defaultUnit;
   final Value<String?> catalogId;
+  final Value<LoadMode?> loadMode;
   final Value<int> rowid;
   const ExercisesCompanion({
     this.id = const Value.absent(),
@@ -776,6 +823,7 @@ class ExercisesCompanion extends UpdateCompanion<Exercise> {
     this.name = const Value.absent(),
     this.defaultUnit = const Value.absent(),
     this.catalogId = const Value.absent(),
+    this.loadMode = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ExercisesCompanion.insert({
@@ -787,6 +835,7 @@ class ExercisesCompanion extends UpdateCompanion<Exercise> {
     required String name,
     required WeightUnit defaultUnit,
     this.catalogId = const Value.absent(),
+    this.loadMode = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : userId = Value(userId),
        name = Value(name),
@@ -800,6 +849,7 @@ class ExercisesCompanion extends UpdateCompanion<Exercise> {
     Expression<String>? name,
     Expression<String>? defaultUnit,
     Expression<String>? catalogId,
+    Expression<String>? loadMode,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -811,6 +861,7 @@ class ExercisesCompanion extends UpdateCompanion<Exercise> {
       if (name != null) 'name': name,
       if (defaultUnit != null) 'default_unit': defaultUnit,
       if (catalogId != null) 'catalog_id': catalogId,
+      if (loadMode != null) 'load_mode': loadMode,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -824,6 +875,7 @@ class ExercisesCompanion extends UpdateCompanion<Exercise> {
     Value<String>? name,
     Value<WeightUnit>? defaultUnit,
     Value<String?>? catalogId,
+    Value<LoadMode?>? loadMode,
     Value<int>? rowid,
   }) {
     return ExercisesCompanion(
@@ -835,6 +887,7 @@ class ExercisesCompanion extends UpdateCompanion<Exercise> {
       name: name ?? this.name,
       defaultUnit: defaultUnit ?? this.defaultUnit,
       catalogId: catalogId ?? this.catalogId,
+      loadMode: loadMode ?? this.loadMode,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -868,6 +921,11 @@ class ExercisesCompanion extends UpdateCompanion<Exercise> {
     if (catalogId.present) {
       map['catalog_id'] = Variable<String>(catalogId.value);
     }
+    if (loadMode.present) {
+      map['load_mode'] = Variable<String>(
+        $ExercisesTable.$converterloadModen.toSql(loadMode.value),
+      );
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -885,6 +943,7 @@ class ExercisesCompanion extends UpdateCompanion<Exercise> {
           ..write('name: $name, ')
           ..write('defaultUnit: $defaultUnit, ')
           ..write('catalogId: $catalogId, ')
+          ..write('loadMode: $loadMode, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -15410,6 +15469,7 @@ typedef $$ExercisesTableCreateCompanionBuilder = ExercisesCompanion Function({
   required String name,
   required WeightUnit defaultUnit,
   Value<String?> catalogId,
+  Value<LoadMode?> loadMode,
   Value<int> rowid,
 });
 typedef $$ExercisesTableUpdateCompanionBuilder = ExercisesCompanion Function({
@@ -15421,6 +15481,7 @@ typedef $$ExercisesTableUpdateCompanionBuilder = ExercisesCompanion Function({
   Value<String> name,
   Value<WeightUnit> defaultUnit,
   Value<String?> catalogId,
+  Value<LoadMode?> loadMode,
   Value<int> rowid,
 });
 
@@ -15528,6 +15589,12 @@ class $$ExercisesTableFilterComposer
     column: $table.catalogId,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnWithTypeConverterFilters<LoadMode?, LoadMode, String> get loadMode =>
+      $composableBuilder(
+        column: $table.loadMode,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
 
   $$UsersTableFilterComposer get userId {
     final $$UsersTableFilterComposer composer = $composerBuilder(
@@ -15647,6 +15714,11 @@ class $$ExercisesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get loadMode => $composableBuilder(
+    column: $table.loadMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$UsersTableOrderingComposer get userId {
     final $$UsersTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -15703,6 +15775,9 @@ class $$ExercisesTableAnnotationComposer
 
   GeneratedColumn<String> get catalogId =>
       $composableBuilder(column: $table.catalogId, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<LoadMode?, String> get loadMode =>
+      $composableBuilder(column: $table.loadMode, builder: (column) => column);
 
   $$UsersTableAnnotationComposer get userId {
     final $$UsersTableAnnotationComposer composer = $composerBuilder(
@@ -15818,6 +15893,7 @@ class $$ExercisesTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<WeightUnit> defaultUnit = const Value.absent(),
                 Value<String?> catalogId = const Value.absent(),
+                Value<LoadMode?> loadMode = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExercisesCompanion(
                 id: id,
@@ -15828,6 +15904,7 @@ class $$ExercisesTableTableManager
                 name: name,
                 defaultUnit: defaultUnit,
                 catalogId: catalogId,
+                loadMode: loadMode,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -15840,6 +15917,7 @@ class $$ExercisesTableTableManager
                 required String name,
                 required WeightUnit defaultUnit,
                 Value<String?> catalogId = const Value.absent(),
+                Value<LoadMode?> loadMode = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExercisesCompanion.insert(
                 id: id,
@@ -15850,6 +15928,7 @@ class $$ExercisesTableTableManager
                 name: name,
                 defaultUnit: defaultUnit,
                 catalogId: catalogId,
+                loadMode: loadMode,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

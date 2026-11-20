@@ -55,3 +55,20 @@ captura manual.
   comprobó a mano que PDFKit entrega el texto en el orden esperado.
 - Leer la rutina de entrenamiento desde PDF necesitará su propio intérprete,
   que reutiliza la extracción de texto.
+
+## Actualización (2026-11-19): un segundo formato
+
+El lector reconoce también la forma en que escribe otra nutrióloga:
+
+- **Menús:** "🟩 DÍAS ALTOS: …" (con emoji).
+- **Comidas:** numeradas sin viñeta.
+- **Alimentos:** la cantidad antes del nombre ("130 g de pechuga (en crudo)").
+- **Piezas:** un número sin unidad ("2 tostadas").
+- **Etiquetas:** "Opcional:" o "Más proteína:", que quedan como nota.
+- **Suplementos:** separados por una viñeta sola, con "Objetivo" en lugar de
+  "Beneficio".
+
+Se mantiene la regla de no adivinar. Un renglón que trae dos cantidades
+("1 manzana ó 1 taza de fresas") o una unidad que la app no maneja (ml) se
+importa marcado para revisión. Las pruebas usan un plan inventado con este
+formato (`test/fixtures/plan_dias_altos_bajos_ejemplo.txt`).

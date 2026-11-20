@@ -7,6 +7,7 @@ import 'package:anfybio/data/database.dart';
 import 'package:anfybio/data/export/backup_exporter.dart';
 import 'package:anfybio/data/repositories/training_repository.dart';
 import 'package:anfybio/data/tables/sessions.dart';
+import 'package:anfybio/domain/load_mode.dart';
 import 'package:anfybio/domain/weight.dart';
 import 'package:anfybio/ui/app.dart';
 import 'package:anfybio/ui/widgets.dart';
@@ -155,6 +156,30 @@ void main() {
       await shutDown(tester);
     },
   );
+
+  testWidgets('elegir "Por mancuerna" se ve en la serie y queda en el '
+      'ejercicio', (tester) async {
+    await startSession(tester);
+    await tap(tester, find.text('Agregar ejercicio'));
+    await createBenchPress(tester);
+    // Sin catálogo, empieza como peso total.
+    expect(find.text('Peso total'), findsOneWidget);
+
+    await tap(tester, find.byKey(const Key('loadMode')));
+    await tap(tester, find.byKey(const Key('loadMode-perHand')));
+    expect(find.text('Peso c/u'), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('weight')), '50');
+    await tester.enterText(find.byKey(const Key('reps')), '10');
+    await tap(tester, find.text('Guardar serie'));
+
+    expect(find.text('50 lb c/u × 10'), findsOneWidget);
+    expect(find.textContaining('kg c/u'), findsOneWidget); // el 1RM
+    final exercise = await db.select(db.exercises).getSingle();
+    expect(exercise.loadMode, LoadMode.perHand);
+    // El peso se guarda tal cual: no se duplica.
+    expect((await db.select(db.strengthSets).getSingle()).weight, 50);
+    await shutDown(tester);
+  });
 
   testWidgets('tocar una serie permite corregirla', (tester) async {
     await startSession(tester);

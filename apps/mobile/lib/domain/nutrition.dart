@@ -1,5 +1,9 @@
 /// Tipo de día según el plan: los menús cambian entre uno y otro.
-enum DayType { training, rest }
+///
+/// Unos planes separan días de entrenamiento y de descanso; otros, días
+/// altos y bajos en carbohidratos (y se entrena en ambos). Se guardan por
+/// nombre, así que agregar tipos no requiere migración.
+enum DayType { training, rest, high, low }
 
 /// Unidad en la que el plan expresa una cantidad.
 enum FoodUnit { gram, piece, scoop }
@@ -15,13 +19,20 @@ enum FoodState { raw, cooked, dry, unspecified }
 DayType dayTypeFor({required bool hasSessionToday, DayType? override}) =>
     override ?? (hasSessionToday ? DayType.training : DayType.rest);
 
+/// Si la app puede elegir sola el menú de hoy: solo cuando el plan separa
+/// entrenamiento y descanso. Con días altos y bajos (se entrena en los dos)
+/// lo elige el usuario.
+bool canDetectDayType(Iterable<DayType> planDayTypes) =>
+    planDayTypes.contains(DayType.training) &&
+    planDayTypes.contains(DayType.rest);
+
 /// Separa las alternativas que el plan escribe en un mismo renglón:
 /// "Pechuga de pollo o filete de res magro" → dos opciones.
 ///
-/// Solo corta en " o " y " / " con espacios, para no partir palabras como
-/// "horneada/cocida".
+/// Solo corta en " o " (también "ó" y "u") y " / " con espacios, para no
+/// partir palabras como "horneada/cocida".
 List<String> foodOptions(String name) => name
-    .split(RegExp(r'\s+o\s+|\s+/\s+', caseSensitive: false))
+    .split(RegExp(r'\s+[oóu]\s+|\s+/\s+', caseSensitive: false))
     .map((option) => option.trim())
     .where((option) => option.isNotEmpty)
     .toList();

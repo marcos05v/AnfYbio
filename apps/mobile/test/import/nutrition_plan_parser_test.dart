@@ -292,4 +292,95 @@ void main() {
       expect(result.draft.supplements, isEmpty);
     });
   });
+
+  group('plan con días altos y bajos (otro formato)', () {
+    late NutritionPlanDraft plan;
+    late ParsedNutritionPlan result;
+
+    setUpAll(() {
+      result = parseNutritionPlan(
+        File('test/fixtures/plan_dias_altos_bajos_ejemplo.txt')
+            .readAsStringSync(),
+      );
+      plan = result.draft;
+    });
+
+    ItemDraft item(int menu, int meal, int index) =>
+        plan.menus[menu].meals[meal].items[index];
+
+    test('reconoce los menús alto y bajo aunque traigan emoji', () {
+      expect(plan.name, 'Plan de alimentación Ejemplo');
+      expect(plan.menus.map((m) => m.dayType), [DayType.high, DayType.low]);
+      expect(plan.menus.first.title, 'DÍAS ALTOS: Pierna (Más Carbohidratos)');
+      expect(result.warnings, isEmpty);
+    });
+
+    test('las comidas numeradas sin viñeta, con su indicación', () {
+      expect(plan.menus.first.meals.map((m) => m.name), [
+        'Al Despertar',
+        'Colación',
+        'Comida Principal',
+      ]);
+      expect(
+        plan.menus.first.meals[1].timingNote,
+        'Para aguantar hasta la comida',
+      );
+      expect(plan.menus.last.meals, hasLength(2));
+    });
+
+    test('la cantidad antes del alimento y el estado entre paréntesis', () {
+      final chicken = item(0, 2, 0);
+      expect(chicken.name, 'pechuga de pollo o pescado');
+      expect((chicken.amount, chicken.unit), (120.0, FoodUnit.gram));
+      expect(chicken.state, FoodState.raw);
+
+      final oats = item(0, 1, 1);
+      expect(oats.name, 'avena en hojuelas');
+      expect(oats.state, FoodState.dry);
+
+      expect(item(0, 2, 1).state, FoodState.cooked);
+    });
+
+    test('un número sin unidad son piezas', () {
+      final tostadas = item(1, 1, 1);
+      expect(tostadas.name, 'tostadas horneadas');
+      expect((tostadas.amount, tostadas.unit), (3.0, FoodUnit.piece));
+      expect(tostadas.warning, isNull);
+    });
+
+    test('los libres, las etiquetas y el punto final', () {
+      expect(item(0, 0, 2).isFree, isTrue);
+      expect(item(0, 0, 1).name, 'aguacate hass');
+
+      final more = item(1, 1, 0);
+      expect(more.name, 'pechuga de pavo');
+      expect(more.amount, 150);
+      expect(more.note, 'Más proteína');
+
+      final optional = item(1, 1, 2);
+      expect(optional.name, 'Jícama con limón al gusto');
+      expect(optional.note, 'Opcional');
+      expect(optional.warning, isNull);
+    });
+
+    test('marca para revisión los renglones con dos cantidades', () {
+      // "1 pera ó 1 taza de moras", "35 g de aguacate ó 8 nueces" y
+      // "5 ml de aceite" (unidad que la app no maneja).
+      for (final (menu, meal, index) in [(0, 1, 2), (1, 0, 1), (0, 2, 2)]) {
+        expect(item(menu, meal, index).warning, isNotNull);
+      }
+      expect(item(0, 0, 1).warning, isNull);
+    });
+
+    test('suplementos separados por una viñeta sola, con "Objetivo"', () {
+      expect(plan.supplements.map((s) => s.name), [
+        'Vitamina C (Ácido ascórbico)',
+        'Hierro (Bisglicinato)',
+      ]);
+      final iron = plan.supplements.last;
+      expect(iron.dose, '18 mg (lejos del café o del té).');
+      expect(iron.benefit, 'Ayuda a mantener los niveles de hierro');
+      expect(plan.supplements.first.benefit, 'Apoya el sistema inmune.');
+    });
+  });
 }

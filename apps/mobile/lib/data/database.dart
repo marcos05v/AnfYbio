@@ -3,6 +3,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 // Lo usa el código generado (database.g.dart) para crear los UUID.
 import 'package:uuid/uuid.dart';
 
+import '../domain/load_mode.dart';
 import '../domain/nutrition.dart';
 import '../domain/weight.dart';
 import 'tables/apnea_attempts.dart';
@@ -67,7 +68,7 @@ class AppDatabase extends _$AppDatabase {
   /// 6: hora del recordatorio de cada suplemento.
   /// 7: alias en español de los ejercicios del catálogo (Fase 4).
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -113,6 +114,10 @@ class AppDatabase extends _$AppDatabase {
       if (from < 7) {
         await m.createTable(exerciseAliases);
         await m.createIndex(exerciseAliasesUserAlias);
+      }
+      // La tabla de ejercicios existe desde la versión 1.
+      if (from < 8) {
+        await m.addColumn(exercises, exercises.loadMode);
       }
     },
     beforeOpen: (details) async {

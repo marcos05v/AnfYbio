@@ -72,3 +72,17 @@ error con consecuencias reales en la porción servida.
 - Sin catálogo, la app no calcula calorías ni macronutrientes.
 - El plan entra en el respaldo; los respaldos anteriores a esta versión se
   siguen pudiendo restaurar.
+
+## Actualización (2026-11-19): días altos y bajos
+
+Un segundo plan real no separa entrenamiento y descanso, sino **días altos y
+bajos en carbohidratos**, y se entrena en ambos (tren inferior y superior). Se
+agregaron los tipos `high` y `low` al mismo enum. Como se guarda por nombre
+(`textEnum`), no hizo falta migrar la base.
+
+- La pestaña Alimentación muestra solo los tipos de día que trae el plan.
+- Con entrenamiento y descanso, la app sigue eligiendo sola según haya una
+  sesión hoy.
+- Con días altos y bajos, la app no puede deducirlo: lo elige el usuario y se
+  recuerda hasta el día siguiente. Deducirlo del día de la rutina queda como
+  mejora posible.

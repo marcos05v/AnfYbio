@@ -37,7 +37,8 @@ final appearanceProvider =
       AppearanceController.new,
     );
 
-/// Elección manual del tipo de día (entrenamiento o descanso) para **hoy**.
+/// Elección manual del tipo de día (entrenamiento, descanso, alto o bajo)
+/// para **hoy**.
 ///
 /// Se guarda junto con la fecha: al día siguiente deja de aplicar y la app
 /// vuelve a decidirlo sola según haya o no una sesión registrada.

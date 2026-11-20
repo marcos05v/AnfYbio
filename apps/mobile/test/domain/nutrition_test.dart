@@ -26,6 +26,14 @@ void main() {
   group('alternativas de un alimento', () {
     test('un alimento sin alternativas es una sola opción', () {
       expect(foodOptions('Aguacate'), ['Aguacate']);
+      expect(foodOptions('1 pera ó 1 taza de moras'), [
+        '1 pera',
+        '1 taza de moras',
+      ]);
+      expect(foodOptions('pechuga de pavo u 80 g de queso panela'), [
+        'pechuga de pavo',
+        '80 g de queso panela',
+      ]);
     });
 
     test('separa las alternativas unidas con "o"', () {

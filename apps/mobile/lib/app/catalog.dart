@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../catalog/catalog_exercise.dart';
 import '../catalog/exercise_catalog.dart';
 import '../catalog/exercise_images.dart';
+import '../data/database.dart';
+import '../domain/load_mode.dart';
 import '../data/repositories/catalog_link_repository.dart';
 import 'providers.dart';
 
@@ -35,3 +37,14 @@ final exerciseAliasesProvider =
 final catalogExerciseProvider = FutureProvider.family<CatalogExercise?, String>(
   (ref, id) => ref.watch(exerciseCatalogProvider).getById(id),
 );
+
+/// Cómo se mide el peso de un ejercicio (ADR-0022): lo que eligió el usuario
+/// o, mientras no elija, lo que sugiere el equipo de su ficha del catálogo.
+final loadModeProvider = Provider.family<LoadMode, Exercise>((ref, exercise) {
+  if (exercise.loadMode case final mode?) return mode;
+  final catalogId = exercise.catalogId;
+  final equipment = isCatalogLink(catalogId)
+      ? ref.watch(catalogExerciseProvider(catalogId!)).value?.equipment
+      : null;
+  return loadModeForEquipment(equipment);
+});

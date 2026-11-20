@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/appearance.dart';
 import '../app/providers.dart';
 import '../data/database.dart';
+import 'auto_sync.dart';
 import 'notification_sync.dart';
 import 'nutrition_screen.dart';
 import 'sessions_screen.dart';
@@ -50,9 +51,11 @@ class _Root extends ConsumerWidget {
           CupertinoPageScaffold(child: Center(child: Text('Error: $error'))),
       data: (user) => user == null
           ? const WelcomeScreen()
-          : NotificationSync(
-              userId: user.id,
-              child: _HomeTabs(user: user),
+          : AutoSync(
+              child: NotificationSync(
+                userId: user.id,
+                child: _HomeTabs(user: user),
+              ),
             ),
     );
   }

@@ -273,12 +273,18 @@ class _PlanBody extends ConsumerWidget {
           start.month == now.month &&
           start.day == now.day;
     });
-    final override = ref.watch(dayTypeOverrideProvider);
-    final detected = dayTypeFor(hasSessionToday: hasSessionToday);
-    final dayType = dayTypeFor(
-      hasSessionToday: hasSessionToday,
-      override: override,
-    );
+    // Solo los tipos de día que trae este plan, en su orden.
+    final planDayTypes = [
+      for (final type in DayType.values)
+        if (view.menuFor(type) != null) type,
+    ];
+    final canDetect = canDetectDayType(planDayTypes);
+    final saved = ref.watch(dayTypeOverrideProvider);
+    final override = planDayTypes.contains(saved) ? saved : null;
+    final detected = canDetect
+        ? dayTypeFor(hasSessionToday: hasSessionToday)
+        : planDayTypes.firstOrNull ?? DayType.training;
+    final dayType = override ?? detected;
     final menu = view.menuFor(dayType);
     final secondary = textStyle(
       context,
@@ -308,38 +314,45 @@ class _PlanBody extends ConsumerWidget {
             style: textStyle(context, color: CupertinoColors.secondaryLabel),
           ),
         ),
-        CupertinoSlidingSegmentedControl<DayType>(
-          groupValue: dayType,
-          padding: const EdgeInsets.all(4),
-          children: {
-            for (final type in DayType.values)
-              type: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  dayTypeLabel(type),
-                  style: textStyle(context, size: 15),
+        // Con un solo menú no hay nada que elegir.
+        if (planDayTypes.length >= 2) ...[
+          CupertinoSlidingSegmentedControl<DayType>(
+            groupValue: dayType,
+            padding: const EdgeInsets.all(4),
+            children: {
+              for (final type in planDayTypes)
+                type: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    dayTypeLabel(type),
+                    style: textStyle(context, size: 15),
+                  ),
                 ),
-              ),
-          },
-          onValueChanged: (selected) {
-            if (selected == null) return;
-            // Elegir lo mismo que se detecta equivale a volver a automático.
-            ref
-                .read(dayTypeOverrideProvider.notifier)
-                .select(selected == detected ? null : selected);
-          },
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
-          child: Text(
-            override != null
-                ? 'Elegido por ti para hoy.'
-                : hasSessionToday
-                ? 'Hoy registraste una sesión: toca el menú de entrenamiento.'
-                : 'Hoy no has registrado sesiones: toca el menú de descanso.',
-            style: secondary,
+            },
+            onValueChanged: (selected) {
+              if (selected == null) return;
+              // Elegir lo mismo que se detecta equivale a volver a automático.
+              // Sin detección (días altos y bajos), se recuerda siempre.
+              ref
+                  .read(dayTypeOverrideProvider.notifier)
+                  .select(canDetect && selected == detected ? null : selected);
+            },
           ),
-        ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+            child: Text(
+              override != null
+                  ? 'Elegido por ti para hoy.'
+                  : !canDetect
+                  ? 'Toca el menú que te toca hoy; la app lo recuerda hasta '
+                        'mañana.'
+                  : hasSessionToday
+                  ? 'Hoy registraste una sesión: toca el menú de entrenamiento.'
+                  : 'Hoy no has registrado sesiones: toca el menú de descanso.',
+              style: secondary,
+            ),
+          ),
+        ],
         if (view.plan.weighingNotes case final notes?) ...[
           const SizedBox(height: 14),
           Container(

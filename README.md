@@ -9,9 +9,9 @@ de la cantidad de funciones.
 
 ## Estado
 
-**Las cuatro fases del alcance están completas.** En curso: la etapa 2 del
-servidor (sincronización en la red de la casa). La API ya está lista y probada;
-falta conectarla desde la app.
+**Las cuatro fases del alcance están completas**, y también la etapa 2 del
+servidor: la app sincroniza con una API en la Mac a través del Wi-Fi de la
+casa (Ajustes → Servidor).
 
 - Fase 1 — Entrenamiento: registro, edición y borrado de sesiones de fuerza,
   natación, carrera y apnea; 1RM estimado con gráficas por ejercicio; carga
@@ -45,7 +45,7 @@ cada renglón; no hay catálogo de equivalentes (ADR-0008).
 | Etapa del servidor | Contenido | Estado |
 |---|---|---|
 | 1 | Sin servidor: todo en el teléfono | Completa |
-| 2 | API en la Mac (NestJS + PostgreSQL), sincronización en la red local | API lista; falta la app |
+| 2 | API en la Mac (NestJS + PostgreSQL), sincronización en la red local | Completa |
 | 3 | Nube con plan gratuito, solo si hace falta | Pendiente de ADR |
 
 ## Principios
@@ -76,8 +76,9 @@ flutter run
 ```
 
 Con una cuenta gratuita de Apple la firma caduca cada 7 días. Para renovarla se
-vuelve a ejecutar `flutter run` sobre la app ya instalada, **sin borrarla**: así
-se conservan los datos locales.
+vuelve a ejecutar `flutter run --release` sobre la app ya instalada, **sin
+borrarla**: así se conservan los datos locales. Cómo instalarla en otro iPhone
+y cómo renovarla sola: [docs/instalar-en-iphone.md](docs/instalar-en-iphone.md).
 
 ## Cómo correr la API
 
