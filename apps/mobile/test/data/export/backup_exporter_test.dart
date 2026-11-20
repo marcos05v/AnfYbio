@@ -93,6 +93,7 @@ void main() {
       'supplements',
       'supplementPurchases',
       'supplementIntakes',
+      'exerciseAliases',
     ]);
     expect(
       (document['tables'] as Map).values.every((t) => (t as List).isEmpty),

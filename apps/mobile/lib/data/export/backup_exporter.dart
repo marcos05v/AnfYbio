@@ -119,6 +119,10 @@ class BackupExporter {
             db.supplementIntakes,
             db.supplementIntakes.userId,
           ),
+          'exerciseAliases': await rows(
+            db.exerciseAliases,
+            db.exerciseAliases.userId,
+          ),
         },
       };
     });

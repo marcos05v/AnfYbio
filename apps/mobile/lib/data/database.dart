@@ -7,6 +7,7 @@ import '../domain/nutrition.dart';
 import '../domain/weight.dart';
 import 'tables/apnea_attempts.dart';
 import 'tables/cooking_batches.dart';
+import 'tables/exercise_aliases.dart';
 import 'tables/exercises.dart';
 import 'tables/nutrition.dart';
 import 'tables/routines.dart';
@@ -42,6 +43,7 @@ part 'database.g.dart';
     Supplements,
     SupplementPurchases,
     SupplementIntakes,
+    ExerciseAliases,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -63,8 +65,9 @@ class AppDatabase extends _$AppDatabase {
   /// 4: lotes de cocción.
   /// 5: inventario de suplementos (Fase 3).
   /// 6: hora del recordatorio de cada suplemento.
+  /// 7: alias en español de los ejercicios del catálogo (Fase 4).
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -106,6 +109,10 @@ class AppDatabase extends _$AppDatabase {
       // columna, y agregarla otra vez fallaría.
       if (from == 5) {
         await m.addColumn(supplements, supplements.reminderMinute);
+      }
+      if (from < 7) {
+        await m.createTable(exerciseAliases);
+        await m.createIndex(exerciseAliasesUserAlias);
       }
     },
     beforeOpen: (details) async {

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:anfybio/data/database.dart';
 import 'package:anfybio/data/export/backup_exporter.dart';
 import 'package:anfybio/data/export/backup_importer.dart';
+import 'package:anfybio/data/repositories/catalog_link_repository.dart';
 import 'package:anfybio/data/repositories/cooking_repository.dart';
 import 'package:anfybio/data/repositories/nutrition_repository.dart';
 import 'package:anfybio/data/repositories/routine_repository.dart';
@@ -132,6 +133,12 @@ void main() {
       actualStock: 280,
       now: DateTime(2026, 11, 16),
     );
+    await CatalogLinkRepository(source).link(
+      userId: user.id,
+      name: 'Press de banca',
+      catalogId: 'Barbell_Bench_Press_-_Medium_Grip',
+      exerciseId: bench.id,
+    );
     await CookingRepository(source).addBatch(
       userId: user.id,
       foodName: 'Pechuga de pollo',
@@ -248,6 +255,7 @@ void main() {
       'supplements',
       'supplementPurchases',
       'supplementIntakes',
+      'exerciseAliases',
     ]) {
       tables.remove(name);
     }
@@ -309,6 +317,19 @@ void main() {
       expect(view.statusAt(DateTime(2026, 11, 16)).stock, 280);
     },
   );
+
+  test('los enlaces con el catálogo se restauran', () async {
+    await BackupImporter(target).import(await fullBackup());
+
+    final user = await target.select(target.users).getSingle();
+    expect(
+      await CatalogLinkRepository(target)
+          .catalogIdFor(user.id, 'PRESS DE BANCA'),
+      'Barbell_Bench_Press_-_Medium_Grip',
+    );
+    final bench = await target.select(target.exercises).getSingle();
+    expect(bench.catalogId, 'Barbell_Bench_Press_-_Medium_Grip');
+  });
 
   test('a un respaldo actual no le puede faltar una tabla nueva', () async {
     final document = jsonDecode(await fullBackup()) as Map<String, dynamic>;

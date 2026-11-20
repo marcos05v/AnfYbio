@@ -1,8 +1,10 @@
 import 'dart:io';
 
 import 'package:anfybio/app/appearance.dart';
+import 'package:anfybio/app/catalog.dart';
 import 'package:anfybio/app/plan_import.dart';
 import 'package:anfybio/app/providers.dart';
+import 'package:anfybio/catalog/exercise_catalog.dart';
 import 'package:anfybio/data/database.dart';
 import 'package:anfybio/data/repositories/routine_repository.dart';
 import 'package:anfybio/data/repositories/training_repository.dart';
@@ -24,6 +26,7 @@ void main() {
   late String userId;
   final routineText = File('test/fixtures/rutina_ejemplo.txt')
       .readAsStringSync();
+  final catalogJson = File('assets/catalog/exercises.json').readAsStringSync();
 
   setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
@@ -56,6 +59,11 @@ void main() {
           databaseProvider.overrideWithValue(db),
           sharedPreferencesProvider.overrideWithValue(preferences),
           if (picker != null) pdfTextPickerProvider.overrideWithValue(picker),
+          // El catálogo, leído de antemano (cargarlo de los recursos no
+          // avanza con el reloj simulado de las pruebas).
+          exerciseCatalogProvider.overrideWithValue(
+            BundledExerciseCatalog(() async => catalogJson),
+          ),
         ],
         child: const AnfybioApp(),
       ),
@@ -238,6 +246,9 @@ void main() {
       await tap(tester, find.text('Guardar así'));
 
       expect(find.text('Revisar rutina'), findsNothing);
+      // Al guardar, pasa directo a enlazar los ejercicios con el catálogo.
+      expect(find.text('Enlazar con el catálogo'), findsOneWidget);
+      expect(find.textContaining('Faltan 12 ejercicios'), findsOneWidget);
       final view = (await RoutineRepository(db).activeRoutine(userId))!;
       expect(view.routine.sourceFileName, 'rutina.pdf');
       expect(view.days.map((d) => d.day.name), ['Empuje', 'Tirón y Core']);

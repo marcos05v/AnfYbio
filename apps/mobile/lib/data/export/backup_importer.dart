@@ -180,6 +180,11 @@ class BackupImporter {
                 SupplementPurchase.fromJson(row, serializer: _serializer),
               );
         }
+        for (final row in rows('exerciseAliases', since: 7)) {
+          await _db
+              .into(_db.exerciseAliases)
+              .insert(ExerciseAliase.fromJson(row, serializer: _serializer));
+        }
         for (final row in rows('supplementIntakes', since: 5)) {
           await _db
               .into(_db.supplementIntakes)

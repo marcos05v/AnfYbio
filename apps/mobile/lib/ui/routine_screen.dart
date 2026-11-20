@@ -1,12 +1,15 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../app/catalog.dart';
 import '../app/plan_import.dart';
 import '../app/providers.dart';
 import '../data/database.dart';
 import '../data/repositories/routine_repository.dart';
+import '../catalog/exercise_matching.dart';
 import '../domain/routine.dart';
 import '../import/routine_parser.dart';
+import 'catalog_link_screens.dart';
 import 'routine_exercise_form.dart';
 import 'routine_review_screen.dart';
 import 'routine_widgets.dart';
@@ -129,6 +132,30 @@ class RoutineScreen extends ConsumerWidget {
         .saveRoutine(user.id, RoutineDraft(name: name));
   }
 
+  /// Descarga las fotos de los ejercicios ya enlazados de la rutina.
+  Future<void> _downloadImages(BuildContext context, WidgetRef ref) async {
+    final view = ref.read(activeRoutineProvider(user.id)).value;
+    final aliases =
+        ref.read(exerciseAliasesProvider(user.id)).value ?? const {};
+    final ids = {
+      for (final day in view?.days ?? const <RoutineDayView>[])
+        for (final exercise in day.exercises)
+          ?aliases[normalizeText(exercise.name)],
+    }.toList();
+    if (ids.isEmpty) {
+      return _explain(
+        context,
+        'Aún no hay fotos que descargar',
+        'Primero enlaza los ejercicios de tu rutina con el catálogo.',
+      );
+    }
+    await showAppSheet<void>(
+      context,
+      title: 'Fotos de la rutina',
+      builder: (_) => DownloadImagesSheet(catalogIds: ids),
+    );
+  }
+
   Future<void> _showMenu(
     BuildContext context,
     WidgetRef ref,
@@ -139,6 +166,10 @@ class RoutineScreen extends ConsumerWidget {
       builder: (context) => CupertinoActionSheet(
         title: Text(routine.name),
         actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('images'),
+            child: const Text('Descargar fotos de la rutina'),
+          ),
           CupertinoActionSheetAction(
             onPressed: () => Navigator.of(context).pop('import'),
             child: const Text('Importar otra rutina (PDF)'),
@@ -157,6 +188,7 @@ class RoutineScreen extends ConsumerWidget {
     );
     if (!context.mounted) return;
     if (action == 'import') return _importPdf(context, ref);
+    if (action == 'images') return _downloadImages(context, ref);
     if (action != 'delete') return;
 
     final confirmed = await showCupertinoDialog<bool>(
@@ -274,7 +306,7 @@ class RoutineScreen extends ConsumerWidget {
                     ),
                   ),
                   Text(
-                    '${view.days.length} días · '
+                    '${view.days.length} ${view.days.length == 1 ? 'día' : 'días'} · '
                     '${view.days.expand((d) => d.exercises).length} ejercicios',
                     style: textStyle(
                       context,
@@ -282,8 +314,10 @@ class RoutineScreen extends ConsumerWidget {
                       color: CupertinoColors.secondaryLabel,
                     ),
                   ),
+                  _PendingLinksBanner(user: user, routine: view),
                   for (final (index, day) in view.days.indexed)
                     _DaySection(
+                      userId: user.id,
                       number: index + 1,
                       day: day,
                       onEditDay: () => _editDay(context, ref, day.day),
@@ -304,6 +338,78 @@ class RoutineScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+      ),
+    );
+  }
+}
+
+/// Cuántos ejercicios de la rutina faltan por enlazar con el catálogo, con
+/// acceso a la revisión.
+class _PendingLinksBanner extends ConsumerWidget {
+  const _PendingLinksBanner({required this.user, required this.routine});
+
+  final User user;
+  final RoutineView routine;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final aliases =
+        ref.watch(exerciseAliasesProvider(user.id)).value ?? const {};
+    final pending = {
+      for (final day in routine.days)
+        for (final exercise in day.exercises)
+          if (!aliases.containsKey(normalizeText(exercise.name)))
+            normalizeText(exercise.name),
+    }.length;
+    if (pending == 0) return const SizedBox.shrink();
+
+    final accent = resolveColor(context, accentColor);
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: CupertinoButton(
+        key: const Key('pendingLinks'),
+        padding: EdgeInsets.zero,
+        onPressed: () => Navigator.of(context).push(
+          CupertinoPageRoute<void>(
+            builder: (_) => LinkReviewScreen(userId: user.id),
+          ),
+        ),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(cardRadius),
+          ),
+          child: Row(
+            children: [
+              Icon(CupertinoIcons.photo_on_rectangle, color: accent),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      pending == 1
+                          ? '1 ejercicio sin enlazar'
+                          : '$pending ejercicios sin enlazar',
+                      style: textStyle(context, weight: FontWeight.w600),
+                    ),
+                    Text(
+                      'Enlázalos con el catálogo para ver sus fotos e '
+                      'instrucciones.',
+                      style: textStyle(
+                        context,
+                        size: 13,
+                        color: CupertinoColors.secondaryLabel,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(CupertinoIcons.chevron_forward, size: 16, color: accent),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -359,11 +465,13 @@ class _NoRoutine extends StatelessWidget {
 
 class _DaySection extends ConsumerWidget {
   const _DaySection({
+    required this.userId,
     required this.number,
     required this.day,
     required this.onEditDay,
   });
 
+  final String userId;
   final int number;
   final RoutineDayView day;
   final VoidCallback onEditDay;
@@ -461,6 +569,10 @@ class _DaySection extends ConsumerWidget {
                   ),
                   note: exercise.note,
                   supersetWithPrevious: exercise.supersetWithPrevious,
+                  trailing: CatalogLinkButton(
+                    userId: userId,
+                    routineExercise: exercise,
+                  ),
                   onTap: () => showAppSheet<void>(
                     context,
                     title: 'Editar ejercicio',

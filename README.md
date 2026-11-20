@@ -9,7 +9,7 @@ de la cantidad de funciones.
 
 ## Estado
 
-**Fases 1, 2 y 3 completas.**
+**Las cuatro fases del alcance están completas.**
 
 - Fase 1 — Entrenamiento: registro, edición y borrado de sesiones de fuerza,
   natación, carrera y apnea; 1RM estimado con gráficas por ejercicio; carga
@@ -22,9 +22,13 @@ de la cantidad de funciones.
   con compras, tomas y ajustes; días restantes y fecha en que se acaba;
   adherencia; recordatorio diario de toma (con botón "Ya lo tomé" y sonido
   propio) y aviso de reabastecimiento como notificaciones locales.
-- Adelantado de la Fase 4: rutina de entrenamiento (manual o importada desde
-  PDF) y sesiones de fuerza que siguen el día que toca según el día de la
-  semana.
+- Fase 4 — Catálogo e importación: rutina de entrenamiento (manual o
+  importada desde PDF) con sesiones que siguen el día que toca; catálogo de
+  876 ejercicios (free-exercise-db) traducido al español, con fotos animadas
+  que se descargan al verlas; enlace de la rutina con el catálogo por
+  sugerencia y confirmación manual, que se recuerda con alias. El plan de
+  alimentación se importa con un lector propio en lugar de un modelo de IA
+  (ADR-0009).
 
 Las sustituciones del plan son las alternativas que escribe la nutrióloga en
 cada renglón; no hay catálogo de equivalentes (ADR-0008).
@@ -34,7 +38,7 @@ cada renglón; no hay catálogo de equivalentes (ADR-0008).
 | 1 | Entrenamiento: fuerza, natación, carrera, apnea, carga sRPE, exportación | Completa |
 | 2 | Nutrición: plan alimenticio, lotes de cocción, sustituciones | Completa |
 | 3 | Suplementos: inventario, recordatorios, adherencia | Completa |
-| 4 | Catálogo de ejercicios e importación desde PDF | Pendiente |
+| 4 | Catálogo de ejercicios e importación desde PDF | Completa |
 
 ## Principios
 

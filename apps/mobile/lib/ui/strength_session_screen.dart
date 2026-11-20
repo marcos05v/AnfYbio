@@ -1,11 +1,14 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../app/catalog.dart';
 import '../app/providers.dart';
+import '../catalog/exercise_matching.dart';
 import '../data/database.dart';
 import '../domain/one_rep_max.dart';
 import '../domain/routine.dart';
 import '../domain/weight.dart';
+import 'catalog_exercise_screen.dart';
 import 'formatting.dart';
 import 'routine_widgets.dart';
 import 'session_scaffold.dart';
@@ -163,14 +166,24 @@ class _StrengthSessionScreenState extends ConsumerState<StrengthSessionScreen> {
       groups.putIfAbsent(set.exerciseId, () => []).add(set);
     }
 
+    final aliases =
+        ref.watch(exerciseAliasesProvider(widget.userId)).value ?? const {};
     Widget plannedExercise(RoutineExercise routineExercise, {String? marker}) {
       final done = groups[routineExercise.exerciseId] ?? const <StrengthSet>[];
+      final catalogId = aliases[normalizeText(routineExercise.name)];
       return _PlannedExercise(
         exercise: routineExercise,
         marker: marker,
         rows: _setRows(done),
         effectiveDone: done.where((s) => !s.isWarmup).length,
         addButton: _addSetButton(() => _addRoutineSet(routineExercise, sets)),
+        onShowCatalog: catalogId == null
+            ? null
+            : () => Navigator.of(context).push(
+                CupertinoPageRoute<void>(
+                  builder: (_) => CatalogExerciseScreen(catalogId: catalogId),
+                ),
+              ),
       );
     }
 
@@ -250,7 +263,11 @@ class _PlannedExercise extends StatelessWidget {
     required this.effectiveDone,
     required this.addButton,
     this.marker,
+    this.onShowCatalog,
   });
+
+  /// Abre la ficha del catálogo, si el ejercicio está enlazado.
+  final VoidCallback? onShowCatalog;
 
   final RoutineExercise exercise;
   final List<Widget> rows;
@@ -325,6 +342,18 @@ class _PlannedExercise extends StatelessWidget {
                   ],
                 ),
               ),
+              if (onShowCatalog != null)
+                CupertinoButton(
+                  key: Key('howTo-${exercise.id}'),
+                  padding: const EdgeInsets.only(right: 6),
+                  minimumSize: const Size(36, 32),
+                  onPressed: onShowCatalog,
+                  child: const Icon(
+                    CupertinoIcons.photo,
+                    size: 20,
+                    semanticLabel: 'Cómo se hace',
+                  ),
+                ),
               addButton,
             ],
           ),

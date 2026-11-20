@@ -13,6 +13,7 @@ class RoutineEntry {
     this.note,
     this.warning,
     this.onTap,
+    this.trailing,
   });
 
   final String name;
@@ -25,6 +26,9 @@ class RoutineEntry {
   /// Lo que la lectura no entendió; se muestra en naranja.
   final String? warning;
   final VoidCallback? onTap;
+
+  /// Algo a la derecha de la fila, como el acceso al catálogo.
+  final Widget? trailing;
 }
 
 /// Los ejercicios de un día. Los sueltos van juntos en una tarjeta; cada
@@ -253,6 +257,10 @@ class _RoutineExerciseTile extends StatelessWidget {
               ],
             ),
           ),
+          if (entry.trailing case final trailing?) ...[
+            const SizedBox(width: 8),
+            trailing,
+          ],
         ],
       ),
     );

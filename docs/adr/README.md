@@ -24,12 +24,12 @@ lo reemplaza y el anterior se marca como "Reemplazado por ADR-XXXX".
 | [0012](0012-dia-de-rutina-por-dia-de-la-semana.md) | El día de rutina que toca se decide por el día de la semana | Aceptado |
 | [0013](0013-inventario-de-suplementos.md) | Inventario de suplementos | Aceptado |
 | [0014](0014-notificaciones-locales.md) | Notificaciones locales para tomas y reabastecimiento | Aceptado |
+| [0015](0015-catalogo-de-ejercicios.md) | Catálogo de ejercicios, fotos bajo demanda y enlace por alias | Aceptado |
 
 ## Decisiones abiertas
 
 - Estrategia de sincronización y resolución de conflictos.
 - Autenticación.
-- Almacenamiento de imágenes del catálogo.
 - Hosting gratuito en la nube.
 
 ## Plantilla

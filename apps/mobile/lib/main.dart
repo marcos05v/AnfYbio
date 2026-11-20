@@ -1,10 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/appearance.dart';
+import 'app/catalog.dart';
 import 'app/notifications.dart';
 import 'app/providers.dart';
+import 'catalog/exercise_images.dart';
 import 'ui/app.dart';
 
 Future<void> main() async {
@@ -23,6 +28,13 @@ Future<void> main() async {
     overrides: [
       sharedPreferencesProvider.overrideWithValue(preferences),
       notificationSchedulerProvider.overrideWithValue(scheduler),
+      exerciseImageStoreProvider.overrideWithValue(
+        CachedRemoteImageStore(
+          directory: () async => Directory(
+            '${(await getApplicationSupportDirectory()).path}/exercise_images',
+          ),
+        ),
+      ),
     ],
   );
   runApp(

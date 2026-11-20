@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart';
 
+import '../../catalog/exercise_matching.dart';
 import '../../domain/routine.dart';
 import '../../domain/weight.dart';
 import '../database.dart';
@@ -378,6 +379,27 @@ class RoutineRepository {
           updatedAt: Value(_now()),
         ),
       );
+
+      // Si ese nombre ya se había enlazado con el catálogo, el ejercicio
+      // hereda el enlace.
+      if (exercise.catalogId == null) {
+        final alias =
+            await (_db.select(_db.exerciseAliases)
+                  ..where(
+                    (a) =>
+                        a.userId.equals(routineExercise.userId) &
+                        a.alias.equals(normalizeText(name)) &
+                        a.deletedAt.isNull(),
+                  )
+                  ..limit(1))
+                .getSingleOrNull();
+        if (alias != null) {
+          await (_db.update(_db.exercises)
+                ..where((e) => e.id.equals(exercise.id)))
+              .write(ExercisesCompanion(catalogId: Value(alias.catalogId)));
+          return exercise.copyWith(catalogId: Value(alias.catalogId));
+        }
+      }
       return exercise;
     });
   }

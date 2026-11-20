@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/providers.dart';
 import '../domain/routine.dart';
 import '../import/routine_parser.dart';
+import 'catalog_link_screens.dart';
 import 'routine_exercise_form.dart';
 import 'routine_widgets.dart';
 import 'theme.dart';
@@ -85,7 +86,13 @@ class _RoutineReviewScreenState extends ConsumerState<RoutineReviewScreen> {
     await ref
         .read(routineRepositoryProvider)
         .saveRoutine(widget.userId, _draft);
-    navigator.pop();
+    // Recién importada, se pasa directo a enlazar sus ejercicios con el
+    // catálogo (los nombres ya confirmados antes se enlazan solos).
+    navigator.pushReplacement(
+      CupertinoPageRoute<void>(
+        builder: (_) => LinkReviewScreen(userId: widget.userId),
+      ),
+    );
   }
 
   @override
@@ -126,7 +133,7 @@ class _RoutineReviewScreenState extends ConsumerState<RoutineReviewScreen> {
                     ),
                   ),
                   Text(
-                    '${_draft.days.length} días · '
+                    '${_draft.days.length} ${_draft.days.length == 1 ? 'día' : 'días'} · '
                     '${_draft.exercises.length} ejercicios',
                     style: textStyle(
                       context,
