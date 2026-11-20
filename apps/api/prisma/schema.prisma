@@ -1,0 +1,43 @@
+// Esquema del servidor de sincronización (ADR-0018).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Una cuenta. Su id es el mismo del usuario local en el teléfono (ADR-0017).
+model Account {
+  id           String    @id @db.Uuid
+  username     String    @unique @db.VarChar(30)
+  passwordHash String    @map("password_hash")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  rows         SyncRow[]
+
+  @@map("accounts")
+}
+
+/// Una fila de cualquier tabla de la app, guardada completa en `data`
+/// (ADR-0018). Las columnas de sincronización van aparte para filtrar y
+/// resolver conflictos sin abrir el documento.
+model SyncRow {
+  tableName String    @map("table_name") @db.VarChar(40)
+  id        String    @db.VarChar(64)
+  userId    String    @map("user_id") @db.Uuid
+  /// Microsegundos, como las fechas del teléfono (Dart): con milisegundos,
+  /// dos ediciones en el mismo milisegundo empatarían.
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  /// Orden en que el servidor aceptó el cambio; el cliente baja lo posterior
+  /// al último que vio (ADR-0016). Cambia en cada actualización.
+  seq       BigInt    @default(autoincrement())
+  data      Json      @db.JsonB
+  account   Account   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([tableName, id])
+  @@index([userId, seq])
+  @@map("sync_rows")
+}

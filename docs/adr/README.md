@@ -25,6 +25,10 @@ lo reemplaza y el anterior se marca como "Reemplazado por ADR-XXXX".
 | [0013](0013-inventario-de-suplementos.md) | Inventario de suplementos | Aceptado |
 | [0014](0014-notificaciones-locales.md) | Notificaciones locales para tomas y reabastecimiento | Aceptado |
 | [0015](0015-catalogo-de-ejercicios.md) | Catálogo de ejercicios, fotos bajo demanda y enlace por alias | Aceptado |
+| [0016](0016-sincronizacion-ultimo-cambio-gana.md) | Sincronización por filas, gana el último cambio | Aceptado |
+| [0017](0017-cuentas-con-usuario-y-contrasena.md) | Cuentas con usuario y contraseña, y token JWT | Aceptado |
+| [0018](0018-servidor-nestjs-prisma-postgres.md) | Servidor con NestJS, Prisma y PostgreSQL, sin Docker | Aceptado |
+| [0019](0019-conexion-en-la-red-local.md) | Conexión en la red de la casa por nombre `.local` | Aceptado |
 
 ## Decisiones abiertas
 

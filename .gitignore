@@ -17,3 +17,6 @@ dist/
 coverage/
 
 # Flutter: apps/mobile tiene su propio .gitignore generado por `flutter create`
+
+# TypeScript incremental
+*.tsbuildinfo

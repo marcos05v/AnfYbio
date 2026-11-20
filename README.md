@@ -9,7 +9,9 @@ de la cantidad de funciones.
 
 ## Estado
 
-**Las cuatro fases del alcance están completas.**
+**Las cuatro fases del alcance están completas.** En curso: la etapa 2 del
+servidor (sincronización en la red de la casa). La API ya está lista y probada;
+falta conectarla desde la app.
 
 - Fase 1 — Entrenamiento: registro, edición y borrado de sesiones de fuerza,
   natación, carrera y apnea; 1RM estimado con gráficas por ejercicio; carga
@@ -40,6 +42,12 @@ cada renglón; no hay catálogo de equivalentes (ADR-0008).
 | 3 | Suplementos: inventario, recordatorios, adherencia | Completa |
 | 4 | Catálogo de ejercicios e importación desde PDF | Completa |
 
+| Etapa del servidor | Contenido | Estado |
+|---|---|---|
+| 1 | Sin servidor: todo en el teléfono | Completa |
+| 2 | API en la Mac (NestJS + PostgreSQL), sincronización en la red local | API lista; falta la app |
+| 3 | Nube con plan gratuito, solo si hace falta | Pendiente de ADR |
+
 ## Principios
 
 - **Local-first.** La app funciona completa con su base de datos local. La
@@ -52,7 +60,7 @@ cada renglón; no hay catálogo de equivalentes (ADR-0008).
 
 ```
 apps/mobile/   App Flutter (iOS)
-apps/api/      API NestJS (llega en la etapa 2; hoy solo un README)
+apps/api/      API de sincronización: NestJS + Prisma + PostgreSQL
 infra/         Scripts de infraestructura (Postgres, despliegue)
 docs/adr/      Registro de decisiones de arquitectura
 ```
@@ -71,12 +79,20 @@ Con una cuenta gratuita de Apple la firma caduca cada 7 días. Para renovarla se
 vuelve a ejecutar `flutter run` sobre la app ya instalada, **sin borrarla**: así
 se conservan los datos locales.
 
+## Cómo correr la API
+
+Ver [apps/api/README.md](apps/api/README.md).
+
 ## Pruebas
 
 ```sh
 cd apps/mobile
 flutter analyze
 flutter test
+
+cd ../api
+npm test           # unitarias
+npm run test:e2e   # integración, contra PostgreSQL real
 ```
 
 ## Decisiones
