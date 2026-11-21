@@ -64,6 +64,7 @@ class _NotificationSyncState extends ConsumerState<NotificationSync> {
             timing: s.timing,
             reminderMinute: s.reminderMinute,
             status: view.statusAt(now),
+            tracksStock: view.hasInventory,
           );
           leadDays[item] = s.restockLeadDays;
           return item;

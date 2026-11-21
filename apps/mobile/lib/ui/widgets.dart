@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show Icons;
 
 import '../data/tables/sessions.dart';
 import 'formatting.dart';
@@ -320,37 +321,156 @@ class _PillBottlePainter extends CustomPainter {
       oldDelegate.color != color;
 }
 
+/// Cómo se ve un suplemento: un icono o un símbolo corto, con su color.
+class SupplementVisual {
+  const SupplementVisual({required this.color, this.icon, this.symbol});
+
+  /// Figura que lo representa (pescado para el omega 3), o…
+  final IconData? icon;
+
+  /// …su símbolo: la letra de una vitamina ("D3") o el del elemento de un
+  /// mineral ("Mg"), como en la tabla periódica.
+  final String? symbol;
+  final Color color;
+
+  /// El que corresponde al nombre del suplemento; una cápsula del color de
+  /// la app si no se reconoce.
+  static SupplementVisual of(String name) {
+    final text = _plain(name);
+    bool has(String pattern) => RegExp(pattern).hasMatch(text);
+
+    // Vitaminas: su letra (y número, si lo tiene).
+    final vitamin = RegExp(r'\bvitamina\s+([a-z]\d{0,2})\b').firstMatch(text);
+    if (vitamin != null) {
+      final letter = vitamin.group(1)!.toUpperCase();
+      return SupplementVisual(
+        symbol: letter,
+        color: switch (letter[0]) {
+          'D' => const Color(0xFFF97316),
+          'C' => const Color(0xFFEAB308),
+          'B' => const Color(0xFFDC2626),
+          _ => const Color(0xFF16A34A),
+        },
+      );
+    }
+
+    // Minerales: el símbolo de su elemento.
+    const minerals = {
+      'magnesio': ('Mg', Color(0xFF6366F1)),
+      'zinc': ('Zn', Color(0xFF0D9488)),
+      'hierro': ('Fe', Color(0xFFB91C1C)),
+      'calcio': ('Ca', Color(0xFF64748B)),
+      'potasio': ('K', Color(0xFF7C3AED)),
+      'selenio': ('Se', Color(0xFF0891B2)),
+      'yodo': ('I', Color(0xFF9333EA)),
+      'cromo': ('Cr', Color(0xFF475569)),
+    };
+    for (final MapEntry(key: word, value: (symbol, color))
+        in minerals.entries) {
+      if (has('\\b$word\\b')) {
+        return SupplementVisual(symbol: symbol, color: color);
+      }
+    }
+
+    // Lo demás: una figura que tenga que ver con lo que es.
+    if (has(r'creatin')) {
+      return const SupplementVisual(icon: Icons.bolt, color: Color(0xFFF59E0B));
+    }
+    if (has(r'prote|whey|caseina')) {
+      return const SupplementVisual(
+        icon: Icons.blender,
+        color: Color(0xFF8B5CF6),
+      );
+    }
+    if (has(r'omega|pescado|\bepa\b|\bdha\b|krill')) {
+      return const SupplementVisual(
+        icon: Icons.set_meal,
+        color: Color(0xFF0284C7),
+      );
+    }
+    if (has(r'cafe|pre.?entreno')) {
+      return const SupplementVisual(
+        icon: Icons.coffee,
+        color: Color(0xFF92400E),
+      );
+    }
+    if (has(r'melatonina')) {
+      return const SupplementVisual(
+        icon: Icons.nightlight_round,
+        color: Color(0xFF4338CA),
+      );
+    }
+    if (has(r'inositol')) {
+      return const SupplementVisual(
+        icon: Icons.balance,
+        color: Color(0xFFDB2777),
+      );
+    }
+    if (has(r'colageno')) {
+      return const SupplementVisual(
+        icon: Icons.healing,
+        color: Color(0xFFE11D48),
+      );
+    }
+    if (has(r'electrolito|suero')) {
+      return const SupplementVisual(
+        icon: Icons.water_drop,
+        color: Color(0xFF06B6D4),
+      );
+    }
+    if (has(r'ashwagandha|rhodiola|adaptog')) {
+      return const SupplementVisual(icon: Icons.eco, color: Color(0xFF15803D));
+    }
+    if (has(r'probiotic')) {
+      return const SupplementVisual(
+        icon: Icons.science,
+        color: Color(0xFF7E22CE),
+      );
+    }
+    return const SupplementVisual(
+      icon: CupertinoIcons.capsule_fill,
+      color: accentColor,
+    );
+  }
+
+  /// Minúsculas y sin acentos, para comparar.
+  static String _plain(String text) {
+    const accents = {'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u'};
+    return text.toLowerCase().split('').map((c) => accents[c] ?? c).join();
+  }
+}
+
 /// Icono de un suplemento, elegido por su nombre, en un cuadro de color.
 class SupplementIcon extends StatelessWidget {
   const SupplementIcon(this.name, {super.key});
 
   final String name;
 
-  /// Icono según palabras del nombre; una cápsula si no reconoce ninguna.
-  static IconData iconFor(String name) {
-    final text = name.toLowerCase();
-    bool has(String word) => text.contains(word);
-    if (has('creatin')) return CupertinoIcons.bolt_fill;
-    if (has('magnesio')) return CupertinoIcons.moon_fill;
-    if (has('omega') || has('pescado')) return CupertinoIcons.drop_fill;
-    if (has('vitamina d') || has('d3')) return CupertinoIcons.sun_max_fill;
-    if (has('zinc')) return CupertinoIcons.shield_fill;
-    if (has('prote')) return CupertinoIcons.flame_fill;
-    if (has('cafe')) return CupertinoIcons.timer;
-    return CupertinoIcons.capsule_fill;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final color = resolveColor(context, accentColor);
+    final visual = SupplementVisual.of(name);
+    final color = resolveColor(context, visual.color);
     return Container(
       width: 40,
       height: 40,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Icon(iconFor(name), size: 20, color: color),
+      child: switch (visual) {
+        SupplementVisual(:final symbol?) => Text(
+          symbol,
+          style: TextStyle(
+            fontFamily: appFontFamily,
+            fontSize: symbol.length > 2 ? 13 : 16,
+            fontWeight: FontWeight.w700,
+            color: color,
+            height: 1,
+          ),
+        ),
+        SupplementVisual(:final icon) => Icon(icon, size: 21, color: color),
+      },
     );
   }
 }
@@ -547,6 +667,23 @@ class RowTextField extends StatelessWidget {
 }
 
 /// Icono de un tipo de sesión dentro de un cuadro redondeado de color suave.
+/// La figura de cada tipo de sesión: pesa, alberca, corredor y buzo.
+IconData sessionTypeIcon(SessionType type) => switch (type) {
+  SessionType.strength => Icons.fitness_center,
+  SessionType.swim => Icons.pool,
+  SessionType.run => Icons.directions_run,
+  SessionType.apnea => Icons.scuba_diving,
+};
+
+/// Un color por tipo de sesión, para distinguirlas de un vistazo en la
+/// lista.
+Color sessionTypeColor(SessionType type) => switch (type) {
+  SessionType.strength => const Color(0xFFEA580C),
+  SessionType.swim => const Color(0xFF0284C7),
+  SessionType.run => const Color(0xFF16A34A),
+  SessionType.apnea => const Color(0xFF4F46E5),
+};
+
 class SessionTypeIcon extends StatelessWidget {
   const SessionTypeIcon(this.type, {super.key, this.size = 40});
 
@@ -555,7 +692,7 @@ class SessionTypeIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = resolveColor(context, accentColor);
+    final color = sessionTypeColor(type);
     return Container(
       width: size,
       height: size,
@@ -563,16 +700,7 @@ class SessionTypeIcon extends StatelessWidget {
         color: color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(size * 0.3),
       ),
-      child: Icon(
-        switch (type) {
-          SessionType.strength => CupertinoIcons.bolt_fill,
-          SessionType.swim => CupertinoIcons.drop_fill,
-          SessionType.run => CupertinoIcons.speedometer,
-          SessionType.apnea => CupertinoIcons.wind,
-        },
-        size: size * 0.5,
-        color: color,
-      ),
+      child: Icon(sessionTypeIcon(type), size: size * 0.55, color: color),
     );
   }
 }

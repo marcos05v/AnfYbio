@@ -80,6 +80,10 @@ vuelve a ejecutar `flutter run --release` sobre la app ya instalada, **sin
 borrarla**: así se conservan los datos locales. Cómo instalarla en otro iPhone
 y cómo renovarla sola: [docs/instalar-en-iphone.md](docs/instalar-en-iphone.md).
 
+El ícono de la app se genera con `apps/mobile/tool/app_icon.sh`: sin
+argumentos dibuja el logo (una gota con una pesa); con una imagen de
+1024 × 1024 usa esa.
+
 ## Cómo correr la API
 
 Ver [apps/api/README.md](apps/api/README.md).

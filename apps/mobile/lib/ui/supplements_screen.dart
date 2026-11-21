@@ -22,23 +22,14 @@ class SupplementsScreen extends ConsumerWidget {
   void _add(BuildContext context, WidgetRef ref, {SupplementGuideline? from}) {
     // La guía da la dosis en gramos (un polvo) o en mg/UI por pastilla. En
     // el segundo caso se propone una pastilla al día.
-    final dose = parseDose(from?.dose);
-    final isPowder = dose?.unit == powderUnit;
+    final inventory = from == null ? null : inventoryFromGuide(from.dose);
     showAppSheet<void>(
       context,
       title: 'Nuevo suplemento',
       builder: (_) => SupplementForm(
         name: from?.name,
-        unitLabel: from == null
-            ? null
-            : isPowder
-            ? powderUnit
-            : pillsUnit,
-        dailyDose: from == null
-            ? null
-            : isPowder
-            ? dose!.amount
-            : 1,
+        unitLabel: inventory?.unitLabel,
+        dailyDose: inventory?.dailyDose,
         timing: from?.timing,
         onSave: (data) => ref
             .read(supplementRepositoryProvider)
@@ -106,7 +97,7 @@ class SupplementsScreen extends ConsumerWidget {
 
     final restock = [
       for (final view in views)
-        if (view.statusAt(now).needsRestock) view,
+        if (view.hasInventory && view.statusAt(now).needsRestock) view,
     ];
 
     return CupertinoPageScaffold(
@@ -344,7 +335,9 @@ class _SupplementCard extends ConsumerWidget {
                         ),
                         if (detail != null) Text(detail, style: secondary),
                         Text(
-                          status.stock <= 0
+                          !view.hasInventory
+                              ? 'Toca para anotar cuánto tienes'
+                              : status.stock <= 0
                               ? 'Sin existencias'
                               : 'Quedan '
                                     '${formatQuantity(status.stock, supplement.unitLabel)}'
@@ -354,7 +347,9 @@ class _SupplementCard extends ConsumerWidget {
                             context,
                             size: 14,
                             weight: FontWeight.w500,
-                            color: status.needsRestock
+                            color: !view.hasInventory
+                                ? accentColor
+                                : status.needsRestock
                                 ? CupertinoColors.systemOrange
                                 : CupertinoColors.label,
                           ),

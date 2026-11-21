@@ -9,6 +9,7 @@ import 'package:anfybio/ui/app.dart';
 import 'package:anfybio/ui/widgets.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show Icons;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -407,23 +408,40 @@ void main() {
     await shutDown(tester);
   });
 
-  testWidgets('cada suplemento lleva un icono según su nombre', (tester) async {
-    expect(
-      SupplementIcon.iconFor('Creatina Monohidratada'),
-      CupertinoIcons.bolt_fill,
-    );
-    expect(
-      SupplementIcon.iconFor('Citrato de Magnesio'),
-      CupertinoIcons.moon_fill,
-    );
-    expect(
-      SupplementIcon.iconFor('Omega 3 (EPA / DHA)'),
-      CupertinoIcons.drop_fill,
-    );
-    expect(SupplementIcon.iconFor('Vitamina D3'), CupertinoIcons.sun_max_fill);
-    expect(SupplementIcon.iconFor('Zinc'), CupertinoIcons.shield_fill);
+  test('cada suplemento se ve según lo que es', () {
+    String? symbol(String name) => SupplementVisual.of(name).symbol;
+    IconData? icon(String name) => SupplementVisual.of(name).icon;
+
+    // Vitaminas: su letra.
+    expect(symbol('Vitamina D3 (Colecalciferol)'), 'D3');
+    expect(symbol('Vitamina D3 + K2'), 'D3');
+    expect(symbol('Vitamina C'), 'C');
+    expect(symbol('Vitamina B12'), 'B12');
+    // Minerales: su símbolo químico, sin importar sal ni acentos.
+    expect(symbol('Citrato de Magnesio'), 'Mg');
+    expect(symbol('Magnesio (Glicinato o Citrato de Magnesio)'), 'Mg');
+    expect(symbol('Zinc (Bisglicinato o Picolinato de Zinc)'), 'Zn');
+    expect(symbol('Hierro (Bisglicinato)'), 'Fe');
+    // Lo demás: una figura.
+    expect(icon('Creatina Monohidratada'), Icons.bolt);
+    expect(icon('Omega-3 (Ácidos Grasos EPA y DHA)'), Icons.set_meal);
+    expect(icon('Proteína Whey'), Icons.blender);
+    expect(icon('Inositol (Mio-Inositol)'), Icons.balance);
+    expect(icon('Ashwagandha'), Icons.eco);
     // Uno que no reconoce usa la cápsula.
-    expect(SupplementIcon.iconFor('Ashwagandha'), CupertinoIcons.capsule_fill);
+    expect(icon('Glutamina'), CupertinoIcons.capsule_fill);
+  });
+
+  test('cada tipo de sesión tiene su figura y su color', () {
+    expect(
+      SessionType.values.map(sessionTypeIcon).toSet(),
+      hasLength(SessionType.values.length),
+    );
+    expect(
+      SessionType.values.map(sessionTypeColor).toSet(),
+      hasLength(SessionType.values.length),
+    );
+    expect(sessionTypeIcon(SessionType.swim), Icons.pool);
   });
 
   testWidgets('borrar el plan vuelve a la pantalla sin plan', (tester) async {

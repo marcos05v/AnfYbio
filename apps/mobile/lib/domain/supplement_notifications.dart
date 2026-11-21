@@ -18,6 +18,7 @@ class SupplementForNotifications {
     required this.status,
     this.timing,
     this.reminderMinute,
+    this.tracksStock = true,
   });
 
   final String id;
@@ -32,6 +33,10 @@ class SupplementForNotifications {
   /// Minutos desde la medianoche; nulo si no hay recordatorio.
   final int? reminderMinute;
   final InventoryStatus status;
+
+  /// Falso mientras no se haya anotado ninguna compra: entonces no se sabe
+  /// cuánto queda y no se avisa que hay que reabastecer.
+  final bool tracksStock;
 }
 
 enum NotificationKind { reminder, restock }
@@ -117,6 +122,7 @@ List<PlannedNotification> planSupplementNotifications({
       }
     }
 
+    if (!supplement.tracksStock) continue;
     final runOut = status.runOutDate;
     final alertDay = status.needsRestock || runOut == null
         ? null

@@ -22,6 +22,11 @@ class SupplementView {
   /// Tomas y ajustes, del más reciente al más antiguo.
   final List<SupplementIntake> intakes;
 
+  /// Si ya se anotó alguna compra. Un suplemento dado de alta desde el plan
+  /// empieza sin inventario: no se sabe cuánto hay y no se avisa que se
+  /// acabó.
+  bool get hasInventory => purchases.isNotEmpty;
+
   /// Estado del inventario visto desde [now] (hora local).
   InventoryStatus statusAt(DateTime now) => inventoryStatus(
     dailyDose: supplement.dailyDose,
@@ -105,6 +110,47 @@ class SupplementRepository {
       return supplement;
     });
   }
+
+  /// Da de alta los suplementos de la guía de un plan que aún no están en el
+  /// inventario (se comparan por nombre, sin mayúsculas). Quedan sin
+  /// existencias: el usuario anota después cuánto tiene.
+  Future<({List<String> added, List<String> existing})> addFromGuide(
+    String userId,
+    List<({String name, String? dose, String? timing})> guide,
+  ) {
+    return _db.transaction(() async {
+      final current = await (_db.select(
+        _db.supplements,
+      )..where((s) => s.userId.equals(userId) & s.deletedAt.isNull())).get();
+      final known = {for (final s in current) _key(s.name)};
+      final added = <String>[];
+      final existing = <String>[];
+      for (final entry in guide) {
+        final name = entry.name.trim();
+        if (name.isEmpty) continue;
+        if (!known.add(_key(name))) {
+          existing.add(name);
+          continue;
+        }
+        final inventory = inventoryFromGuide(entry.dose);
+        await _db
+            .into(_db.supplements)
+            .insert(
+              SupplementsCompanion.insert(
+                userId: userId,
+                name: name,
+                unitLabel: inventory.unitLabel,
+                dailyDose: inventory.dailyDose,
+                timing: Value(_clean(entry.timing)),
+              ),
+            );
+        added.add(name);
+      }
+      return (added: added, existing: existing);
+    });
+  }
+
+  static String _key(String name) => name.trim().toLowerCase();
 
   Future<void> updateSupplement(
     String supplementId, {

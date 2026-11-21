@@ -148,6 +148,30 @@ class _PlanReviewScreenState extends ConsumerState<PlanReviewScreen> {
     setState(() => _saving = true);
     final navigator = Navigator.of(context);
     await ref.read(nutritionRepositoryProvider).savePlan(widget.userId, _draft);
+    // La guía de suplementos pasa sola al inventario.
+    final result = await ref.read(supplementRepositoryProvider).addFromGuide(
+      widget.userId,
+      [
+        for (final s in _draft.supplements)
+          (name: s.name, dose: s.dose, timing: s.timing),
+      ],
+    );
+    if (mounted) {
+      await showCupertinoDialog<void>(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: const Text('Plan guardado'),
+          content: Text(supplementImportSummary(result)),
+          actions: [
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Aceptar'),
+            ),
+          ],
+        ),
+      );
+    }
     navigator.pop();
   }
 
@@ -239,8 +263,14 @@ class _PlanReviewScreenState extends ConsumerState<PlanReviewScreen> {
                       ),
                     ],
                   ],
-                  if (_draft.supplements.isNotEmpty) ...[
-                    const SectionHeader('Suplementos'),
+                  const SectionHeader('Suplementos'),
+                  if (_draft.supplements.isEmpty)
+                    Text(
+                      'No se encontraron suplementos en el plan.',
+                      key: const Key('noSupplements'),
+                      style: secondary.copyWith(fontSize: 15),
+                    )
+                  else ...[
                     CardGroup(
                       children: [
                         for (final supplement in _draft.supplements)
@@ -418,4 +448,29 @@ class _ReviewItemRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Qué pasó con la guía de suplementos al guardar el plan.
+String supplementImportSummary(
+  ({List<String> added, List<String> existing}) result,
+) {
+  final added = result.added;
+  final existing = result.existing;
+  if (added.isEmpty && existing.isEmpty) {
+    return 'No se encontraron suplementos en el plan.';
+  }
+  final parts = [
+    if (added.length == 1)
+      'Se agregó ${added.single} a tus suplementos.'
+    else if (added.isNotEmpty)
+      'Se agregaron ${added.length} suplementos: ${added.join(', ')}.',
+    if (existing.isNotEmpty)
+      existing.length == 1
+          ? '${existing.single} ya estaba en tu inventario.'
+          : '${existing.length} ya estaban en tu inventario.',
+    if (added.isNotEmpty)
+      'En Suplementos, anota cuánto tienes de cada uno para que la app te '
+          'avise cuándo reabastecer.',
+  ];
+  return parts.join(' ');
 }

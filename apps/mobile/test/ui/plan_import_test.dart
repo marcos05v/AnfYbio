@@ -138,6 +138,13 @@ void main() {
     await tap(tester, find.text('Guardar plan'));
     await tap(tester, find.text('Guardar así'));
 
+    // La guía de suplementos pasó sola al inventario, y se avisa.
+    expect(find.text('Plan guardado'), findsOneWidget);
+    expect(find.textContaining('Se agregaron'), findsOneWidget);
+    await tap(tester, find.text('Aceptar'));
+    final inventory = await db.select(db.supplements).get();
+    expect(inventory.map((s) => s.name), contains('Vitamina C'));
+
     // De vuelta en la pestaña, con el menú de descanso (hoy no hay sesiones).
     expect(find.text('Revisar plan'), findsNothing);
     expect(find.text('1. Colación / Comida 1'), findsOneWidget);
@@ -163,6 +170,7 @@ void main() {
 
     await tap(tester, find.text('Guardar plan'));
     await tap(tester, find.text('Guardar así'));
+    await tap(tester, find.text('Aceptar'));
 
     final items = await db.select(db.planItems).get();
     expect(items, hasLength(24));
@@ -236,6 +244,7 @@ void main() {
     await tap(tester, find.text('Importar otro plan (PDF)'));
     await tap(tester, find.text('Guardar plan'));
     await tap(tester, find.text('Guardar así'));
+    await tap(tester, find.text('Aceptar'));
 
     expect(find.text('Plan de alimentación Ejemplo'), findsOneWidget);
     final plans = await db.select(db.nutritionPlans).get();

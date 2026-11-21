@@ -67,3 +67,17 @@ que es justo lo que se quiere medir.
 - Los recordatorios y el aviso como notificaciones se resolvieron en el
   ADR-0014.
 - El inventario entra en el respaldo.
+
+## Actualización (2026-11-20): alta automática desde el plan
+
+Al guardar un plan importado, cada suplemento de su guía que no esté ya en
+el inventario (se compara por nombre) se da de alta solo:
+
+- **Con dosis en gramos** es un polvo con esa dosis diaria; con mg o UI se
+  propone una pastilla al día.
+- **Empieza sin inventario.** Mientras no se anote ninguna compra, la
+  tarjeta pide "Toca para anotar cuánto tienes" y no se programan avisos de
+  reabastecer, porque no se sabe cuánto hay.
+
+Al terminar, la app dice cuáles agregó y cuáles ya existían, o que el plan
+no trae suplementos.

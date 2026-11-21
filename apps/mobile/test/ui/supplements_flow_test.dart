@@ -277,7 +277,8 @@ void main() {
     await type(tester, 'supDose', '1');
     await tap(tester, find.text('Guardar suplemento'));
 
-    expect(find.text('Sin existencias'), findsOneWidget);
+    // Sin ninguna compra no se sabe cuánto hay: se pide anotarlo.
+    expect(find.text('Toca para anotar cuánto tienes'), findsOneWidget);
     expect(await db.select(db.supplementPurchases).get(), isEmpty);
     await shutDown(tester);
   });
@@ -316,6 +317,23 @@ void main() {
   testWidgets('sin existencias lo indica en la tarjeta y en el aviso', (
     tester,
   ) async {
+    // Se compró un envase y ya se terminó.
+    await SupplementRepository(db).addSupplement(
+      userId: userId,
+      name: 'Zinc',
+      unitLabel: 'cápsulas',
+      dailyDose: 1,
+      initialQuantity: 30,
+      alreadyConsumed: 30,
+    );
+    await openSupplements(tester);
+
+    expect(find.text('Sin existencias'), findsOneWidget);
+    expect(find.text('Zinc: sin existencias'), findsOneWidget);
+    await shutDown(tester);
+  });
+
+  testWidgets('sin ninguna compra no avisa de reabastecer', (tester) async {
     await SupplementRepository(db).addSupplement(
       userId: userId,
       name: 'Zinc',
@@ -324,8 +342,8 @@ void main() {
     );
     await openSupplements(tester);
 
-    expect(find.text('Sin existencias'), findsOneWidget);
-    expect(find.text('Zinc: sin existencias'), findsOneWidget);
+    expect(find.text('Toca para anotar cuánto tienes'), findsOneWidget);
+    expect(find.text('Zinc: sin existencias'), findsNothing);
     await shutDown(tester);
   });
 

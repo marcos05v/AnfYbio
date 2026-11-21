@@ -313,4 +313,52 @@ void main() {
     expect(stocks.last, 295);
     await subscription.cancel();
   });
+
+  group('alta desde la guía del plan', () {
+    test('agrega los que faltan, sin inventario, con su dosis', () async {
+      await repo.addSupplement(
+        userId: userId,
+        name: 'Creatina',
+        unitLabel: 'g',
+        dailyDose: 5,
+      );
+
+      final result = await repo.addFromGuide(userId, [
+        (name: 'creatina', dose: '5 g al día', timing: null),
+        (
+          name: 'Inositol (Mio-Inositol)',
+          dose: '2g por la mañana',
+          timing: null,
+        ),
+        (name: 'Vitamina D3', dose: '2,000 UI', timing: 'Con el desayuno'),
+      ]);
+
+      expect(result.added, ['Inositol (Mio-Inositol)', 'Vitamina D3']);
+      expect(result.existing, ['creatina']);
+      final views = await repo.supplementsOf(userId);
+      final inositol = views.singleWhere(
+        (v) => v.supplement.name.startsWith('Inositol'),
+      );
+      expect(
+        (inositol.supplement.unitLabel, inositol.supplement.dailyDose),
+        ('g', 2.0),
+      );
+      expect(inositol.hasInventory, isFalse);
+      final vitamin = views.singleWhere(
+        (v) => v.supplement.name == 'Vitamina D3',
+      );
+      expect(
+        (vitamin.supplement.unitLabel, vitamin.supplement.dailyDose),
+        ('pastillas', 1.0),
+      );
+      expect(vitamin.supplement.timing, 'Con el desayuno');
+    });
+
+    test('sin guía no agrega nada', () async {
+      final result = await repo.addFromGuide(userId, const []);
+      expect(result.added, isEmpty);
+      expect(result.existing, isEmpty);
+      expect(await repo.supplementsOf(userId), isEmpty);
+    });
+  });
 }

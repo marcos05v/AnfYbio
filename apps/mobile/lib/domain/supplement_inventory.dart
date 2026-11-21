@@ -181,3 +181,14 @@ int _dayNumber(DateTime date) =>
 
 int _min(int a, int b) => a < b ? a : b;
 int _max(int a, int b) => a > b ? a : b;
+
+/// Cómo se da de alta en el inventario un suplemento de la guía del plan:
+/// con la dosis en gramos es un polvo y se toma esa cantidad; con mg o UI es
+/// la concentración de cada pastilla, y se propone una al día. Sin dosis
+/// legible, también una pastilla.
+({String unitLabel, double dailyDose}) inventoryFromGuide(String? dose) {
+  final parsed = parseDose(dose);
+  return parsed?.unit == powderUnit
+      ? (unitLabel: powderUnit, dailyDose: parsed!.amount)
+      : (unitLabel: pillsUnit, dailyDose: 1);
+}
