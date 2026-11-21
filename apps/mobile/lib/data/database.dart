@@ -68,7 +68,7 @@ class AppDatabase extends _$AppDatabase {
   /// 6: hora del recordatorio de cada suplemento.
   /// 7: alias en español de los ejercicios del catálogo (Fase 4).
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -118,6 +118,12 @@ class AppDatabase extends _$AppDatabase {
       // La tabla de ejercicios existe desde la versión 1.
       if (from < 8) {
         await m.addColumn(exercises, exercises.loadMode);
+      }
+      // La tabla de alimentos existe desde la versión 2; si se acaba de crear
+      // ya trae las columnas.
+      if (from >= 2 && from < 9) {
+        await m.addColumn(planItems, planItems.parentItemId);
+        await m.addColumn(planItems, planItems.alternativeOfId);
       }
     },
     beforeOpen: (details) async {

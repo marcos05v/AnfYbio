@@ -5,8 +5,9 @@
 /// nombre, así que agregar tipos no requiere migración.
 enum DayType { training, rest, high, low }
 
-/// Unidad en la que el plan expresa una cantidad.
-enum FoodUnit { gram, piece, scoop }
+/// Unidad en la que el plan expresa una cantidad. Se guarda por nombre, así
+/// que agregar unidades no requiere migración.
+enum FoodUnit { gram, piece, scoop, ml, cup, tablespoon, teaspoon }
 
 /// En qué estado se pesa el alimento. El plan puede no decirlo: entonces
 /// queda [unspecified] hasta que el usuario lo indique (no se adivina).
@@ -64,9 +65,12 @@ class NutritionPlanDraft {
     );
   }
 
-  /// Todos los alimentos del plan, en orden.
-  Iterable<ItemDraft> get items =>
-      menus.expand((menu) => menu.meals).expand((meal) => meal.items);
+  /// Todos los alimentos del plan, en orden, incluidos los ingredientes de
+  /// cada plato y las alternativas.
+  Iterable<ItemDraft> get items => menus
+      .expand((menu) => menu.meals)
+      .expand((meal) => meal.items)
+      .expand((item) => item.flattened);
 }
 
 class MenuDraft {
@@ -104,6 +108,8 @@ class ItemDraft {
     this.isFree = false,
     this.note,
     this.warning,
+    this.ingredients = const [],
+    this.alternatives = const [],
   });
 
   final String name;
@@ -118,6 +124,44 @@ class ItemDraft {
   /// Lo que la lectura de un archivo no entendió de este renglón, para
   /// mostrarlo en la revisión. No se guarda en la base de datos.
   final String? warning;
+
+  /// Si es un plato ("Sándwich"), lo que lleva: pan, pechuga…
+  final List<ItemDraft> ingredients;
+
+  /// Otras opciones con su propia cantidad: "1 manzana **ó** 1 taza de
+  /// fresas". Las que comparten cantidad siguen en el nombre ("pollo o res").
+  final List<ItemDraft> alternatives;
+
+  /// Este alimento y todo lo que lleva dentro, en orden.
+  Iterable<ItemDraft> get flattened sync* {
+    yield this;
+    for (final alternative in alternatives) {
+      yield* alternative.flattened;
+    }
+    for (final ingredient in ingredients) {
+      yield* ingredient.flattened;
+    }
+  }
+
+  ItemDraft copyWith({
+    List<ItemDraft>? ingredients,
+    List<ItemDraft>? alternatives,
+  }) => ItemDraft(
+    name: name,
+    amount: amount,
+    unit: unit,
+    state: state,
+    isFree: isFree,
+    note: note,
+    warning: warning,
+    ingredients: ingredients ?? this.ingredients,
+    alternatives: alternatives ?? this.alternatives,
+  );
+
+  /// El mismo alimento con los datos de [edited] y conservando lo que lleva
+  /// dentro (el formulario solo edita el renglón).
+  ItemDraft replacedBy(ItemDraft edited) =>
+      edited.copyWith(ingredients: ingredients, alternatives: alternatives);
 }
 
 class SupplementDraft {

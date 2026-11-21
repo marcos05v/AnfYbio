@@ -299,15 +299,85 @@ void main() {
 
     test('un bloque en mayúsculas es un grupo con sus rondas', () {
       final plank = find('Plancha');
-      expect(plank.groupLabel, 'ABDOMEN: TODOS LOS DÍAS DE TORSO (4 rondas)');
+      expect(plank.groupLabel, 'ABDOMEN (4 rondas)');
       expect((plank.workSets, plank.repsNote), (4, '1 min'));
       expect(find('Crunch').repsNote, '30 seg');
-      // Va en varios días: se avisa para que se copie a mano.
-      expect(result.warnings.single, contains('va en varios días'));
+    });
+
+    test('"todos los días de torso" se copia solo a los días de torso', () {
+      final names = [
+        for (final day in routine.days) day.exercises.map((e) => e.name),
+      ];
+      // Va al final del día "Torso + HIIT"…
+      expect(names[1].toList().reversed.take(2), ['Crunch', 'Plancha']);
+      // …y no se queda en "Glúteo", donde aparecía en el documento.
+      expect(names[2], isNot(contains('Plancha')));
+      expect(names[0], isNot(contains('Plancha')));
+      expect(result.warnings, isEmpty);
     });
 
     test('nada más queda por revisar', () {
       expect(routine.exercises.where((e) => e.warning != null), isEmpty);
+    });
+  });
+
+  group('bloques para varios días', () {
+    const days =
+        'R\n'
+        'Día 1: Tren Superior (Pecho)\n'
+        '1. Press: 4 series x 10 reps\n'
+        'Día 2: Piernas\n'
+        '1. Sentadilla: 4 series x 8 reps\n'
+        'Día 3: Tren superior (Espalda)\n'
+        '1. Remo: 4 series x 10 reps\n';
+
+    List<List<String>> namesByDay(String text) => [
+      for (final day in parseRoutine(text).draft.days)
+        day.exercises.map((e) => e.name).toList(),
+    ];
+
+    test('"todos los días" sin más va en todos', () {
+      expect(namesByDay('${days}CORE: TODOS LOS DÍAS\n1. Plancha de 1 min\n'), [
+        ['Press', 'Plancha'],
+        ['Sentadilla', 'Plancha'],
+        ['Remo', 'Plancha'],
+      ]);
+    });
+
+    test('sin importar acentos, mayúsculas ni plural', () {
+      expect(
+        namesByDay(
+          '${days}ABDOMEN: TODOS LOS DIAS DE PIERNA\n1. Crunch 30 seg\n',
+        ),
+        [
+          ['Press'],
+          ['Sentadilla', 'Crunch'],
+          ['Remo'],
+        ],
+      );
+    });
+
+    test('puede aparecer antes de los días', () {
+      final text =
+          'R\nABDOMEN: TODOS LOS DÍAS DE SUPERIOR (3 rondas)\n'
+          '1. Plancha de 1 min\n'
+          '${days.substring(2)}';
+      final routine = parseRoutine(text);
+      expect(routine.warnings, isEmpty);
+      expect(namesByDay(text), [
+        ['Press', 'Plancha'],
+        ['Sentadilla'],
+        ['Remo', 'Plancha'],
+      ]);
+      expect(routine.draft.exercises.first.name, 'Press');
+    });
+
+    test('si ningún día coincide, se queda donde estaba y avisa', () {
+      final result = parseRoutine(
+        '${days}MOVILIDAD: TODOS LOS DÍAS DE CARDIO\n1. Gato-camello 1 min\n',
+      );
+      expect(result.draft.days.last.exercises.last.name, 'Gato-camello');
+      expect(result.warnings.single, contains('ningún día se llama así'));
     });
   });
 }

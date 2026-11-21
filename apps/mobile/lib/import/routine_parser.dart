@@ -1,3 +1,4 @@
+import '../catalog/exercise_matching.dart';
 import '../domain/routine.dart';
 
 /// Resultado de leer una rutina: el borrador y lo que no se pudo interpretar.
@@ -40,6 +41,10 @@ ParsedRoutine parseRoutine(String text, {String? fileName}) {
   String? group;
   int? groupSets;
   _Block? block;
+  // Bloques que van en varios días ("ABDOMEN: TODOS LOS DÍAS DE SUPERIOR"):
+  // se juntan aparte y al final se copian a cada día que corresponde.
+  final shared = <_Shared>[];
+  _Shared? openShared;
 
   for (final line in _joinContinuations(_markedLines(text))) {
     final content = line.text;
@@ -49,6 +54,7 @@ ParsedRoutine parseRoutine(String text, {String? fileName}) {
       group = null;
       groupSets = null;
       block = null;
+      openShared = null;
       continue;
     }
 
@@ -74,14 +80,26 @@ ParsedRoutine parseRoutine(String text, {String? fileName}) {
     final isTitle =
         (colon < 0 && line.marker == _Marker.bullet) || _isShouting(label);
     if (isTitle && (days.isNotEmpty || name != null)) {
-      group = _cleanTitle(body);
       groupSets = _setsIn(body);
       block = null;
-      if (RegExp(r'todos los d[ií]as', caseSensitive: false).hasMatch(body)) {
-        warnings.add(
-          '"$group" va en varios días; quedó en el día '
-          '${days.length}. Cópialo a los demás si hace falta.',
+      if (_everyDay.firstMatch(body) case final every?) {
+        // "ABDOMEN: TODOS LOS DÍAS DE SUPERIOR (4 rondas)" → el grupo se
+        // llama "ABDOMEN (4 rondas)" y va en los días de "superior".
+        group = _cleanTitle(
+          body
+              .replaceRange(every.start, every.end, ' ')
+              .replaceAll(RegExp(r'\s*:\s*(?=\(|$)'), ' ')
+              .replaceAll(RegExp(r'\s+'), ' '),
         );
+        openShared = _Shared(
+          title: group,
+          target: every.group(1)?.trim(),
+          origin: days.length - 1,
+        );
+        shared.add(openShared);
+      } else {
+        group = _cleanTitle(body);
+        openShared = null;
       }
       continue;
     }
@@ -92,11 +110,14 @@ ParsedRoutine parseRoutine(String text, {String? fileName}) {
       continue;
     }
 
-    if (days.isEmpty && line.marker == _Marker.none && !line.labeled) {
+    if (openShared == null &&
+        days.isEmpty &&
+        line.marker == _Marker.none &&
+        !line.labeled) {
       // Texto suelto antes del primer día: no es parte de la rutina.
       continue;
     }
-    if (days.isEmpty) {
+    if (days.isEmpty && openShared == null) {
       warnings.add('La rutina no separa los días; se guardó todo en uno solo.');
       days.add(_Day('Día 1'));
     }
@@ -119,7 +140,7 @@ ParsedRoutine parseRoutine(String text, {String? fileName}) {
             name: label,
             description: body.substring(colon + 1).trim(),
           );
-    days.last.exercises.add(
+    (openShared?.exercises ?? days.last.exercises).add(
       _finish(
         exercise,
         groupLabel: group,
@@ -129,6 +150,8 @@ ParsedRoutine parseRoutine(String text, {String? fileName}) {
     );
     current?.count++;
   }
+
+  _placeShared(shared, days, warnings);
 
   if (days.every((day) => day.exercises.isEmpty)) {
     warnings.add('No se encontró ningún ejercicio en el documento.');
@@ -145,6 +168,82 @@ ParsedRoutine parseRoutine(String text, {String? fileName}) {
       ],
     ),
   );
+}
+
+/// "todos los días", "TODOS LOS DÍAS DE SUPERIOR (4 rondas)": el bloque va
+/// en varios días. El grupo 1 es a cuáles ("superior"), si lo dice.
+final _everyDay = RegExp(
+  r'todos\s+los\s+d[iíÍI]as(?:\s+de\s+([^()]+?))?\s*(?=\(|$)',
+  caseSensitive: false,
+);
+
+/// Un bloque que la rutina pide en varios días.
+class _Shared {
+  _Shared({required this.title, required this.target, required this.origin});
+
+  final String title;
+
+  /// A qué días va ("superior"); `null` es todos.
+  final String? target;
+
+  /// Día en el que apareció en el documento (-1 si fue antes de los días).
+  final int origin;
+  final exercises = <RoutineExerciseDraft>[];
+}
+
+/// Copia cada bloque compartido al final de los días que corresponden: los
+/// que tienen [_Shared.target] en el nombre, o todos si no lo dice. Si
+/// ningún día coincide, lo deja donde apareció y avisa.
+void _placeShared(
+  List<_Shared> shared,
+  List<_Day> days,
+  List<String> warnings,
+) {
+  for (final block in shared.where((b) => b.exercises.isNotEmpty)) {
+    final target = block.target;
+    final targets = target == null
+        ? days
+        : days.where((day) => _dayMatches(day.name, target)).toList();
+    if (targets.isNotEmpty) {
+      for (final day in targets) {
+        day.exercises.addAll(block.exercises);
+      }
+      continue;
+    }
+    if (days.isEmpty) days.add(_Day('Día 1'));
+    final fallback = days[block.origin.clamp(0, days.length - 1)];
+    fallback.exercises.addAll(block.exercises);
+    warnings.add(
+      '"${block.title}" va en los días de "$target", pero ningún día se '
+      'llama así; quedó en "${fallback.name}". Cópialo a los que '
+      'correspondan.',
+    );
+  }
+}
+
+/// Si el nombre del día corresponde a lo que pide el bloque: lo contiene
+/// completo o contiene todas sus palabras importantes, sin distinguir
+/// acentos ni mayúsculas.
+bool _dayMatches(String dayName, String target) {
+  final day = normalizeText(dayName);
+  final wanted = normalizeText(target);
+  if (wanted.isEmpty) return true;
+  if (' $day '.contains(' $wanted ')) return true;
+  final dayWords = day.split(' ');
+  final words = wanted.split(' ').where((w) => w.length >= 4).toList();
+  return words.isNotEmpty &&
+      words.every((w) => dayWords.any((d) => _sameWord(d, w)));
+}
+
+/// Iguales sin importar singular o plural: "pierna" y "piernas", "superior"
+/// y "superiores".
+bool _sameWord(String a, String b) {
+  String singular(String w) => w.endsWith('es') && w.length > 5
+      ? w.substring(0, w.length - 2)
+      : w.endsWith('s')
+      ? w.substring(0, w.length - 1)
+      : w;
+  return a == b || singular(a) == singular(b);
 }
 
 final _dayHeader = RegExp(

@@ -325,7 +325,7 @@ void main() {
         plan.menus.first.meals[1].timingNote,
         'Para aguantar hasta la comida',
       );
-      expect(plan.menus.last.meals, hasLength(2));
+      expect(plan.menus.last.meals, hasLength(3));
     });
 
     test('la cantidad antes del alimento y el estado entre paréntesis', () {
@@ -341,6 +341,16 @@ void main() {
       expect(item(0, 2, 1).state, FoodState.cooked);
     });
 
+    test('"+" separa los alimentos', () {
+      final whites = item(0, 0, 0);
+      expect(
+        (whites.name, whites.amount, whites.unit),
+        ('claras de huevo', 2.0, FoodUnit.piece),
+      );
+      final egg = item(0, 0, 1);
+      expect((egg.name, egg.amount), ('huevo entero', 1.0));
+    });
+
     test('un número sin unidad son piezas', () {
       final tostadas = item(1, 1, 1);
       expect(tostadas.name, 'tostadas horneadas');
@@ -348,9 +358,53 @@ void main() {
       expect(tostadas.warning, isNull);
     });
 
+    test('ml, tazas y rangos', () {
+      final oil = item(0, 2, 2);
+      expect(
+        (oil.name, oil.amount, oil.unit),
+        ('aceite de oliva', 5.0, FoodUnit.ml),
+      );
+
+      final puffedRice = item(1, 2, 1);
+      expect((puffedRice.name, puffedRice.amount), ('arroz inflado', 30.0));
+      expect(puffedRice.note, 'Entre 30 y 40 g');
+    });
+
+    test('las alternativas con su propia cantidad quedan como opciones', () {
+      final pear = item(0, 1, 2);
+      expect(
+        (pear.name, pear.amount, pear.unit),
+        ('pera', 1.0, FoodUnit.piece),
+      );
+      final berries = pear.alternatives.single;
+      expect(
+        (berries.name, berries.amount, berries.unit),
+        ('moras', 1.0, FoodUnit.cup),
+      );
+
+      final avocado = item(1, 0, 1);
+      expect(avocado.amount, 35);
+      expect(avocado.alternatives.single.name, 'nueces');
+      expect(avocado.alternatives.single.amount, 8);
+    });
+
+    test('un plato guarda sus ingredientes, con alternativas', () {
+      final sandwich = item(1, 2, 0);
+      expect(sandwich.name, 'Sándwich');
+      expect(sandwich.amount, isNull);
+      final [bread, turkey] = sandwich.ingredients;
+      expect(
+        (bread.name, bread.amount, bread.unit, bread.note),
+        ('pan integral', 2.0, FoodUnit.piece, 'rebanadas'),
+      );
+      expect((turkey.name, turkey.amount), ('pechuga de pavo', 80.0));
+      final cheese = turkey.alternatives.single;
+      expect((cheese.name, cheese.amount), ('queso panela', 70.0));
+    });
+
     test('los libres, las etiquetas y el punto final', () {
-      expect(item(0, 0, 2).isFree, isTrue);
-      expect(item(0, 0, 1).name, 'aguacate hass');
+      expect(item(0, 0, 3).isFree, isTrue);
+      expect(item(0, 0, 2).name, 'aguacate hass');
 
       final more = item(1, 1, 0);
       expect(more.name, 'pechuga de pavo');
@@ -363,13 +417,8 @@ void main() {
       expect(optional.warning, isNull);
     });
 
-    test('marca para revisión los renglones con dos cantidades', () {
-      // "1 pera ó 1 taza de moras", "35 g de aguacate ó 8 nueces" y
-      // "5 ml de aceite" (unidad que la app no maneja).
-      for (final (menu, meal, index) in [(0, 1, 2), (1, 0, 1), (0, 2, 2)]) {
-        expect(item(menu, meal, index).warning, isNotNull);
-      }
-      expect(item(0, 0, 1).warning, isNull);
+    test('ya no queda nada por revisar', () {
+      expect(result.warningCount, 0);
     });
 
     test('suplementos separados por una viñeta sola, con "Objetivo"', () {

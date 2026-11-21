@@ -600,30 +600,58 @@ class _MealSection extends ConsumerWidget {
         if (meal.items.isEmpty)
           const _EmptyCard('Sin alimentos.')
         else
-          CardGroup(
-            children: [
-              for (final item in meal.items)
-                _ItemRow(
-                  item: item,
-                  serving: cookedServingFor(
-                    itemName: item.name,
-                    amount: item.amount,
-                    unit: item.unit,
-                    state: item.state,
-                    batches: batches,
-                  ),
-                ),
-            ],
-          ),
+          CardGroup(children: _rows(meal.entries, depth: 0)),
       ],
     );
+  }
+
+  /// Cada alimento, sus alternativas ("o …") y, si es un plato, sus
+  /// ingredientes con sangría (ADR-0023).
+  List<Widget> _rows(List<ItemNode> nodes, {required int depth}) {
+    Widget row(PlanItem item, {bool alternative = false, bool dish = false}) =>
+        _ItemRow(
+          item: item,
+          depth: depth,
+          isAlternative: alternative,
+          isDish: dish,
+          serving: cookedServingFor(
+            itemName: item.name,
+            amount: item.amount,
+            unit: item.unit,
+            state: item.state,
+            batches: batches,
+          ),
+        );
+    return [
+      for (final node in nodes) ...[
+        row(node.item, dish: node.ingredients.isNotEmpty),
+        for (final alternative in node.alternatives)
+          row(alternative, alternative: true),
+        ..._rows(node.ingredients, depth: depth + 1),
+      ],
+    ];
   }
 }
 
 class _ItemRow extends ConsumerWidget {
-  const _ItemRow({required this.item, required this.serving});
+  const _ItemRow({
+    required this.item,
+    required this.serving,
+    this.depth = 0,
+    this.isAlternative = false,
+    this.isDish = false,
+  });
 
   final PlanItem item;
+
+  /// 0 si va suelto en la comida; 1 si es ingrediente de un plato.
+  final int depth;
+
+  /// Es otra opción del alimento de arriba: se lee "o 80 g de panela".
+  final bool isAlternative;
+
+  /// Es un plato: lo que lleva va debajo.
+  final bool isDish;
 
   /// Cuánto servir ya cocido, si hay un lote de este alimento.
   final CookedServing? serving;
@@ -642,7 +670,12 @@ class _ItemRow extends ConsumerWidget {
     ].join(' · ');
 
     return CupertinoButton(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.fromLTRB(
+        16 + depth * 18.0,
+        isAlternative ? 4 : 12,
+        16,
+        12,
+      ),
       onPressed: () => showAppSheet<void>(
         context,
         title: 'Editar alimento',
@@ -665,7 +698,26 @@ class _ItemRow extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.name, style: textStyle(context)),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      if (isAlternative)
+                        TextSpan(
+                          text: 'o ',
+                          style: textStyle(
+                            context,
+                            weight: FontWeight.w600,
+                            color: CupertinoColors.secondaryLabel,
+                          ),
+                        ),
+                      TextSpan(text: item.name),
+                    ],
+                  ),
+                  style: textStyle(
+                    context,
+                    weight: isDish ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
                 if (details.isNotEmpty)
                   Text(
                     details,

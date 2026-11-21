@@ -33,7 +33,7 @@ void main() {
       );
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 8);
+    await verifier.migrateAndValidate(db, 9);
 
     final user = await db.select(db.users).getSingle();
     final session = await db.select(db.sessions).getSingle();
@@ -69,7 +69,7 @@ void main() {
       );
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 8);
+    await verifier.migrateAndValidate(db, 9);
 
     final plan = await db.select(db.nutritionPlans).getSingle();
     final session = await db.select(db.sessions).getSingle();
@@ -104,7 +104,7 @@ void main() {
         );
 
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 8);
+      await verifier.migrateAndValidate(db, 9);
 
       final day = await db.select(db.routineDays).getSingle();
       final session = await db.select(db.sessions).getSingle();
@@ -132,7 +132,7 @@ void main() {
         );
 
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 8);
+      await verifier.migrateAndValidate(db, 9);
 
       final batch = await db.select(db.cookingBatches).getSingle();
       expect((batch.foodName, batch.cookedWeightG), ('Pollo', 720));
@@ -158,7 +158,7 @@ void main() {
         );
 
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 8);
+      await verifier.migrateAndValidate(db, 9);
 
       final supplement = await db.select(db.supplements).getSingle();
       expect((supplement.name, supplement.dailyDose), ('Creatina', 5));
@@ -182,7 +182,7 @@ void main() {
       );
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 8);
+    await verifier.migrateAndValidate(db, 9);
 
     final supplement = await db.select(db.supplements).getSingle();
     expect(supplement.reminderMinute, 570);
@@ -205,7 +205,7 @@ void main() {
       );
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 8);
+    await verifier.migrateAndValidate(db, 9);
 
     final exercise = await db.select(db.exercises).getSingle();
     expect(exercise.name, 'Press Arnold');
@@ -214,9 +214,54 @@ void main() {
     await db.close();
   });
 
+  test('de la versión 8 a la 9: los alimentos quedan sueltos, sin plato ni '
+      'alternativa', () async {
+    final schema = await verifier.schemaAt(8);
+    const stamp = "'2026-11-01T10:00:00.000Z'";
+    schema.rawDatabase
+      ..execute(
+        "INSERT INTO users (id, created_at, updated_at, display_name) VALUES "
+        "('u1', $stamp, $stamp, 'Marcos')",
+      )
+      ..execute(
+        "INSERT INTO nutrition_plans (id, created_at, updated_at, user_id, "
+        "name, is_active) VALUES ('p1', $stamp, $stamp, 'u1', 'Plan', 1)",
+      )
+      ..execute(
+        "INSERT INTO plan_menus (id, created_at, updated_at, user_id, plan_id, "
+        "day_type, title) VALUES ('m1', $stamp, $stamp, 'u1', 'p1', "
+        "'training', 'Entreno')",
+      )
+      ..execute(
+        "INSERT INTO plan_meals (id, created_at, updated_at, user_id, menu_id, "
+        "position, name) VALUES ('c1', $stamp, $stamp, 'u1', 'm1', 1, "
+        "'Desayuno')",
+      )
+      ..execute(
+        "INSERT INTO plan_items (id, created_at, updated_at, user_id, meal_id, "
+        "position, name, amount, unit, state, is_free) VALUES ('i1', $stamp, "
+        "$stamp, 'u1', 'c1', 1, 'Avena', 50, 'gram', 'dry', 0)",
+      )
+      ..execute(
+        "INSERT INTO exercises (id, created_at, updated_at, user_id, name, "
+        "default_unit, load_mode) VALUES ('e1', $stamp, $stamp, 'u1', "
+        "'Press Arnold', 'kg', 'perHand')",
+      );
+
+    final db = AppDatabase(schema.newConnection());
+    await verifier.migrateAndValidate(db, 9);
+
+    final item = await db.select(db.planItems).getSingle();
+    expect((item.name, item.amount), ('Avena', 50));
+    expect((item.parentItemId, item.alternativeOfId), (null, null));
+    final exercise = await db.select(db.exercises).getSingle();
+    expect(exercise.loadMode?.name, 'perHand');
+    await db.close();
+  });
+
   test('una instalación nueva crea directamente el esquema actual', () async {
-    final db = AppDatabase(await verifier.startAt(8));
-    await verifier.migrateAndValidate(db, 8);
+    final db = AppDatabase(await verifier.startAt(9));
+    await verifier.migrateAndValidate(db, 9);
     await db.close();
   });
 }

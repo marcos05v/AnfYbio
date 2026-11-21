@@ -206,6 +206,10 @@ String foodUnitLabel(FoodUnit unit) => switch (unit) {
   FoodUnit.gram => 'Gramos',
   FoodUnit.piece => 'Piezas',
   FoodUnit.scoop => 'Scoops',
+  FoodUnit.ml => 'Mililitros',
+  FoodUnit.cup => 'Tazas',
+  FoodUnit.tablespoon => 'Cucharadas',
+  FoodUnit.teaspoon => 'Cucharaditas',
 };
 
 /// Cantidad de un alimento del plan: "100 g", "2 piezas", "1 scoop", "Libre".
@@ -223,6 +227,10 @@ String formatFoodAmount({
     FoodUnit.gram => '$number g',
     FoodUnit.piece => amount == 1 ? '$number pieza' : '$number piezas',
     FoodUnit.scoop => amount <= 1 ? '$number scoop' : '$number scoops',
+    FoodUnit.ml => '$number ml',
+    FoodUnit.cup => amount <= 1 ? '$number taza' : '$number tazas',
+    FoodUnit.tablespoon => '$number cda.',
+    FoodUnit.teaspoon => '$number cdta.',
   };
 }
 

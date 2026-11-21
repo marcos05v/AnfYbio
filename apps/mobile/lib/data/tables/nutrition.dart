@@ -63,6 +63,14 @@ class PlanItems extends Table with SyncColumns {
   /// Consumo libre: no lleva cantidad.
   BoolColumn get isFree => boolean().withDefault(const Constant(false))();
   TextColumn get note => text().nullable()();
+
+  /// El plato al que pertenece como ingrediente ("pan integral" dentro de
+  /// "Sándwich"). Nulo si va suelto en la comida (ADR-0023).
+  TextColumn get parentItemId => text().nullable()();
+
+  /// El alimento del que es alternativa, con su propia cantidad ("80 g de
+  /// panela" en lugar de "90 g de pavo"). Nulo si no es alternativa.
+  TextColumn get alternativeOfId => text().nullable()();
 }
 
 /// Un suplemento de la guía que acompaña al plan. Es texto de consulta; el

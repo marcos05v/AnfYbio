@@ -34,6 +34,10 @@ persona más va a usar la app y no se sabe cómo escribe su entrenador.
   - "10,10,8 reps" (drop set, queda en texto);
   - las repeticiones antes de las series.
 - **Calentamiento y cardio** guardan su duración y su nota, sin avisos.
+- **Bloques para varios días.** "ABDOMEN: TODOS LOS DÍAS DE SUPERIOR"
+  se copia al final de cada día cuyo nombre diga "superior", sin importar
+  acentos, mayúsculas ni plural. "Todos los días" a secas va en todos. Si
+  ningún día coincide, el bloque se queda donde apareció y se avisa.
 - **No adivina:** lo que no entiende se conserva y se marca, igual que antes.
   Para no leer cualquier documento como rutina, el texto suelto antes del
   primer día se ignora.
@@ -54,9 +58,9 @@ Resultado con los cuatro planes reales disponibles:
 | Documento | Entendido sin revisión |
 |---|---|
 | Rutina, formato 1 | 98 % |
-| Rutina, formato 2 | 96 % |
+| Rutina, formato 2 | 98 % |
 | Alimentación, formato 1 | 96 % |
-| Alimentación, formato 2 | 66 % (renglones con dos cantidades, a propósito) |
+| Alimentación, formato 2 | 100 % (con platos y alternativas, ADR-0023) |
 
 ## Alternativas consideradas
 

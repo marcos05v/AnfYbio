@@ -33,8 +33,41 @@ class MealView {
   const MealView({required this.meal, required this.items});
 
   final PlanMeal meal;
+
+  /// Todos los alimentos de la comida, incluidos ingredientes y
+  /// alternativas, en orden.
   final List<PlanItem> items;
+
+  /// Los alimentos como se muestran: cada uno con sus alternativas y, si es
+  /// un plato, sus ingredientes.
+  List<ItemNode> get entries => _nodesOf(items, parentId: null);
 }
+
+/// Un alimento con lo que lleva dentro (ADR-0023).
+class ItemNode {
+  const ItemNode({
+    required this.item,
+    required this.alternatives,
+    required this.ingredients,
+  });
+
+  final PlanItem item;
+  final List<PlanItem> alternatives;
+  final List<ItemNode> ingredients;
+}
+
+List<ItemNode> _nodesOf(List<PlanItem> items, {required String? parentId}) => [
+  for (final item in items)
+    if (item.parentItemId == parentId && item.alternativeOfId == null)
+      ItemNode(
+        item: item,
+        alternatives: [
+          for (final other in items)
+            if (other.alternativeOfId == item.id) other,
+        ],
+        ingredients: _nodesOf(items, parentId: item.id),
+      ),
+];
 
 /// Lectura y escritura del plan de alimentación.
 ///
@@ -104,10 +137,34 @@ class NutritionRepository {
                   timingNote: Value(_clean(mealDraft.timingNote)),
                 ),
               );
-          for (final (itemIndex, item) in mealDraft.items.indexed) {
-            await _db
+          var position = 0;
+          Future<void> insert(
+            ItemDraft item, {
+            String? parentId,
+            String? alternativeOf,
+          }) async {
+            final row = await _db
                 .into(_db.planItems)
-                .insert(_itemCompanion(userId, meal.id, itemIndex + 1, item));
+                .insertReturning(
+                  _itemCompanion(userId, meal.id, ++position, item).copyWith(
+                    parentItemId: Value(parentId),
+                    alternativeOfId: Value(alternativeOf),
+                  ),
+                );
+            for (final alternative in item.alternatives) {
+              await insert(
+                alternative,
+                parentId: parentId,
+                alternativeOf: row.id,
+              );
+            }
+            for (final ingredient in item.ingredients) {
+              await insert(ingredient, parentId: row.id);
+            }
+          }
+
+          for (final item in mealDraft.items) {
+            await insert(item);
           }
         }
       }
@@ -378,13 +435,31 @@ class NutritionRepository {
     if (updated == 0) throw RecordNotFound(itemId);
   }
 
-  Future<void> deleteItem(String itemId) async {
-    final now = Value(_now());
-    final deleted =
-        await (_db.update(_db.planItems)
-              ..where((i) => i.id.equals(itemId) & i.deletedAt.isNull()))
-            .write(PlanItemsCompanion(deletedAt: now, updatedAt: now));
-    if (deleted == 0) throw RecordNotFound(itemId);
+  /// Borra el alimento junto con sus alternativas y, si es un plato, sus
+  /// ingredientes.
+  Future<void> deleteItem(String itemId) {
+    return _db.transaction(() async {
+      final now = Value(_now());
+      var pending = [itemId];
+      var first = true;
+      while (pending.isNotEmpty) {
+        final deleted =
+            await (_db.update(_db.planItems)
+                  ..where((i) => i.id.isIn(pending) & i.deletedAt.isNull()))
+                .write(PlanItemsCompanion(deletedAt: now, updatedAt: now));
+        if (first && deleted == 0) throw RecordNotFound(itemId);
+        first = false;
+        final children =
+            await (_db.select(_db.planItems)..where(
+                  (i) =>
+                      (i.parentItemId.isIn(pending) |
+                          i.alternativeOfId.isIn(pending)) &
+                      i.deletedAt.isNull(),
+                ))
+                .get();
+        pending = [for (final child in children) child.id];
+      }
+    });
   }
 
   // ------------------------------------------------------------- suplementos

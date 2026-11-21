@@ -229,6 +229,69 @@ void main() {
     await shutDown(tester);
   });
 
+  testWidgets('un plato muestra sus ingredientes y las alternativas', (
+    tester,
+  ) async {
+    await NutritionRepository(db).savePlan(
+      userId,
+      const NutritionPlanDraft(
+        name: 'Plan',
+        menus: [
+          MenuDraft(
+            dayType: DayType.high,
+            title: 'Altos',
+            meals: [
+              MealDraft(
+                name: 'Desayuno',
+                items: [
+                  ItemDraft(
+                    name: 'Sándwich',
+                    ingredients: [
+                      ItemDraft(
+                        name: 'Pan integral',
+                        amount: 2,
+                        unit: FoodUnit.piece,
+                      ),
+                      ItemDraft(
+                        name: 'Pechuga de pavo',
+                        amount: 90,
+                        unit: FoodUnit.gram,
+                        alternatives: [
+                          ItemDraft(
+                            name: 'Queso panela',
+                            amount: 80,
+                            unit: FoodUnit.gram,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    await openNutrition(tester);
+
+    expect(find.text('Sándwich', findRichText: true), findsOneWidget);
+    expect(find.text('Pan integral', findRichText: true), findsOneWidget);
+    expect(find.text('2 piezas'), findsOneWidget);
+    expect(find.text('o Queso panela', findRichText: true), findsOneWidget);
+    expect(find.text('80 g'), findsOneWidget);
+
+    // Las filas del plato van con sangría bajo su nombre.
+    final dishX = tester
+        .getTopLeft(find.text('Sándwich', findRichText: true))
+        .dx;
+    final breadX = tester
+        .getTopLeft(find.text('Pan integral', findRichText: true))
+        .dx;
+    expect(breadX, greaterThan(dishX));
+    await shutDown(tester);
+  });
+
   testWidgets('la guía de suplementos se ve en cualquier tipo de día', (
     tester,
   ) async {

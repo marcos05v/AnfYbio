@@ -65,6 +65,29 @@ class _PlanItemFormState extends State<PlanItemForm> {
     if (state != null) setState(() => _state = state);
   }
 
+  Future<void> _pickUnit() async {
+    final unit = await showCupertinoModalPopup<FoodUnit>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('Unidad'),
+        actions: [
+          for (final unit in FoodUnit.values)
+            CupertinoActionSheetAction(
+              key: Key('unit-${unit.name}'),
+              isDefaultAction: unit == _unit,
+              onPressed: () => Navigator.of(context).pop(unit),
+              child: Text(foodUnitLabel(unit)),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+      ),
+    );
+    if (unit != null) setState(() => _unit = unit);
+  }
+
   Future<void> _save() async {
     final amountText = _amount.text.trim();
     final amount = amountText.isEmpty ? null : parseNumber(amountText);
@@ -137,28 +160,11 @@ class _PlanItemFormState extends State<PlanItemForm> {
                   ),
                 ),
               ),
-              FormRow(
+              PickerRow(
+                key: const Key('itemUnit'),
                 label: 'Unidad',
-                child: CupertinoSlidingSegmentedControl<FoodUnit>(
-                  groupValue: _unit,
-                  children: const {
-                    FoodUnit.gram: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 6),
-                      child: Text('g'),
-                    ),
-                    FoodUnit.piece: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 6),
-                      child: Text('piezas'),
-                    ),
-                    FoodUnit.scoop: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 6),
-                      child: Text('scoops'),
-                    ),
-                  },
-                  onValueChanged: (unit) {
-                    if (unit != null) setState(() => _unit = unit);
-                  },
-                ),
+                value: foodUnitLabel(_unit),
+                onPressed: _pickUnit,
               ),
             ],
             PickerRow(

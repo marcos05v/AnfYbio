@@ -60,17 +60,61 @@ class _PlanReviewScreenState extends ConsumerState<PlanReviewScreen> {
     });
   }
 
-  Future<void> _editItem(int menu, int meal, int index, ItemDraft item) {
+  /// Abre el formulario de un renglón. [commit] guarda el resultado (o
+  /// `null` para quitarlo) en el lugar que ocupa: suelto, como alternativa o
+  /// como ingrediente de un plato.
+  Future<void> _editItem(ItemDraft item, ValueChanged<ItemDraft?> commit) {
     return showAppSheet<void>(
       context,
       title: 'Corregir alimento',
       builder: (_) => PlanItemForm(
         initial: item,
-        // El alimento corregido ya no lleva advertencia.
-        onSave: (edited) async => _replaceItem(menu, meal, index, edited),
-        onDelete: () async => _replaceItem(menu, meal, index, null),
+        // El alimento corregido ya no lleva advertencia; conserva lo que
+        // lleva dentro.
+        onSave: (edited) async => commit(item.replacedBy(edited)),
+        onDelete: () async => commit(null),
       ),
     );
+  }
+
+  /// El renglón de [item], sus alternativas y sus ingredientes.
+  List<Widget> _rowsFor(
+    ItemDraft item,
+    ValueChanged<ItemDraft?> commit, {
+    int depth = 0,
+    bool alternative = false,
+  }) {
+    List<ItemDraft> replaced(List<ItemDraft> list, int at, ItemDraft? value) =>
+        [
+          for (final (i, x) in list.indexed)
+            if (i != at) x else ?value,
+        ];
+    return [
+      _ReviewItemRow(
+        item: item,
+        depth: depth,
+        isAlternative: alternative,
+        isDish: item.ingredients.isNotEmpty,
+        onTap: () => _editItem(item, commit),
+      ),
+      for (final (i, other) in item.alternatives.indexed)
+        ..._rowsFor(
+          other,
+          (value) => commit(
+            item.copyWith(alternatives: replaced(item.alternatives, i, value)),
+          ),
+          depth: depth,
+          alternative: true,
+        ),
+      for (final (i, ingredient) in item.ingredients.indexed)
+        ..._rowsFor(
+          ingredient,
+          (value) => commit(
+            item.copyWith(ingredients: replaced(item.ingredients, i, value)),
+          ),
+          depth: depth + 1,
+        ),
+    ];
   }
 
   Future<void> _save() async {
@@ -182,13 +226,13 @@ class _PlanReviewScreenState extends ConsumerState<PlanReviewScreen> {
                       CardGroup(
                         children: [
                           for (final (itemIndex, item) in meal.items.indexed)
-                            _ReviewItemRow(
-                              item: item,
-                              onTap: () => _editItem(
+                            ..._rowsFor(
+                              item,
+                              (value) => _replaceItem(
                                 menuIndex,
                                 mealIndex,
                                 itemIndex,
-                                item,
+                                value,
                               ),
                             ),
                         ],
@@ -291,10 +335,19 @@ class _WarningLine extends StatelessWidget {
 }
 
 class _ReviewItemRow extends StatelessWidget {
-  const _ReviewItemRow({required this.item, required this.onTap});
+  const _ReviewItemRow({
+    required this.item,
+    required this.onTap,
+    this.depth = 0,
+    this.isAlternative = false,
+    this.isDish = false,
+  });
 
   final ItemDraft item;
   final VoidCallback onTap;
+  final int depth;
+  final bool isAlternative;
+  final bool isDish;
 
   @override
   Widget build(BuildContext context) {
@@ -309,7 +362,12 @@ class _ReviewItemRow extends StatelessWidget {
     ].join(' · ');
 
     return CupertinoButton(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.fromLTRB(
+        16 + depth * 18.0,
+        isAlternative ? 4 : 12,
+        16,
+        12,
+      ),
       onPressed: onTap,
       child: Row(
         children: [
@@ -325,7 +383,13 @@ class _ReviewItemRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.name, style: textStyle(context)),
+                Text(
+                  isAlternative ? 'o ${item.name}' : item.name,
+                  style: textStyle(
+                    context,
+                    weight: isDish ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
                 if (details.isNotEmpty)
                   Text(
                     details,

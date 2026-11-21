@@ -75,7 +75,7 @@ ParsedNutritionPlan parseNutritionPlan(String text, {String? fileName}) {
           'Hay un alimento fuera de una comida: "${line.substring(1).trim()}".',
         );
       } else {
-        menus.last.meals.last.items.add(_parseItem(line.substring(1)));
+        menus.last.meals.last.items.addAll(_parseItems(line.substring(1)));
       }
     } else {
       // Lo primero que no es encabezado ni viñeta es el título del plan.
@@ -216,10 +216,37 @@ _Meal _parseMeal(String text) {
       : _Meal(match.group(1)!.trim(), match.group(2)!.trim());
 }
 
+/// Unidades que se reconocen, de la palabra más larga a la más corta para
+/// que "cdta" no se lea como "cda".
+const _unitWords =
+    r'cucharaditas?|cucharadas?|cdtas?|cdas?|mililitros?|ml|tazas?|'
+    r'rebanadas?|scoops?|piezas?|pzas?|gramos?|gr|g';
+
+/// "130 g de pechuga", "5 ml (1 cdta.) de aceite", "30-40 g de avena".
+/// Grupos: cantidad, unidad, paréntesis opcional y alimento.
 final _leadingQuantity = RegExp(
-  r'^(\d+(?:[.,]\d+)?|\d+/\d+)\s*(scoops?|piezas?|pzas?|g|gr|gramos?)\s+de\s+(.+)$',
+  r'^(\d+(?:[.,]\d+)?(?:\s*[-–]\s*\d+(?:[.,]\d+)?)?|\d+/\d+)\s*'
+  '($_unitWords)'
+  r'\.?\s*(\([^)]*\))?\s+de\s+(.+)$',
   caseSensitive: false,
 );
+
+/// La unidad que corresponde a una palabra de [_unitWords].
+FoodUnit _unitOf(String word) {
+  final w = word.toLowerCase();
+  if (w.startsWith('cucharadita') || w.startsWith('cdta')) {
+    return FoodUnit.teaspoon;
+  }
+  if (w.startsWith('cucharada') || w.startsWith('cda')) {
+    return FoodUnit.tablespoon;
+  }
+  if (w.startsWith('mililitro') || w == 'ml') return FoodUnit.ml;
+  if (w.startsWith('taza')) return FoodUnit.cup;
+  if (w.startsWith('scoop')) return FoodUnit.scoop;
+  if (w.startsWith('g')) return FoodUnit.gram;
+  return FoodUnit.piece; // piezas, pzas, rebanadas
+}
+
 final _stateInParentheses = RegExp(
   r'\s*\((?:en\s+)?(crud[oa]s?|cocid[oa]s?|seco)\)',
   caseSensitive: false,
@@ -230,12 +257,120 @@ final _leadingCount = RegExp(r'^(\d+)\s+(\p{L}.*)$', unicode: true);
 
 /// Medidas que no son piezas: con ellas el número no se interpreta.
 final _measureWord = RegExp(
-  r'^(ml|l|kg|oz|tazas?|cdas?|cdtas?|cucharadas?|cucharaditas?|scoops?|g|gr|gramos?)\b',
+  '^($_unitWords|l|kg|oz)'
+  r'\b',
   caseSensitive: false,
 );
 
 /// Etiquetas que a veces van antes del alimento: "Opcional: pepino".
 final _itemLabel = RegExp(r'^(opcional|extra)$', caseSensitive: false);
+
+/// "(1 cdta.)" → "1 cdta."; nada si no hay paréntesis.
+String? _parenNote(String? paren) =>
+    paren?.replaceAll(RegExp(r'^\(|\)$'), '').trim().ifEmptyNull;
+
+/// Un renglón de alimento, que puede traer varios (ADR-0023):
+///
+/// - **un plato con ingredientes:** "Sándwich en pan integral (2 rebanadas)
+///   con 90 g de pavo u 80 g de panela" → Sándwich, con pan y pavo (o
+///   panela);
+/// - **alimentos sumados:** "3 claras de huevo + 1 huevo entero" → dos;
+/// - **alternativas con su propia cantidad:** "1 manzana ó 1 taza de
+///   fresas" → manzana, con fresas como alternativa.
+///
+/// El formato "Nombre: cantidad" es siempre un solo alimento.
+List<ItemDraft> _parseItems(String text) {
+  final line = text.trim().replaceFirst(RegExp(r'\.$'), '');
+  final colon = line.indexOf(':');
+  if (colon < 0) return _compound(line);
+
+  final left = line.substring(0, colon).trim();
+  final right = line.substring(colon + 1).trim();
+  final labeled = _itemLabel.hasMatch(left) || _leadingQuantity.hasMatch(right);
+  if (!labeled) return [_parseItem(line)];
+
+  // "Más proteína: 140 g de pechuga", "Opcional: pepino": la etiqueta va
+  // como nota del primero.
+  final items = _compound(right);
+  final first = items.first;
+  items[0] = ItemDraft(
+    name: first.name,
+    amount: first.amount,
+    unit: first.unit,
+    state: first.state,
+    isFree: first.isFree,
+    note: [left, ?first.note].join(' · '),
+    warning: first.warning,
+    ingredients: first.ingredients,
+    alternatives: first.alternatives,
+  );
+  return items;
+}
+
+/// "Sándwich … con 90 g de …": el plato y lo que lleva. Lo que sigue a "con"
+/// debe empezar con una cantidad; si no, es parte del nombre ("proteína
+/// mezclada con agua").
+final _dish = RegExp(r'^(.+?)\s+con\s+(?=\d)(.+)$', caseSensitive: false);
+final _startsWithNumber = RegExp(r'^\d');
+
+List<ItemDraft> _compound(String body) {
+  if (_dish.firstMatch(body) case final dish?) {
+    final head = dish.group(1)!.trim();
+    final ingredients = _ingredientList(dish.group(2)!);
+    if (_startsWithNumber.hasMatch(head)) {
+      // "1 scoop de proteína con 200 ml de leche": dos alimentos sueltos.
+      return [_withAlternatives(head), ...ingredients];
+    }
+    // "Sándwich en pan integral (2 rebanadas)": el plato y su base.
+    final base = RegExp(r'^(.+?)\s+en\s+(.+)$').firstMatch(head);
+    final dishName = base?.group(1) ?? head;
+    return [
+      ItemDraft(
+        name: dishName[0].toUpperCase() + dishName.substring(1),
+        ingredients: [?_baseIngredient(base?.group(2)), ...ingredients],
+      ),
+    ];
+  }
+  final parts = body.split(RegExp(r'\s*\+\s*(?=\d)'));
+  return [for (final part in parts) _withAlternatives(part.trim())];
+}
+
+/// "pan integral (2 rebanadas)" → 2 piezas de pan integral.
+ItemDraft? _baseIngredient(String? text) {
+  if (text == null) return null;
+  final paren = RegExp(r'\s*\(([^)]*?(\d+)[^)]*)\)').firstMatch(text);
+  if (paren == null) return _parseItem(text);
+  final name = text.replaceRange(paren.start, paren.end, '').trim();
+  final inside = paren.group(1)!.trim();
+  return ItemDraft(
+    name: name,
+    amount: double.parse(paren.group(2)!),
+    unit: FoodUnit.piece,
+    // "2 rebanadas" ya lo dice la cantidad; "solo 1 rebanada abierta" no.
+    note: RegExp(r'^\d+\s+\p{L}+$', unicode: true).hasMatch(inside)
+        ? inside.replaceFirst(RegExp(r'^\d+\s+'), '')
+        : inside,
+  );
+}
+
+/// "90 g de pavo, 30 g de queso y 1 cdta. de mostaza" → tres ingredientes.
+List<ItemDraft> _ingredientList(String text) => [
+  for (final part in text.split(RegExp(r'\s*(?:,|\s+y\s+)\s*(?=\d)')))
+    _withAlternatives(part.trim()),
+];
+
+/// "1 manzana verde ó 1 taza de fresas": el primero con los demás como
+/// alternativas. Solo se corta donde la alternativa trae su propia cantidad.
+ItemDraft _withAlternatives(String text) {
+  final parts = text.split(
+    RegExp(r'\s+(?:ó|o|u)\s+(?=\d)', caseSensitive: false),
+  );
+  final first = _parseItem(parts.first);
+  if (parts.length == 1) return first;
+  return first.copyWith(
+    alternatives: [for (final part in parts.skip(1)) _parseItem(part)],
+  );
+}
 
 /// Un renglón de alimento: "Nombre (crudo): 130 g" y sus variantes.
 ItemDraft _parseItem(String text) {
@@ -251,8 +386,8 @@ ItemDraft _parseItem(String text) {
   final quantityFirst = colon >= 0 ? _leadingQuantity.firstMatch(right) : null;
   if (quantityFirst != null) {
     // "Más proteína: 140 g de pechuga": la etiqueta queda como nota.
-    label = left;
-    name = quantityFirst.group(3)!.trim();
+    label = [left, ?_parenNote(quantityFirst.group(3))].join(' · ');
+    name = quantityFirst.group(4)!.trim();
     quantity = '${quantityFirst.group(1)} ${quantityFirst.group(2)}';
   } else if (colon >= 0 && _itemLabel.hasMatch(left)) {
     // "Opcional: pepino con limón": sin cantidad.
@@ -263,7 +398,8 @@ ItemDraft _parseItem(String text) {
     quantity = right;
   } else if (_leadingQuantity.firstMatch(line) case final match?) {
     // "1 scoop de Proteína en polvo": la cantidad va antes del nombre.
-    name = match.group(3)!.trim();
+    label = _parenNote(match.group(3));
+    name = match.group(4)!.trim();
     quantity = '${match.group(1)} ${match.group(2)}';
   } else if (_leadingCount.firstMatch(line) case final match?
       when !_measureWord.hasMatch(match.group(2)!)) {
@@ -353,7 +489,16 @@ _Quantity _parseQuantity(String raw) {
     );
   }
 
-  final match = RegExp(r'^(\d+/\d+|\d+(?:[.,]\d+)?)\s*(.*)$').firstMatch(text);
+  // "30-40 g": se toma el mínimo y el rango queda en la nota.
+  String? rangeNote;
+  final range = RegExp(r'^(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)\s*(.*)$')
+      .firstMatch(text);
+  final source = range == null ? text : '${range.group(1)} ${range.group(3)}';
+  if (range != null) {
+    rangeNote = 'Entre ${range.group(1)} y ${range.group(2)}';
+  }
+  final match = RegExp(r'^(\d+/\d+|\d+(?:[.,]\d+)?)\s*(.*)$')
+      .firstMatch(source);
   if (match == null) {
     return (
       amount: null,
@@ -377,7 +522,8 @@ _Quantity _parseQuantity(String raw) {
   }
 
   final unitMatch = RegExp(
-    r'^(gramos?|gr|g|piezas?|pzas?|scoops?)(?![a-záéíóúñ])\s*(.*)$',
+    '^($_unitWords)'
+    r'(?![a-záéíóúñ])\.?\s*(.*)$',
     caseSensitive: false,
   ).firstMatch(rest);
   if (unitMatch == null) {
@@ -390,16 +536,16 @@ _Quantity _parseQuantity(String raw) {
     );
   }
 
-  final unit = switch (unitMatch.group(1)!.toLowerCase()[0]) {
-    'g' => FoodUnit.gram,
-    'p' => FoodUnit.piece,
-    _ => FoodUnit.scoop,
-  };
+  final unit = _unitOf(unitMatch.group(1)!);
+  if (rangeNote != null) rangeNote = '$rangeNote ${unitMatch.group(1)}';
   return (
     amount: amount,
     unit: unit,
     isFree: false,
-    note: _cleanNote(unitMatch.group(2)!),
+    note: [
+      ?rangeNote,
+      ?_cleanNote(unitMatch.group(2)!),
+    ].join(' · ').ifEmptyNull,
     warning: null,
   );
 }

@@ -7929,6 +7929,28 @@ class $PlanItemsTable extends PlanItems
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _parentItemIdMeta = const VerificationMeta(
+    'parentItemId',
+  );
+  @override
+  late final GeneratedColumn<String> parentItemId = GeneratedColumn<String>(
+    'parent_item_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _alternativeOfIdMeta = const VerificationMeta(
+    'alternativeOfId',
+  );
+  @override
+  late final GeneratedColumn<String> alternativeOfId = GeneratedColumn<String>(
+    'alternative_of_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -7944,6 +7966,8 @@ class $PlanItemsTable extends PlanItems
     state,
     isFree,
     note,
+    parentItemId,
+    alternativeOfId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -8028,6 +8052,24 @@ class $PlanItemsTable extends PlanItems
         note.isAcceptableOrUnknown(data['note']!, _noteMeta),
       );
     }
+    if (data.containsKey('parent_item_id')) {
+      context.handle(
+        _parentItemIdMeta,
+        parentItemId.isAcceptableOrUnknown(
+          data['parent_item_id']!,
+          _parentItemIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('alternative_of_id')) {
+      context.handle(
+        _alternativeOfIdMeta,
+        alternativeOfId.isAcceptableOrUnknown(
+          data['alternative_of_id']!,
+          _alternativeOfIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -8093,6 +8135,14 @@ class $PlanItemsTable extends PlanItems
         DriftSqlType.string,
         data['${effectivePrefix}note'],
       ),
+      parentItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parent_item_id'],
+      ),
+      alternativeOfId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}alternative_of_id'],
+      ),
     );
   }
 
@@ -8127,6 +8177,14 @@ class PlanItem extends DataClass implements Insertable<PlanItem> {
   /// Consumo libre: no lleva cantidad.
   final bool isFree;
   final String? note;
+
+  /// El plato al que pertenece como ingrediente ("pan integral" dentro de
+  /// "Sándwich"). Nulo si va suelto en la comida (ADR-0023).
+  final String? parentItemId;
+
+  /// El alimento del que es alternativa, con su propia cantidad ("80 g de
+  /// panela" en lugar de "90 g de pavo"). Nulo si no es alternativa.
+  final String? alternativeOfId;
   const PlanItem({
     required this.id,
     required this.createdAt,
@@ -8141,6 +8199,8 @@ class PlanItem extends DataClass implements Insertable<PlanItem> {
     required this.state,
     required this.isFree,
     this.note,
+    this.parentItemId,
+    this.alternativeOfId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -8172,6 +8232,12 @@ class PlanItem extends DataClass implements Insertable<PlanItem> {
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
     }
+    if (!nullToAbsent || parentItemId != null) {
+      map['parent_item_id'] = Variable<String>(parentItemId);
+    }
+    if (!nullToAbsent || alternativeOfId != null) {
+      map['alternative_of_id'] = Variable<String>(alternativeOfId);
+    }
     return map;
   }
 
@@ -8194,6 +8260,12 @@ class PlanItem extends DataClass implements Insertable<PlanItem> {
       state: Value(state),
       isFree: Value(isFree),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      parentItemId: parentItemId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentItemId),
+      alternativeOfId: alternativeOfId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(alternativeOfId),
     );
   }
 
@@ -8220,6 +8292,8 @@ class PlanItem extends DataClass implements Insertable<PlanItem> {
       ),
       isFree: serializer.fromJson<bool>(json['isFree']),
       note: serializer.fromJson<String?>(json['note']),
+      parentItemId: serializer.fromJson<String?>(json['parentItemId']),
+      alternativeOfId: serializer.fromJson<String?>(json['alternativeOfId']),
     );
   }
   @override
@@ -8243,6 +8317,8 @@ class PlanItem extends DataClass implements Insertable<PlanItem> {
       ),
       'isFree': serializer.toJson<bool>(isFree),
       'note': serializer.toJson<String?>(note),
+      'parentItemId': serializer.toJson<String?>(parentItemId),
+      'alternativeOfId': serializer.toJson<String?>(alternativeOfId),
     };
   }
 
@@ -8260,6 +8336,8 @@ class PlanItem extends DataClass implements Insertable<PlanItem> {
     FoodState? state,
     bool? isFree,
     Value<String?> note = const Value.absent(),
+    Value<String?> parentItemId = const Value.absent(),
+    Value<String?> alternativeOfId = const Value.absent(),
   }) => PlanItem(
     id: id ?? this.id,
     createdAt: createdAt ?? this.createdAt,
@@ -8274,6 +8352,10 @@ class PlanItem extends DataClass implements Insertable<PlanItem> {
     state: state ?? this.state,
     isFree: isFree ?? this.isFree,
     note: note.present ? note.value : this.note,
+    parentItemId: parentItemId.present ? parentItemId.value : this.parentItemId,
+    alternativeOfId: alternativeOfId.present
+        ? alternativeOfId.value
+        : this.alternativeOfId,
   );
   PlanItem copyWithCompanion(PlanItemsCompanion data) {
     return PlanItem(
@@ -8290,6 +8372,12 @@ class PlanItem extends DataClass implements Insertable<PlanItem> {
       state: data.state.present ? data.state.value : this.state,
       isFree: data.isFree.present ? data.isFree.value : this.isFree,
       note: data.note.present ? data.note.value : this.note,
+      parentItemId: data.parentItemId.present
+          ? data.parentItemId.value
+          : this.parentItemId,
+      alternativeOfId: data.alternativeOfId.present
+          ? data.alternativeOfId.value
+          : this.alternativeOfId,
     );
   }
 
@@ -8308,7 +8396,9 @@ class PlanItem extends DataClass implements Insertable<PlanItem> {
           ..write('unit: $unit, ')
           ..write('state: $state, ')
           ..write('isFree: $isFree, ')
-          ..write('note: $note')
+          ..write('note: $note, ')
+          ..write('parentItemId: $parentItemId, ')
+          ..write('alternativeOfId: $alternativeOfId')
           ..write(')'))
         .toString();
   }
@@ -8328,6 +8418,8 @@ class PlanItem extends DataClass implements Insertable<PlanItem> {
     state,
     isFree,
     note,
+    parentItemId,
+    alternativeOfId,
   );
   @override
   bool operator ==(Object other) =>
@@ -8345,7 +8437,9 @@ class PlanItem extends DataClass implements Insertable<PlanItem> {
           other.unit == this.unit &&
           other.state == this.state &&
           other.isFree == this.isFree &&
-          other.note == this.note);
+          other.note == this.note &&
+          other.parentItemId == this.parentItemId &&
+          other.alternativeOfId == this.alternativeOfId);
 }
 
 class PlanItemsCompanion extends UpdateCompanion<PlanItem> {
@@ -8362,6 +8456,8 @@ class PlanItemsCompanion extends UpdateCompanion<PlanItem> {
   final Value<FoodState> state;
   final Value<bool> isFree;
   final Value<String?> note;
+  final Value<String?> parentItemId;
+  final Value<String?> alternativeOfId;
   final Value<int> rowid;
   const PlanItemsCompanion({
     this.id = const Value.absent(),
@@ -8377,6 +8473,8 @@ class PlanItemsCompanion extends UpdateCompanion<PlanItem> {
     this.state = const Value.absent(),
     this.isFree = const Value.absent(),
     this.note = const Value.absent(),
+    this.parentItemId = const Value.absent(),
+    this.alternativeOfId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PlanItemsCompanion.insert({
@@ -8393,6 +8491,8 @@ class PlanItemsCompanion extends UpdateCompanion<PlanItem> {
     required FoodState state,
     this.isFree = const Value.absent(),
     this.note = const Value.absent(),
+    this.parentItemId = const Value.absent(),
+    this.alternativeOfId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : userId = Value(userId),
        mealId = Value(mealId),
@@ -8413,6 +8513,8 @@ class PlanItemsCompanion extends UpdateCompanion<PlanItem> {
     Expression<String>? state,
     Expression<bool>? isFree,
     Expression<String>? note,
+    Expression<String>? parentItemId,
+    Expression<String>? alternativeOfId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -8429,6 +8531,8 @@ class PlanItemsCompanion extends UpdateCompanion<PlanItem> {
       if (state != null) 'state': state,
       if (isFree != null) 'is_free': isFree,
       if (note != null) 'note': note,
+      if (parentItemId != null) 'parent_item_id': parentItemId,
+      if (alternativeOfId != null) 'alternative_of_id': alternativeOfId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -8447,6 +8551,8 @@ class PlanItemsCompanion extends UpdateCompanion<PlanItem> {
     Value<FoodState>? state,
     Value<bool>? isFree,
     Value<String?>? note,
+    Value<String?>? parentItemId,
+    Value<String?>? alternativeOfId,
     Value<int>? rowid,
   }) {
     return PlanItemsCompanion(
@@ -8463,6 +8569,8 @@ class PlanItemsCompanion extends UpdateCompanion<PlanItem> {
       state: state ?? this.state,
       isFree: isFree ?? this.isFree,
       note: note ?? this.note,
+      parentItemId: parentItemId ?? this.parentItemId,
+      alternativeOfId: alternativeOfId ?? this.alternativeOfId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -8513,6 +8621,12 @@ class PlanItemsCompanion extends UpdateCompanion<PlanItem> {
     if (note.present) {
       map['note'] = Variable<String>(note.value);
     }
+    if (parentItemId.present) {
+      map['parent_item_id'] = Variable<String>(parentItemId.value);
+    }
+    if (alternativeOfId.present) {
+      map['alternative_of_id'] = Variable<String>(alternativeOfId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -8535,6 +8649,8 @@ class PlanItemsCompanion extends UpdateCompanion<PlanItem> {
           ..write('state: $state, ')
           ..write('isFree: $isFree, ')
           ..write('note: $note, ')
+          ..write('parentItemId: $parentItemId, ')
+          ..write('alternativeOfId: $alternativeOfId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -22944,6 +23060,8 @@ typedef $$PlanItemsTableCreateCompanionBuilder = PlanItemsCompanion Function({
   required FoodState state,
   Value<bool> isFree,
   Value<String?> note,
+  Value<String?> parentItemId,
+  Value<String?> alternativeOfId,
   Value<int> rowid,
 });
 typedef $$PlanItemsTableUpdateCompanionBuilder = PlanItemsCompanion Function({
@@ -22960,6 +23078,8 @@ typedef $$PlanItemsTableUpdateCompanionBuilder = PlanItemsCompanion Function({
   Value<FoodState> state,
   Value<bool> isFree,
   Value<String?> note,
+  Value<String?> parentItemId,
+  Value<String?> alternativeOfId,
   Value<int> rowid,
 });
 
@@ -23065,6 +23185,16 @@ class $$PlanItemsTableFilterComposer
 
   ColumnFilters<String> get note => $composableBuilder(
     column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get parentItemId => $composableBuilder(
+    column: $table.parentItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get alternativeOfId => $composableBuilder(
+    column: $table.alternativeOfId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -23179,6 +23309,16 @@ class $$PlanItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get parentItemId => $composableBuilder(
+    column: $table.parentItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get alternativeOfId => $composableBuilder(
+    column: $table.alternativeOfId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$UsersTableOrderingComposer get userId {
     final $$UsersTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -23268,6 +23408,16 @@ class $$PlanItemsTableAnnotationComposer
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
 
+  GeneratedColumn<String> get parentItemId => $composableBuilder(
+    column: $table.parentItemId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get alternativeOfId => $composableBuilder(
+    column: $table.alternativeOfId,
+    builder: (column) => column,
+  );
+
   $$UsersTableAnnotationComposer get userId {
     final $$UsersTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -23356,6 +23506,8 @@ class $$PlanItemsTableTableManager
                 Value<FoodState> state = const Value.absent(),
                 Value<bool> isFree = const Value.absent(),
                 Value<String?> note = const Value.absent(),
+                Value<String?> parentItemId = const Value.absent(),
+                Value<String?> alternativeOfId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PlanItemsCompanion(
                 id: id,
@@ -23371,6 +23523,8 @@ class $$PlanItemsTableTableManager
                 state: state,
                 isFree: isFree,
                 note: note,
+                parentItemId: parentItemId,
+                alternativeOfId: alternativeOfId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -23388,6 +23542,8 @@ class $$PlanItemsTableTableManager
                 required FoodState state,
                 Value<bool> isFree = const Value.absent(),
                 Value<String?> note = const Value.absent(),
+                Value<String?> parentItemId = const Value.absent(),
+                Value<String?> alternativeOfId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PlanItemsCompanion.insert(
                 id: id,
@@ -23403,6 +23559,8 @@ class $$PlanItemsTableTableManager
                 state: state,
                 isFree: isFree,
                 note: note,
+                parentItemId: parentItemId,
+                alternativeOfId: alternativeOfId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

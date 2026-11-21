@@ -360,4 +360,79 @@ void main() {
     expect(emitted.last, 5);
     await subscription.cancel();
   });
+
+  group('platos y alternativas', () {
+    const sandwich = ItemDraft(
+      name: 'Sándwich',
+      ingredients: [
+        ItemDraft(name: 'Pan integral', amount: 2, unit: FoodUnit.piece),
+        ItemDraft(
+          name: 'Pechuga de pavo',
+          amount: 90,
+          unit: FoodUnit.gram,
+          alternatives: [
+            ItemDraft(name: 'Queso panela', amount: 80, unit: FoodUnit.gram),
+          ],
+        ),
+      ],
+    );
+    const apple = ItemDraft(
+      name: 'Manzana',
+      amount: 1,
+      unit: FoodUnit.piece,
+      alternatives: [ItemDraft(name: 'Fresas', amount: 1, unit: FoodUnit.cup)],
+    );
+
+    Future<MealView> saveMeal() async {
+      await repo.savePlan(
+        userId,
+        const NutritionPlanDraft(
+          name: 'Plan',
+          menus: [
+            MenuDraft(
+              dayType: DayType.high,
+              title: 'Días altos',
+              meals: [
+                MealDraft(name: 'Desayuno', items: [sandwich, apple]),
+              ],
+            ),
+          ],
+        ),
+      );
+      return (await repo.activePlan(userId))!.menus.single.meals.single;
+    }
+
+    test('se guardan y se leen con su estructura', () async {
+      final meal = await saveMeal();
+
+      expect(meal.items, hasLength(6)); // todas las filas
+      final [dish, fruit] = meal.entries;
+      expect(dish.item.name, 'Sándwich');
+      expect(dish.ingredients.map((i) => i.item.name), [
+        'Pan integral',
+        'Pechuga de pavo',
+      ]);
+      final turkey = dish.ingredients.last;
+      expect(turkey.alternatives.single.name, 'Queso panela');
+      expect(turkey.alternatives.single.amount, 80);
+      expect(fruit.item.name, 'Manzana');
+      expect(fruit.alternatives.single.unit, FoodUnit.cup);
+      expect(fruit.ingredients, isEmpty);
+    });
+
+    test('borrar un plato borra lo que lleva dentro', () async {
+      final meal = await saveMeal();
+      final dish = meal.entries.first.item;
+
+      await repo.deleteItem(dish.id);
+
+      final after = (await repo.activePlan(userId))!.menus.single.meals.single;
+      expect(after.items.map((i) => i.name), ['Manzana', 'Fresas']);
+      // Borrado lógico: las filas siguen ahí, marcadas.
+      final deleted = await (db.select(
+        db.planItems,
+      )..where((i) => i.deletedAt.isNotNull())).get();
+      expect(deleted, hasLength(4));
+    });
+  });
 }
