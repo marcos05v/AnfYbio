@@ -4,6 +4,48 @@ import '../domain/routine.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
+/// Indicaciones generales de la rutina: descansos, calentamiento, cómo
+/// progresar.
+class RoutineNotesCard extends StatelessWidget {
+  const RoutineNotesCard(this.notes, {super.key});
+
+  final String notes;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('routineNotes'),
+      margin: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: resolveColor(context, cardColor),
+        borderRadius: BorderRadius.circular(cardRadius),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            CupertinoIcons.info_circle,
+            size: 20,
+            color: resolveColor(context, CupertinoColors.secondaryLabel),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              notes,
+              style: textStyle(
+                context,
+                size: 14,
+                color: CupertinoColors.secondaryLabel,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Un ejercicio de la rutina tal como se muestra en una lista.
 class RoutineEntry {
   const RoutineEntry({

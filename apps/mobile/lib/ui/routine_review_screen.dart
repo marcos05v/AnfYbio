@@ -141,6 +141,7 @@ class _RoutineReviewScreenState extends ConsumerState<RoutineReviewScreen> {
                       color: CupertinoColors.secondaryLabel,
                     ),
                   ),
+                  if (_draft.notes case final notes?) RoutineNotesCard(notes),
                   const SizedBox(height: 14),
                   Container(
                     padding: const EdgeInsets.all(14),

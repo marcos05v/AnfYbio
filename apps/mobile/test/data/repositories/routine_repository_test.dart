@@ -107,6 +107,18 @@ void main() {
       expect((old.isActive, old.deletedAt), (false, null));
     });
 
+    test('guarda las indicaciones generales', () async {
+      await repo.saveRoutine(
+        userId,
+        const RoutineDraft(
+          name: 'Con regla',
+          notes: '  Descansos de 2–3 min en básicos.  ',
+        ),
+      );
+      final view = (await repo.activeRoutine(userId))!;
+      expect(view.routine.notes, 'Descansos de 2–3 min en básicos.');
+    });
+
     test('sin rutina, la activa es nula', () async {
       expect(await repo.activeRoutine(userId), isNull);
     });

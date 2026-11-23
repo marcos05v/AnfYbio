@@ -53,13 +53,13 @@ cada renglón; no hay catálogo de equivalentes (ADR-0008).
 - **Local-first.** La app funciona completa con su base de datos local. La
   sincronización con el servidor es opcional y llega después.
 - **Costo cero.** Ningún servicio de pago.
-- **iOS primero.** El código Flutter queda multiplataforma; Android está fuera
-  de alcance por ahora.
+- **iOS y Android.** iOS fue la primera plataforma; Android se agregó después
+  con la misma interfaz (ADR-0024).
 
 ## Estructura del repositorio
 
 ```
-apps/mobile/   App Flutter (iOS)
+apps/mobile/   App Flutter (iOS y Android)
 apps/api/      API de sincronización: NestJS + Prisma + PostgreSQL
 infra/         Scripts de infraestructura (Postgres, despliegue)
 docs/adr/      Registro de decisiones de arquitectura
@@ -87,6 +87,9 @@ argumentos dibuja el logo (una gota con una pesa); con una imagen de
 ## Cómo correr la API
 
 Ver [apps/api/README.md](apps/api/README.md).
+
+Para Android (APK, sin tienda y sin caducidad), ver
+[docs/instalar-en-android.md](docs/instalar-en-android.md).
 
 ## Pruebas
 

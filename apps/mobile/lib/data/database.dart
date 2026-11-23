@@ -67,8 +67,11 @@ class AppDatabase extends _$AppDatabase {
   /// 5: inventario de suplementos (Fase 3).
   /// 6: hora del recordatorio de cada suplemento.
   /// 7: alias en español de los ejercicios del catálogo (Fase 4).
+  /// 8: cómo se mide el peso de cada ejercicio.
+  /// 9: platos con ingredientes y alternativas en el plan de alimentación.
+  /// 10: indicaciones generales de la rutina.
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -124,6 +127,10 @@ class AppDatabase extends _$AppDatabase {
       if (from >= 2 && from < 9) {
         await m.addColumn(planItems, planItems.parentItemId);
         await m.addColumn(planItems, planItems.alternativeOfId);
+      }
+      // La tabla de rutinas existe desde la versión 3.
+      if (from >= 3 && from < 10) {
+        await m.addColumn(routines, routines.notes);
       }
     },
     beforeOpen: (details) async {

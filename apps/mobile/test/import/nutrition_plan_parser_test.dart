@@ -129,13 +129,13 @@ void main() {
       expect(greens.isFree, isTrue); // "libres", en plural
     });
 
-    test('un alimento sin cantidad no es un error', () {
+    test('un alimento sin cantidad no es un error; "al gusto" es libre', () {
       final sauce = item(
         DayType.training,
         'Comida',
         'Salsa casera o verduras al gusto',
       );
-      expect((sauce.amount, sauce.isFree, sauce.warning), (null, false, null));
+      expect((sauce.amount, sauce.isFree, sauce.warning), (null, true, null));
     });
 
     test('"…verdura libre" sin cantidad también es consumo libre', () {

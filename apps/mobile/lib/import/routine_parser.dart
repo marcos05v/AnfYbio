@@ -45,8 +45,14 @@ ParsedRoutine parseRoutine(String text, {String? fileName}) {
   // se juntan aparte y al final se copian a cada día que corresponde.
   final shared = <_Shared>[];
   _Shared? openShared;
+  final lines = _joinContinuations(_markedLines(text));
+  // Si el documento sí separa los días, lo que va antes del primero son
+  // indicaciones generales ("Regla general: descansos de 2–3 min…"), no un
+  // día de ejercicios.
+  final hasDays = lines.any((line) => _dayHeader.hasMatch(line.text));
+  final notes = <String>[];
 
-  for (final line in _joinContinuations(_markedLines(text))) {
+  for (final line in lines) {
     final content = line.text;
 
     if (_dayHeader.firstMatch(content) case final day?) {
@@ -110,6 +116,10 @@ ParsedRoutine parseRoutine(String text, {String? fileName}) {
       continue;
     }
 
+    if (openShared == null && days.isEmpty && hasDays) {
+      notes.add(content);
+      continue;
+    }
     if (openShared == null &&
         days.isEmpty &&
         line.marker == _Marker.none &&
@@ -134,13 +144,35 @@ ParsedRoutine parseRoutine(String text, {String? fileName}) {
     if (!inBlock) block = null;
     final current = inBlock ? open : null;
 
+    final target = openShared?.exercises ?? days.last.exercises;
+
+    // "Biserie de Core (Plancha 30–60 seg + Elevación de piernas): 3
+    // rondas": la biserie completa en un renglón.
+    final inline = colon < 0 ? null : _inlineBlock.firstMatch(label);
+    if (inline != null) {
+      final description = body.substring(colon + 1);
+      final pieces = inline.group(2)!.split(RegExp(r'\s*\+\s*'));
+      for (final (index, piece) in pieces.indexed) {
+        target.add(
+          _finish(
+            _parseUnlabeled(piece.trim()),
+            groupLabel: group ?? inline.group(1)!.trim(),
+            inheritedSets: _setsIn(description) ?? groupSets,
+            supersetWithPrevious: index > 0,
+          ),
+        );
+      }
+      block = null;
+      continue;
+    }
+
     final exercise = colon < 0
         ? _parseUnlabeled(body)
         : _parseExercise(
             name: label,
             description: body.substring(colon + 1).trim(),
           );
-    (openShared?.exercises ?? days.last.exercises).add(
+    target.add(
       _finish(
         exercise,
         groupLabel: group,
@@ -162,6 +194,7 @@ ParsedRoutine parseRoutine(String text, {String? fileName}) {
     draft: RoutineDraft(
       name: name ?? 'Rutina de entrenamiento',
       sourceFileName: fileName,
+      notes: notes.isEmpty ? null : notes.join('\n\n'),
       days: [
         for (final day in days)
           RoutineDayDraft(name: day.name, exercises: day.exercises),
@@ -256,6 +289,13 @@ final _dayHeader = RegExp(
 /// grupo, no una marca.
 final _blockHeader = RegExp(
   r'^(?:(bi|tri|super|giant)\s*series?|circuito)(?=\s*(?:\d|[:;.(\-–]|$))',
+  caseSensitive: false,
+);
+
+/// "Biserie de Core (Plancha 30 seg + Elevación de piernas)": el nombre del
+/// bloque y, entre paréntesis, sus ejercicios unidos con "+".
+final _inlineBlock = RegExp(
+  r'^((?:bi|tri|super|giant)\s*series?\b[^(]*|circuito\b[^(]*)\(([^()]+\+[^()]+)\)\s*$',
   caseSensitive: false,
 );
 final _combinedPrefix = RegExp(r'^Combinado con\s*:\s*', caseSensitive: false);
@@ -372,6 +412,10 @@ final _setsWord = RegExp(
   r'(\d+)\s*(?:series?|sets?|rondas?|vueltas?)\b',
   caseSensitive: false,
 );
+final _setsRange = RegExp(
+  r'(\d+)\s*(?:-|–|a)\s*(\d+)\s*(?:series?|sets?|rondas?)\b',
+  caseSensitive: false,
+);
 final _setsTimes = RegExp(r'(\d+)\s*[x×]\s*(?=\d)', caseSensitive: false);
 
 int? _setsIn(String text) => switch (_setsWord.firstMatch(text)) {
@@ -474,10 +518,22 @@ _Parsed _parseExercise({required String name, required String description}) {
 /// Un ejercicio sin dos puntos: "Plancha de 1 min", "Crunch 30 seg".
 _Parsed _parseUnlabeled(String text) {
   final duration = RegExp(
-    r'\s*(?:de\s+)?(\d+\s*(?:seg(?:undos)?|s|min(?:utos)?))\b\.?$',
+    r'\s*(?:de\s+)?(\d+(?:\s*(?:-|–|a)\s*\d+)?\s*'
+    r'(?:seg(?:undos)?|s|min(?:utos)?))\b\.?$',
     caseSensitive: false,
   ).firstMatch(text);
-  if (duration == null) return _Parsed(text, _parseTarget(''));
+  if (duration == null) {
+    // "Elevación de piernas 15 reps": las repeticiones al final.
+    final reps = RegExp(
+      r'\s*(?:x\s*)?(\d+(?:\s*(?:-|–|a)\s*\d+)?\s*' + _repsUnit + r')\.?$',
+      caseSensitive: false,
+    ).firstMatch(text);
+    if (reps == null) return _Parsed(text, _parseTarget(''));
+    return _Parsed(
+      text.substring(0, reps.start).trim(),
+      _parseTarget(reps.group(1)!),
+    );
+  }
   return _Parsed(
     text.substring(0, duration.start).trim(),
     _Target(repsNote: duration.group(1)),
@@ -489,6 +545,12 @@ _Parsed _parseUnlabeled(String text) {
 _Target _parseTarget(String description) {
   var text = description;
   var warmupSets = 0;
+  // "3–4 series": se toma el mínimo y el rango queda en la nota.
+  String? setsNote;
+  if (_setsRange.firstMatch(text) case final m?) {
+    setsNote = 'Entre ${m.group(1)} y ${m.group(2)} series';
+    text = text.replaceRange(m.start, m.end, '${m.group(1)} series');
+  }
   if (_warmup.firstMatch(text) case final warmup?) {
     warmupSets = int.parse(warmup.group(1)!);
     text = text.substring(warmup.end);
@@ -569,7 +631,7 @@ _Target _parseTarget(String description) {
     repsMin: repsMin,
     repsMax: repsMax,
     repsNote: repsNote,
-    note: _cleanNote(noteSource),
+    note: [?setsNote, ?_cleanNote(noteSource)].join(' · ').ifEmptyNull,
     extraSets: rest != null && _setsWord.hasMatch(rest),
   );
 }
@@ -625,4 +687,8 @@ String? _cleanNote(String text) {
       .trim();
   if (note.isEmpty) return null;
   return note[0].toUpperCase() + note.substring(1);
+}
+
+extension on String {
+  String? get ifEmptyNull => isEmpty ? null : this;
 }

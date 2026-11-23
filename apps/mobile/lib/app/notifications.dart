@@ -97,6 +97,7 @@ class LocalNotificationScheduler implements NotificationScheduler {
     tz.setLocalLocation(tz.getLocation(zone.identifier));
     await _plugin.initialize(
       settings: InitializationSettings(
+        android: const AndroidInitializationSettings('ic_notification'),
         iOS: DarwinInitializationSettings(
           requestAlertPermission: false,
           requestBadgePermission: false,
@@ -128,7 +129,14 @@ class LocalNotificationScheduler implements NotificationScheduler {
         .resolvePlatformSpecificImplementation<
           IOSFlutterLocalNotificationsPlugin
         >();
-    return await ios?.requestPermissions(alert: true, sound: true) ?? false;
+    if (ios != null) {
+      return await ios.requestPermissions(alert: true, sound: true) ?? false;
+    }
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    return await android?.requestNotificationsPermission() ?? false;
   }
 
   @override
@@ -148,6 +156,7 @@ class LocalNotificationScheduler implements NotificationScheduler {
         body: notification.body,
         payload: notification.supplementId,
         notificationDetails: NotificationDetails(
+          android: _androidDetails(soundFile, withTakenButton: isReminder),
           iOS: DarwinNotificationDetails(
             threadIdentifier: 'suplementos',
             sound: soundFile,
@@ -169,6 +178,7 @@ class LocalNotificationScheduler implements NotificationScheduler {
       title: 'Así sonarán tus recordatorios',
       body: 'Desliza hacia abajo para ver el botón "Ya lo tomé".',
       notificationDetails: NotificationDetails(
+        android: _androidDetails(soundFile, withTakenButton: true),
         iOS: DarwinNotificationDetails(
           sound: soundFile,
           categoryIdentifier: reminderCategory,
@@ -177,11 +187,39 @@ class LocalNotificationScheduler implements NotificationScheduler {
     );
   }
 
+  /// En Android el sonido es del canal y no se puede cambiar después de
+  /// crearlo: por eso hay un canal por sonido. Los archivos están en
+  /// `res/raw` como WAV, con el mismo nombre que los de iOS (ADR-0024).
+  static AndroidNotificationDetails _androidDetails(
+    String? soundFile, {
+    required bool withTakenButton,
+  }) {
+    final sound = soundFile?.replaceFirst(RegExp(r'\.\w+$'), '');
+    return AndroidNotificationDetails(
+      'suplementos_${sound ?? 'sistema'}',
+      'Suplementos',
+      channelDescription: 'Recordatorios de toma y avisos de reabastecer.',
+      importance: Importance.high,
+      priority: Priority.high,
+      sound: sound == null ? null : RawResourceAndroidNotificationSound(sound),
+      actions: [
+        if (withTakenButton)
+          const AndroidNotificationAction(
+            takenAction,
+            'Ya lo tomé',
+            // Registra la toma sin abrir la app y quita el aviso.
+            showsUserInterface: false,
+            cancelNotification: true,
+          ),
+      ],
+    );
+  }
+
   /// iOS busca los sonidos en la carpeta Library/Sounds de la app. Se copian
   /// ahí desde los recursos la primera vez, en vez de agregarlos al proyecto
-  /// de Xcode.
+  /// de Xcode. Android los toma de `res/raw`.
   Future<void> _installSound(String? soundFile) async {
-    if (soundFile == null) return;
+    if (soundFile == null || !Platform.isIOS) return;
     final library = await getLibraryDirectory();
     final target = File('${library.path}/Sounds/$soundFile');
     if (target.existsSync()) return;

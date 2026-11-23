@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Los sonidos y el ícono de notificación solo se nombran desde Dart: sin
+     esto, la compilación de release los quitaría por "no usados". -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/anfybio_*,@drawable/ic_notification" />

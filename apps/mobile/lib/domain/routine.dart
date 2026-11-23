@@ -4,16 +4,22 @@ class RoutineDraft {
   const RoutineDraft({
     required this.name,
     this.sourceFileName,
+    this.notes,
     this.days = const [],
   });
 
   final String name;
   final String? sourceFileName;
+
+  /// Indicaciones generales del plan ("Regla general: descansos de 2–3 min
+  /// en básicos…"), que no son de un día.
+  final String? notes;
   final List<RoutineDayDraft> days;
 
   RoutineDraft copyWith({List<RoutineDayDraft>? days}) => RoutineDraft(
     name: name,
     sourceFileName: sourceFileName,
+    notes: notes,
     days: days ?? this.days,
   );
 

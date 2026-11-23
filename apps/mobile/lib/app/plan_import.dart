@@ -20,6 +20,7 @@ Future<PickedPdf?> _pickPdf() async {
       selector.XTypeGroup(
         label: 'PDF',
         extensions: ['pdf'],
+        mimeTypes: ['application/pdf'], // Android
         uniformTypeIdentifiers: ['com.adobe.pdf'],
       ),
     ],

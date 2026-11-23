@@ -53,3 +53,35 @@ jobs:
 
       - name: Pruebas
         run: flutter test
+
+  android:
+    name: Compilación para Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      # Gradle 9 y AGP 9 necesitan Java 17 o más nuevo.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.7
+          cache: true
+
+      - name: Dependencias
+        run: flutter pub get
+
+      # Sin android/key.properties se firma con la llave de depuración: sirve
+      # para comprobar que compila, no para instalar en un teléfono
+      # (ADR-0024).
+      - name: APK de release
+        run: flutter build apk --release --split-per-abi
+

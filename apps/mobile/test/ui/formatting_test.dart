@@ -108,6 +108,9 @@ void main() {
     expect(amount(1, FoodUnit.scoop), '1 scoop');
     expect(amount(0.5, FoodUnit.scoop), '0.5 scoop');
     expect(amount(2, FoodUnit.scoop), '2 scoops');
+    expect(amount(0.25, FoodUnit.piece), '1/4 pieza');
+    expect(amount(1.5, FoodUnit.cup), '1 1/2 tazas');
+    expect(amount(0.4, FoodUnit.piece), '0.4 pieza');
     expect(amount(150, null), '150'); // el plan no trae unidad
     expect(amount(null, null), '');
     expect(amount(null, null, isFree: true), 'Libre');

@@ -83,3 +83,48 @@ Resultado con los cuatro planes reales disponibles:
 - Ser tolerante aumenta el riesgo de leer algo que no es una rutina. Las
   pruebas cubren un texto ajeno (una factura), y la revisión previa a guardar
   sigue siendo obligatoria.
+
+## Actualización (2026-11-23): más formatos, sin plantillas nuevas
+
+Dos planes nuevos y dos viejos que no se habían probado mostraron casos que
+cualquier otro plan puede traer. Se resolvieron con reglas generales, no con
+una plantilla para esos planes:
+
+- **Rutina:**
+  - Lo que va antes del primer día ("Regla general: descansos de 2–3 min…")
+    se guarda como **indicaciones generales** de la rutina (columna
+    `routines.notes`, esquema 10) y se muestra arriba de los días. Antes se
+    leía como un "Día 1".
+  - "3–4 series" toma el mínimo y deja el rango en la nota.
+  - "Biserie de Core (Plancha 30–60 seg + Elevación de piernas): 3 rondas"
+    se separa en dos ejercicios unidos.
+- **Alimentación:**
+  - Días alto y bajo con otras palabras: "mayor/menor demanda",
+    "más/menos carbohidratos", "carga".
+  - Una sección de recomendaciones al final ("💡 Claves…",
+    "Recomendaciones") se guarda en las indicaciones del plan; sus renglones
+    numerados ya no se leen como comidas.
+  - Fracciones sin unidad ("1/4 de aguacate", "½ plátano"), "medida" como
+    scoop, "al gusto" como libre y la cantidad al final ("Arroz cocido
+    180 gr").
+  - Alternativas en el renglón siguiente ("… yogur o" / "20 g de nueces") o
+    entre paréntesis ("(o 20 g de avena si entrenas)", con la condición como
+    nota).
+  - Comidas con sus alimentos en el mismo renglón ("• Comida: 150 g de
+    pollo + 120 g de arroz"). El "+" siempre separa alimentos.
+  - Platos con ingredientes entre paréntesis o con "de" ("Hot cakes (1
+    huevo, 4 claras…)", "Omelet de 1 huevo y 4 claras").
+  - El estado entre paréntesis manda: "(pesadas en seco) cocidas con agua"
+    se pesa en seco.
+  - Suplementos con "Cuándo:", numerados, y sin confundir un título de
+    sección con un suplemento.
+
+| Plan | Antes | Ahora |
+| --- | --- | --- |
+| Rutina, formato 3 | 91 % (con un "Día 1" falso) | 97 % |
+| Alimentación, formato 3 | 86 % | 100 % |
+| Alimentación, formato en línea | 0 % | 100 % |
+| Alimentación, formato 1 (otra persona) | 85 % | 96 % |
+
+Lo que queda por revisar son datos que el plan no trae ("40 h", un peso sin
+unidad, un ejercicio sin repeticiones) o que tienen dos lecturas posibles.

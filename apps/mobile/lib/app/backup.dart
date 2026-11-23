@@ -51,6 +51,7 @@ Future<String?> _pickFile() async {
       selector.XTypeGroup(
         label: 'Respaldo de AnfYbio',
         extensions: ['json'],
+        mimeTypes: ['application/json'], // Android
         uniformTypeIdentifiers: ['public.json'],
       ),
     ],

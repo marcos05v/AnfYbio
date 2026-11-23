@@ -380,4 +380,63 @@ void main() {
       expect(result.warnings.single, contains('ningún día se llama así'));
     });
   });
+
+  group(
+    'indicaciones generales, rangos de series y biseries en un renglón',
+    () {
+      const text =
+          'Plan de entrenamiento Prueba\n'
+          '• Regla general: calentar antes del primer básico. Descansos de\n'
+          '2–3 min en básicos y 60–90 seg en accesorios.\n'
+          'Día 1: Torso\n'
+          '• Press de banca: 4 series × 6–10 reps\n'
+          '• Remo sentado: 3–4 series × 8–12 reps (espalda media)\n'
+          '• Biserie de Core (Plancha 30–60 seg + Crunch 15 reps): 3 rondas\n'
+          'Día 2: Descanso activo\n';
+
+      test('lo que va antes del primer día son indicaciones, no un día', () {
+        final routine = parseRoutine(text);
+        expect(routine.warnings, isEmpty);
+        expect(routine.draft.days.map((d) => d.name), [
+          'Torso',
+          'Descanso activo',
+        ]);
+        expect(
+          routine.draft.notes,
+          'Regla general: calentar antes del primer básico. Descansos de '
+          '2–3 min en básicos y 60–90 seg en accesorios.',
+        );
+      });
+
+      test('"3–4 series" toma el mínimo y deja el rango en la nota', () {
+        final row = parseRoutine(text).draft.days.first.exercises[1];
+        expect((row.workSets, row.repsMin, row.repsMax), (3, 8, 12));
+        expect(row.note, 'Entre 3 y 4 series · (espalda media)');
+      });
+
+      test('la biserie en un renglón se separa en sus ejercicios', () {
+        final routine = parseRoutine(text);
+        final [plank, crunch] = routine.draft.days.first.exercises.sublist(2);
+        expect(
+          (plank.name, plank.workSets, plank.repsNote),
+          ('Plancha', 3, '30–60 seg'),
+        );
+        expect(
+          (crunch.name, crunch.workSets, crunch.repsMin),
+          ('Crunch', 3, 15),
+        );
+        expect(crunch.supersetWithPrevious, isTrue);
+        expect(plank.groupLabel, 'Biserie de Core');
+        expect(routine.warningCount, 0);
+      });
+
+      test('sin días, lo de antes sigue siendo un solo día', () {
+        final routine = parseRoutine(
+          'Rutina\n• Sentadilla: 3 series de 10 reps\n',
+        );
+        expect(routine.draft.notes, isNull);
+        expect(routine.draft.days.single.exercises.single.name, 'Sentadilla');
+      });
+    },
+  );
 }

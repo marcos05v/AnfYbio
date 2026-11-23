@@ -222,16 +222,36 @@ String formatFoodAmount({
   if (isFree) return 'Libre';
   if (amount == null) return '';
   final number = formatNumber(amount, decimals: 2);
+  // Las piezas, tazas y cucharadas se cuentan en fracciones: "1/4 pieza",
+  // "1 1/2 tazas".
+  final counted = _fraction(amount) ?? number;
   return switch (unit) {
     null => number,
     FoodUnit.gram => '$number g',
-    FoodUnit.piece => amount == 1 ? '$number pieza' : '$number piezas',
+    FoodUnit.piece => amount <= 1 ? '$counted pieza' : '$counted piezas',
     FoodUnit.scoop => amount <= 1 ? '$number scoop' : '$number scoops',
     FoodUnit.ml => '$number ml',
-    FoodUnit.cup => amount <= 1 ? '$number taza' : '$number tazas',
-    FoodUnit.tablespoon => '$number cda.',
-    FoodUnit.teaspoon => '$number cdta.',
+    FoodUnit.cup => amount <= 1 ? '$counted taza' : '$counted tazas',
+    FoodUnit.tablespoon => '$counted cda.',
+    FoodUnit.teaspoon => '$counted cdta.',
   };
+}
+
+/// 0.25 → "1/4", 1.5 → "1 1/2"; nulo si no es una fracción común.
+String? _fraction(double amount) {
+  final whole = amount.floor();
+  final part = amount - whole;
+  const names = [
+    (1 / 4, '1/4'),
+    (1 / 3, '1/3'),
+    (1 / 2, '1/2'),
+    (2 / 3, '2/3'),
+    (3 / 4, '3/4'),
+  ];
+  for (final (value, name) in names) {
+    if ((part - value).abs() < 0.01) return whole == 0 ? name : '$whole $name';
+  }
+  return null;
 }
 
 /// Cantidad de un suplemento con su unidad: "285 g", "12 cápsulas".

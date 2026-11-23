@@ -64,6 +64,7 @@ class RoutineRepository {
               userId: userId,
               name: draft.name.trim(),
               sourceFileName: Value(draft.sourceFileName),
+              notes: Value(draft.notes?.trim()),
             ),
           );
       for (final (dayIndex, dayDraft) in draft.days.indexed) {

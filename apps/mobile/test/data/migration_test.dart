@@ -33,7 +33,7 @@ void main() {
       );
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 9);
+    await verifier.migrateAndValidate(db, 10);
 
     final user = await db.select(db.users).getSingle();
     final session = await db.select(db.sessions).getSingle();
@@ -69,7 +69,7 @@ void main() {
       );
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 9);
+    await verifier.migrateAndValidate(db, 10);
 
     final plan = await db.select(db.nutritionPlans).getSingle();
     final session = await db.select(db.sessions).getSingle();
@@ -104,7 +104,7 @@ void main() {
         );
 
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 9);
+      await verifier.migrateAndValidate(db, 10);
 
       final day = await db.select(db.routineDays).getSingle();
       final session = await db.select(db.sessions).getSingle();
@@ -132,7 +132,7 @@ void main() {
         );
 
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 9);
+      await verifier.migrateAndValidate(db, 10);
 
       final batch = await db.select(db.cookingBatches).getSingle();
       expect((batch.foodName, batch.cookedWeightG), ('Pollo', 720));
@@ -158,7 +158,7 @@ void main() {
         );
 
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 9);
+      await verifier.migrateAndValidate(db, 10);
 
       final supplement = await db.select(db.supplements).getSingle();
       expect((supplement.name, supplement.dailyDose), ('Creatina', 5));
@@ -182,7 +182,7 @@ void main() {
       );
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 9);
+    await verifier.migrateAndValidate(db, 10);
 
     final supplement = await db.select(db.supplements).getSingle();
     expect(supplement.reminderMinute, 570);
@@ -205,7 +205,7 @@ void main() {
       );
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 9);
+    await verifier.migrateAndValidate(db, 10);
 
     final exercise = await db.select(db.exercises).getSingle();
     expect(exercise.name, 'Press Arnold');
@@ -249,7 +249,7 @@ void main() {
       );
 
     final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 9);
+    await verifier.migrateAndValidate(db, 10);
 
     final item = await db.select(db.planItems).getSingle();
     expect((item.name, item.amount), ('Avena', 50));
@@ -259,9 +259,31 @@ void main() {
     await db.close();
   });
 
+  test('de la versión 9 a la 10: la rutina queda sin indicaciones '
+      'generales', () async {
+    final schema = await verifier.schemaAt(9);
+    const stamp = "'2026-11-01T10:00:00.000Z'";
+    schema.rawDatabase
+      ..execute(
+        "INSERT INTO users (id, created_at, updated_at, display_name) VALUES "
+        "('u1', $stamp, $stamp, 'Marcos')",
+      )
+      ..execute(
+        "INSERT INTO routines (id, created_at, updated_at, user_id, name, "
+        "is_active) VALUES ('r1', $stamp, $stamp, 'u1', 'Rutina', 1)",
+      );
+
+    final db = AppDatabase(schema.newConnection());
+    await verifier.migrateAndValidate(db, 10);
+
+    final routine = await db.select(db.routines).getSingle();
+    expect((routine.name, routine.notes), ('Rutina', null));
+    await db.close();
+  });
+
   test('una instalación nueva crea directamente el esquema actual', () async {
-    final db = AppDatabase(await verifier.startAt(9));
-    await verifier.migrateAndValidate(db, 9);
+    final db = AppDatabase(await verifier.startAt(10));
+    await verifier.migrateAndValidate(db, 10);
     await db.close();
   });
 }

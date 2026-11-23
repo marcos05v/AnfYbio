@@ -18,6 +18,10 @@ class Routines extends Table with SyncColumns {
   /// Nombre del archivo del que se importó; nulo si se capturó a mano.
   TextColumn get sourceFileName => text().nullable()();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+
+  /// Indicaciones generales que el plan da antes del primer día: descansos,
+  /// calentamiento, cómo progresar. Nulo si no trae.
+  TextColumn get notes => text().nullable()();
 }
 
 /// Un día de la rutina: "Pecho y Tríceps".

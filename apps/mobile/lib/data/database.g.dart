@@ -1051,6 +1051,15 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1061,6 +1070,7 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
     name,
     sourceFileName,
     isActive,
+    notes,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1126,6 +1136,12 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
         isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
       );
     }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
     return context;
   }
 
@@ -1167,6 +1183,10 @@ class $RoutinesTable extends Routines with TableInfo<$RoutinesTable, Routine> {
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
       )!,
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
     );
   }
 
@@ -1187,6 +1207,10 @@ class Routine extends DataClass implements Insertable<Routine> {
   /// Nombre del archivo del que se importó; nulo si se capturó a mano.
   final String? sourceFileName;
   final bool isActive;
+
+  /// Indicaciones generales que el plan da antes del primer día: descansos,
+  /// calentamiento, cómo progresar. Nulo si no trae.
+  final String? notes;
   const Routine({
     required this.id,
     required this.createdAt,
@@ -1196,6 +1220,7 @@ class Routine extends DataClass implements Insertable<Routine> {
     required this.name,
     this.sourceFileName,
     required this.isActive,
+    this.notes,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1212,6 +1237,9 @@ class Routine extends DataClass implements Insertable<Routine> {
       map['source_file_name'] = Variable<String>(sourceFileName);
     }
     map['is_active'] = Variable<bool>(isActive);
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
     return map;
   }
 
@@ -1229,6 +1257,9 @@ class Routine extends DataClass implements Insertable<Routine> {
           ? const Value.absent()
           : Value(sourceFileName),
       isActive: Value(isActive),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
     );
   }
 
@@ -1246,6 +1277,7 @@ class Routine extends DataClass implements Insertable<Routine> {
       name: serializer.fromJson<String>(json['name']),
       sourceFileName: serializer.fromJson<String?>(json['sourceFileName']),
       isActive: serializer.fromJson<bool>(json['isActive']),
+      notes: serializer.fromJson<String?>(json['notes']),
     );
   }
   @override
@@ -1260,6 +1292,7 @@ class Routine extends DataClass implements Insertable<Routine> {
       'name': serializer.toJson<String>(name),
       'sourceFileName': serializer.toJson<String?>(sourceFileName),
       'isActive': serializer.toJson<bool>(isActive),
+      'notes': serializer.toJson<String?>(notes),
     };
   }
 
@@ -1272,6 +1305,7 @@ class Routine extends DataClass implements Insertable<Routine> {
     String? name,
     Value<String?> sourceFileName = const Value.absent(),
     bool? isActive,
+    Value<String?> notes = const Value.absent(),
   }) => Routine(
     id: id ?? this.id,
     createdAt: createdAt ?? this.createdAt,
@@ -1283,6 +1317,7 @@ class Routine extends DataClass implements Insertable<Routine> {
         ? sourceFileName.value
         : this.sourceFileName,
     isActive: isActive ?? this.isActive,
+    notes: notes.present ? notes.value : this.notes,
   );
   Routine copyWithCompanion(RoutinesCompanion data) {
     return Routine(
@@ -1296,6 +1331,7 @@ class Routine extends DataClass implements Insertable<Routine> {
           ? data.sourceFileName.value
           : this.sourceFileName,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      notes: data.notes.present ? data.notes.value : this.notes,
     );
   }
 
@@ -1309,7 +1345,8 @@ class Routine extends DataClass implements Insertable<Routine> {
           ..write('userId: $userId, ')
           ..write('name: $name, ')
           ..write('sourceFileName: $sourceFileName, ')
-          ..write('isActive: $isActive')
+          ..write('isActive: $isActive, ')
+          ..write('notes: $notes')
           ..write(')'))
         .toString();
   }
@@ -1324,6 +1361,7 @@ class Routine extends DataClass implements Insertable<Routine> {
     name,
     sourceFileName,
     isActive,
+    notes,
   );
   @override
   bool operator ==(Object other) =>
@@ -1336,7 +1374,8 @@ class Routine extends DataClass implements Insertable<Routine> {
           other.userId == this.userId &&
           other.name == this.name &&
           other.sourceFileName == this.sourceFileName &&
-          other.isActive == this.isActive);
+          other.isActive == this.isActive &&
+          other.notes == this.notes);
 }
 
 class RoutinesCompanion extends UpdateCompanion<Routine> {
@@ -1348,6 +1387,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
   final Value<String> name;
   final Value<String?> sourceFileName;
   final Value<bool> isActive;
+  final Value<String?> notes;
   final Value<int> rowid;
   const RoutinesCompanion({
     this.id = const Value.absent(),
@@ -1358,6 +1398,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
     this.name = const Value.absent(),
     this.sourceFileName = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.notes = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   RoutinesCompanion.insert({
@@ -1369,6 +1410,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
     required String name,
     this.sourceFileName = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.notes = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : userId = Value(userId),
        name = Value(name);
@@ -1381,6 +1423,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
     Expression<String>? name,
     Expression<String>? sourceFileName,
     Expression<bool>? isActive,
+    Expression<String>? notes,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1392,6 +1435,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
       if (name != null) 'name': name,
       if (sourceFileName != null) 'source_file_name': sourceFileName,
       if (isActive != null) 'is_active': isActive,
+      if (notes != null) 'notes': notes,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1405,6 +1449,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
     Value<String>? name,
     Value<String?>? sourceFileName,
     Value<bool>? isActive,
+    Value<String?>? notes,
     Value<int>? rowid,
   }) {
     return RoutinesCompanion(
@@ -1416,6 +1461,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
       name: name ?? this.name,
       sourceFileName: sourceFileName ?? this.sourceFileName,
       isActive: isActive ?? this.isActive,
+      notes: notes ?? this.notes,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1447,6 +1493,9 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1464,6 +1513,7 @@ class RoutinesCompanion extends UpdateCompanion<Routine> {
           ..write('name: $name, ')
           ..write('sourceFileName: $sourceFileName, ')
           ..write('isActive: $isActive, ')
+          ..write('notes: $notes, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -16174,6 +16224,7 @@ typedef $$RoutinesTableCreateCompanionBuilder = RoutinesCompanion Function({
   required String name,
   Value<String?> sourceFileName,
   Value<bool> isActive,
+  Value<String?> notes,
   Value<int> rowid,
 });
 typedef $$RoutinesTableUpdateCompanionBuilder = RoutinesCompanion Function({
@@ -16185,6 +16236,7 @@ typedef $$RoutinesTableUpdateCompanionBuilder = RoutinesCompanion Function({
   Value<String> name,
   Value<String?> sourceFileName,
   Value<bool> isActive,
+  Value<String?> notes,
   Value<int> rowid,
 });
 
@@ -16269,6 +16321,11 @@ class $$RoutinesTableFilterComposer
 
   ColumnFilters<bool> get isActive => $composableBuilder(
     column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16365,6 +16422,11 @@ class $$RoutinesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$UsersTableOrderingComposer get userId {
     final $$UsersTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -16420,6 +16482,9 @@ class $$RoutinesTableAnnotationComposer
 
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
 
   $$UsersTableAnnotationComposer get userId {
     final $$UsersTableAnnotationComposer composer = $composerBuilder(
@@ -16506,6 +16571,7 @@ class $$RoutinesTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String?> sourceFileName = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RoutinesCompanion(
                 id: id,
@@ -16516,6 +16582,7 @@ class $$RoutinesTableTableManager
                 name: name,
                 sourceFileName: sourceFileName,
                 isActive: isActive,
+                notes: notes,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -16528,6 +16595,7 @@ class $$RoutinesTableTableManager
                 required String name,
                 Value<String?> sourceFileName = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RoutinesCompanion.insert(
                 id: id,
@@ -16538,6 +16606,7 @@ class $$RoutinesTableTableManager
                 name: name,
                 sourceFileName: sourceFileName,
                 isActive: isActive,
+                notes: notes,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

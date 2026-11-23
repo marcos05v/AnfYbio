@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -189,13 +191,20 @@ class _ServerScreenState extends ConsumerState<ServerScreen> {
       _Field(
         key: const Key('serverAddress'),
         controller: _address,
-        placeholder: 'nombre-de-tu-mac.local',
+        // Android no siempre resuelve los nombres .local: ahí se pide la IP.
+        placeholder: Platform.isAndroid
+            ? '192.168.1.20'
+            : 'nombre-de-tu-mac.local',
         keyboardType: TextInputType.url,
       ),
-      const _Note(
-        'Lo encuentras en la Mac, en Ajustes del Sistema, General, '
-        'Compartir: "Nombre del host local". El servidor tiene que estar '
-        'encendido.',
+      _Note(
+        Platform.isAndroid
+            ? 'Escribe la IP de la Mac. La encuentras en la Mac, en Ajustes '
+                  'del Sistema, Wi-Fi, Detalles. El servidor tiene que estar '
+                  'encendido.'
+            : 'Lo encuentras en la Mac, en Ajustes del Sistema, General, '
+                  'Compartir: "Nombre del host local". El servidor tiene que '
+                  'estar encendido.',
       ),
       const SectionHeader('Cuenta'),
       _Field(

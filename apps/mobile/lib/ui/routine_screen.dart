@@ -315,6 +315,8 @@ class RoutineScreen extends ConsumerWidget {
                       color: CupertinoColors.secondaryLabel,
                     ),
                   ),
+                  if (view.routine.notes case final notes?)
+                    RoutineNotesCard(notes),
                   _PendingLinksBanner(user: user, routine: view),
                   for (final (index, day) in view.days.indexed)
                     _DaySection(

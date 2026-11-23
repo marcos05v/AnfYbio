@@ -1,5 +1,5 @@
 #!/bin/sh
-# Pone el ícono de la app en todos los tamaños que pide iOS.
+# Pone el ícono de la app en todos los tamaños que piden iOS y Android.
 #
 #   tool/app_icon.sh               dibuja el logo de AnfYbio (tool/app_icon.swift)
 #   tool/app_icon.sh mi_logo.png   usa tu propia imagen
@@ -33,4 +33,14 @@ for entry in 20x20@1x:20 20x20@2x:40 20x20@3x:60 29x29@1x:29 29x29@2x:58 \
   sips -z "$pixels" "$pixels" "$WORK/master.png" \
     --out "$ICONS/Icon-App-$name.png" >/dev/null
 done
-echo "Ícono actualizado en $ICONS"
+# Android: un ícono por densidad de pantalla.
+ANDROID_RES=android/app/src/main/res
+if [ -d "$ANDROID_RES" ]; then
+  for entry in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+    density="${entry%%:*}"
+    pixels="${entry##*:}"
+    sips -z "$pixels" "$pixels" "$WORK/master.png" \
+      --out "$ANDROID_RES/mipmap-$density/ic_launcher.png" >/dev/null
+  done
+fi
+echo "Ícono actualizado en $ICONS y en $ANDROID_RES"

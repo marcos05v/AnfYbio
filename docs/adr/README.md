@@ -33,6 +33,7 @@ lo reemplaza y el anterior se marca como "Reemplazado por ADR-XXXX".
 | [0021](0021-lectura-tolerante-de-planes.md) | Lectura tolerante de planes y revisión con planes reales | Aceptado |
 | [0022](0022-como-se-mide-el-peso.md) | Cómo se mide el peso de cada ejercicio | Aceptado |
 | [0023](0023-platos-y-alternativas-del-plan.md) | Platos con ingredientes y alternativas con su propia cantidad | Aceptado |
+| [0024](0024-android.md) | Android dentro del alcance | Aceptado |
 
 ## Decisiones abiertas
 

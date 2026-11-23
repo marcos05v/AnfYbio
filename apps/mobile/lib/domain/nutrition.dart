@@ -144,6 +144,7 @@ class ItemDraft {
   }
 
   ItemDraft copyWith({
+    String? note,
     List<ItemDraft>? ingredients,
     List<ItemDraft>? alternatives,
   }) => ItemDraft(
@@ -152,7 +153,7 @@ class ItemDraft {
     unit: unit,
     state: state,
     isFree: isFree,
-    note: note,
+    note: note ?? this.note,
     warning: warning,
     ingredients: ingredients ?? this.ingredients,
     alternatives: alternatives ?? this.alternatives,
