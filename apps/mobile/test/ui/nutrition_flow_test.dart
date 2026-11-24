@@ -244,6 +244,99 @@ void main() {
     await shutDown(tester);
   });
 
+  testWidgets('a un plan sin días se le indican a mano y elige el menú solo', (
+    tester,
+  ) async {
+    await preferences.setInt('routineDayOneWeekday', DateTime.now().weekday);
+    await RoutineRepository(db).saveRoutine(
+      userId,
+      const RoutineDraft(
+        name: 'Rutina',
+        days: [
+          RoutineDayDraft(name: 'Torso'),
+          RoutineDayDraft(name: 'Pierna'),
+        ],
+      ),
+    );
+    await NutritionRepository(db).savePlan(
+      userId,
+      const NutritionPlanDraft(
+        name: 'Plan sin días',
+        menus: [
+          MenuDraft(
+            dayType: DayType.high,
+            title: 'Días de tren inferior',
+            meals: [
+              MealDraft(
+                name: 'Comida',
+                items: [
+                  ItemDraft(name: 'Arroz', amount: 90, unit: FoodUnit.gram),
+                ],
+              ),
+            ],
+          ),
+          MenuDraft(
+            dayType: DayType.low,
+            title: 'Días de tren superior',
+            meals: [
+              MealDraft(
+                name: 'Comida',
+                items: [
+                  ItemDraft(name: 'Tostadas', amount: 3, unit: FoodUnit.piece),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    await openNutrition(tester);
+    // Se eligió a mano antes de que la app pudiera detectarlo.
+    await tap(tester, find.text('Día bajo'));
+    expect(find.text('Elegido por ti para hoy.'), findsOneWidget);
+
+    await tap(tester, find.text('Elegir el menú de cada día de la rutina'));
+    expect(find.text('Día 1 · Torso'), findsOneWidget);
+    await tap(
+      tester,
+      find.descendant(
+        of: find.byKey(const Key('menuOfDay1')),
+        matching: find.text('Día bajo'),
+      ),
+    );
+    await tap(
+      tester,
+      find.descendant(
+        of: find.byKey(const Key('menuOfDay2')),
+        matching: find.text('Día alto'),
+      ),
+    );
+    await tap(tester, find.text('Guardar'));
+
+    // Lo elegido coincide con la rutina: cuenta como automático.
+    expect(
+      find.text('Hoy toca el Día 1 de tu rutina (Torso): día bajo.'),
+      findsOneWidget,
+    );
+    expect(find.text('Tostadas'), findsOneWidget);
+    expect(
+      find.text('Cambiar el menú de cada día de la rutina'),
+      findsOneWidget,
+    );
+
+    // Elegir el otro avisa cómo volver.
+    await tap(tester, find.text('Día alto'));
+    expect(find.text('Arroz'), findsOneWidget);
+    expect(
+      find.text(
+        'Hoy toca el Día 1 de tu rutina (Torso): día bajo. Elegiste otro '
+        'menú para hoy; toca «Día bajo» para volver.',
+      ),
+      findsOneWidget,
+    );
+    await shutDown(tester);
+  });
+
   testWidgets('con días altos y bajos, el usuario elige y se recuerda', (
     tester,
   ) async {

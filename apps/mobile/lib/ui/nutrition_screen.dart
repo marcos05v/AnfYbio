@@ -6,6 +6,7 @@ import '../app/plan_import.dart';
 import '../app/providers.dart';
 import '../data/database.dart';
 import '../data/repositories/nutrition_repository.dart';
+import '../data/repositories/routine_repository.dart';
 import '../domain/cooking.dart';
 import '../domain/nutrition.dart';
 import '../domain/routine.dart';
@@ -298,13 +299,27 @@ class _PlanBody extends ConsumerWidget {
     );
     final bySession = canDetectDayType(planDayTypes);
     final canDetect = byRoutine != null || bySession;
-    final saved = ref.watch(dayTypeOverrideProvider);
-    final override = planDayTypes.contains(saved) ? saved : null;
     final detected =
         byRoutine ??
         (bySession
             ? dayTypeFor(hasSessionToday: hasSessionToday)
             : planDayTypes.firstOrNull ?? DayType.training);
+    // Lo elegido a mano solo cuenta si difiere de lo que la app detecta: si
+    // coincide (por ejemplo, se eligió antes de indicar los días de la
+    // rutina), es lo mismo que automático.
+    final saved = ref.watch(dayTypeOverrideProvider);
+    final override =
+        planDayTypes.contains(saved) && !(canDetect && saved == detected)
+        ? saved
+        : null;
+    final routineLine = byRoutine == null
+        ? null
+        : 'Hoy toca el Día ${routineIndex! + 1} de tu rutina '
+              '(${routine!.days[routineIndex].day.name}): '
+              '${dayTypeLabel(byRoutine).toLowerCase()}.';
+    final hasRoutineDays = view.menus.any(
+      (m) => decodeRoutineDays(m.menu.routineDays).isNotEmpty,
+    );
     final dayType = override ?? detected;
     final menu = view.menuFor(dayType);
     final secondary = textStyle(
@@ -362,21 +377,46 @@ class _PlanBody extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
             child: Text(
-              override != null
+              key: const Key('dayTypeStatus'),
+              override != null && routineLine != null
+                  ? '$routineLine Elegiste otro menú para hoy; toca '
+                        '«${dayTypeLabel(detected)}» para volver.'
+                  : override != null
                   ? 'Elegido por ti para hoy.'
-                  : byRoutine != null
-                  ? 'Hoy toca el Día ${routineIndex! + 1} de tu rutina '
-                        '(${routine!.days[routineIndex].day.name}): '
-                        '${dayTypeLabel(byRoutine).toLowerCase()}.'
-                  : !canDetect
-                  ? 'Toca el menú que te toca hoy; la app lo recuerda hasta '
-                        'mañana.'
-                  : hasSessionToday
-                  ? 'Hoy registraste una sesión: toca el menú de entrenamiento.'
-                  : 'Hoy no has registrado sesiones: toca el menú de descanso.',
+                  : routineLine ??
+                        (!canDetect
+                            ? 'Toca el menú que te toca hoy; la app lo recuerda hasta '
+                                  'mañana.'
+                            : hasSessionToday
+                            ? 'Hoy registraste una sesión: toca el menú de entrenamiento.'
+                            : 'Hoy no has registrado sesiones: toca el menú de descanso.'),
               style: secondary,
             ),
           ),
+          if (routine != null && routine.days.isNotEmpty)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: CupertinoButton(
+                key: const Key('menuRoutineDays'),
+                padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
+                minimumSize: Size.zero,
+                onPressed: () => showAppSheet<void>(
+                  context,
+                  title: 'Menú de cada día de la rutina',
+                  builder: (_) => _MenuDaysForm(
+                    routine: routine,
+                    menus: [for (final m in view.menus) m.menu],
+                    onSave: repository.setMenuRoutineDays,
+                  ),
+                ),
+                child: Text(
+                  hasRoutineDays
+                      ? 'Cambiar el menú de cada día de la rutina'
+                      : 'Elegir el menú de cada día de la rutina',
+                  style: textStyle(context, size: 14, color: accentColor),
+                ),
+              ),
+            ),
         ],
         if (view.plan.weighingNotes case final notes?) ...[
           const SizedBox(height: 14),
@@ -976,6 +1016,99 @@ class _SupplementFormState extends State<_SupplementForm> {
           deleteLabel: 'Borrar suplemento',
           onDelete: widget.onDelete == null ? null : _delete,
         ),
+      ],
+    );
+  }
+}
+
+/// Para cada día de la rutina, qué menú del plan toca. Sirve para planes
+/// que no traen los números de día ("Días de Tren Inferior") o que se
+/// guardaron antes de leerlos.
+class _MenuDaysForm extends StatefulWidget {
+  const _MenuDaysForm({
+    required this.routine,
+    required this.menus,
+    required this.onSave,
+  });
+
+  final RoutineView routine;
+  final List<PlanMenu> menus;
+  final Future<void> Function(Map<String, List<int>> daysByMenu) onSave;
+
+  @override
+  State<_MenuDaysForm> createState() => _MenuDaysFormState();
+}
+
+class _MenuDaysFormState extends State<_MenuDaysForm> {
+  /// Día de la rutina (desde 1) → id del menú; sin entrada, ninguno.
+  late final Map<int, String> _menuOfDay = {
+    for (final menu in widget.menus)
+      for (final day in decodeRoutineDays(menu.routineDays)) day: menu.id,
+  };
+
+  Future<void> _save() async {
+    final navigator = Navigator.of(context);
+    await widget.onSave({
+      for (final menu in widget.menus)
+        menu.id: [
+          for (final MapEntry(key: day, value: menuId) in _menuOfDay.entries)
+            if (menuId == menu.id) day,
+        ],
+    });
+    navigator.pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Flexible(
+          child: SingleChildScrollView(
+            child: CardGroup(
+              children: [
+                for (final (index, day) in widget.routine.days.indexed)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Día ${index + 1} · ${day.day.name}',
+                          style: textStyle(context, weight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 6),
+                        CupertinoSlidingSegmentedControl<String>(
+                          key: Key('menuOfDay${index + 1}'),
+                          groupValue: _menuOfDay[index + 1],
+                          onValueChanged: (menuId) => setState(() {
+                            // Tocar el que ya estaba elegido lo quita.
+                            if (menuId == null ||
+                                _menuOfDay[index + 1] == menuId) {
+                              _menuOfDay.remove(index + 1);
+                            } else {
+                              _menuOfDay[index + 1] = menuId;
+                            }
+                          }),
+                          children: {
+                            for (final menu in widget.menus)
+                              menu.id: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6,
+                                ),
+                                child: Text(dayTypeLabel(menu.dayType)),
+                              ),
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        FormActions(saveLabel: 'Guardar', onSave: _save),
       ],
     );
   }

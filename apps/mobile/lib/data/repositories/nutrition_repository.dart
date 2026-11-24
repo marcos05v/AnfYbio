@@ -363,6 +363,25 @@ class NutritionRepository {
     });
   }
 
+  /// Indica en qué días de la rutina va cada menú ({id del menú: días}),
+  /// en una transacción. Un menú sin días deja de elegirse por la rutina.
+  Future<void> setMenuRoutineDays(Map<String, List<int>> daysByMenu) {
+    return _db.transaction(() async {
+      for (final MapEntry(key: menuId, value: days) in daysByMenu.entries) {
+        final updated =
+            await (_db.update(
+              _db.planMenus,
+            )..where((m) => m.id.equals(menuId) & m.deletedAt.isNull())).write(
+              PlanMenusCompanion(
+                routineDays: Value(encodeRoutineDays(days)),
+                updatedAt: Value(_now()),
+              ),
+            );
+        if (updated == 0) throw RecordNotFound(menuId);
+      }
+    });
+  }
+
   Future<void> updateMeal(
     String mealId, {
     required String name,
