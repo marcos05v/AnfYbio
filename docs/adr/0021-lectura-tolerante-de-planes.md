@@ -146,3 +146,10 @@ ahora acepta PDFs sueltos además de carpetas.
   inventario, ya no se compara el nombre exacto sino el nombre principal
   (`isSameSupplement`): "Omega-3" y "Omega-3 (Ácidos Grasos EPA y DHA)" son
   el mismo.
+- **Menú por el nombre del día.** Si el plan no da números de día, la app
+  relaciona el nombre del día de la rutina con el título de cada menú
+  (`dayTypeByName`). Los músculos cuentan como su tren: glúteo o femoral
+  son "tren inferior", y pecho o espalda son "tren superior". Un día sin
+  rutina va al menú que dice "descanso". Si empatan o no hay pistas, no
+  adivina. Prioridad: números de día, luego nombres, luego sesión
+  registrada; elegir a mano siempre manda.

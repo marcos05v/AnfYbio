@@ -290,13 +290,22 @@ class _PlanBody extends ConsumerWidget {
             dayCount: routine.days.length,
             dayOneWeekday: ref.watch(routineDayOneProvider),
           );
-    final byRoutine = dayTypeForRoutineDay(
-      routineIndex == null ? null : routineIndex + 1,
-      {
-        for (final menu in view.menus)
-          menu.menu.dayType: decodeRoutineDays(menu.menu.routineDays),
-      },
+    final hasRoutineDays = view.menus.any(
+      (m) => decodeRoutineDays(m.menu.routineDays).isNotEmpty,
     );
+    // Sin números de día, se relacionan los nombres: el día "Tren Inferior"
+    // va con el menú "Días de Tren Inferior".
+    final byRoutine = routine == null || routine.days.isEmpty
+        ? null
+        : hasRoutineDays
+        ? dayTypeForRoutineDay(routineIndex == null ? null : routineIndex + 1, {
+            for (final menu in view.menus)
+              menu.menu.dayType: decodeRoutineDays(menu.menu.routineDays),
+          })
+        : dayTypeByName(
+            routineIndex == null ? null : routine.days[routineIndex].day.name,
+            {for (final menu in view.menus) menu.menu.dayType: menu.menu.title},
+          );
     final bySession = canDetectDayType(planDayTypes);
     final canDetect = byRoutine != null || bySession;
     final detected =
@@ -314,12 +323,12 @@ class _PlanBody extends ConsumerWidget {
         : null;
     final routineLine = byRoutine == null
         ? null
-        : 'Hoy toca el Día ${routineIndex! + 1} de tu rutina '
+        : routineIndex == null
+        ? 'Hoy no toca rutina: '
+              '${dayTypeLabel(byRoutine).toLowerCase()}.'
+        : 'Hoy toca el Día ${routineIndex + 1} de tu rutina '
               '(${routine!.days[routineIndex].day.name}): '
               '${dayTypeLabel(byRoutine).toLowerCase()}.';
-    final hasRoutineDays = view.menus.any(
-      (m) => decodeRoutineDays(m.menu.routineDays).isNotEmpty,
-    );
     final dayType = override ?? detected;
     final menu = view.menuFor(dayType);
     final secondary = textStyle(
@@ -1041,10 +1050,22 @@ class _MenuDaysForm extends StatefulWidget {
 
 class _MenuDaysFormState extends State<_MenuDaysForm> {
   /// Día de la rutina (desde 1) → id del menú; sin entrada, ninguno.
-  late final Map<int, String> _menuOfDay = {
-    for (final menu in widget.menus)
-      for (final day in decodeRoutineDays(menu.routineDays)) day: menu.id,
-  };
+  late final Map<int, String> _menuOfDay = _initial();
+
+  /// Lo que ya se indicó; si no hay nada, lo que sugieren los nombres.
+  Map<int, String> _initial() {
+    final saved = {
+      for (final menu in widget.menus)
+        for (final day in decodeRoutineDays(menu.routineDays)) day: menu.id,
+    };
+    if (saved.isNotEmpty) return saved;
+    final titles = {for (final m in widget.menus) m.dayType: m.title};
+    return {
+      for (final (index, day) in widget.routine.days.indexed)
+        if (dayTypeByName(day.day.name, titles) case final type?)
+          index + 1: widget.menus.firstWhere((m) => m.dayType == type).id,
+    };
+  }
 
   Future<void> _save() async {
     final navigator = Navigator.of(context);

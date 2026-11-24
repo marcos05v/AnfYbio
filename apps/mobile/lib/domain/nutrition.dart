@@ -37,6 +37,84 @@ DayType? dayTypeForRoutineDay(
   return null;
 }
 
+/// El menú que toca según el **nombre** del día de la rutina, para planes
+/// que no dan números de día: el día "Tren Inferior (Glúteo, Femoral)" va
+/// con el menú "Días de Tren Inferior (Más CHO)".
+///
+/// Compara las partes del cuerpo que nombran el día y cada menú. Glúteo,
+/// femoral o pierna cuentan también como "tren inferior"; pecho, espalda o
+/// brazo, como "tren superior". [routineDayName] nulo es un día sin rutina
+/// (descanso): va con el menú que diga "descanso".
+///
+/// Gana el menú con más coincidencias; si empatan o ninguno coincide,
+/// devuelve `null` (no adivina).
+DayType? dayTypeByName(String? routineDayName, Map<DayType, String> menus) {
+  final day = _bodyWords(routineDayName ?? 'descanso');
+  if (day.isEmpty) return null;
+  DayType? best;
+  var bestScore = 0;
+  var tie = false;
+  for (final MapEntry(key: type, value: title) in menus.entries) {
+    final score = _bodyWords(title).intersection(day).length;
+    if (score > bestScore) {
+      (best, bestScore, tie) = (type, score, false);
+    } else if (score == bestScore && score > 0) {
+      tie = true;
+    }
+  }
+  return tie ? null : best;
+}
+
+const _lowerBody = [
+  'inferior',
+  'pierna',
+  'glute',
+  'femoral',
+  'cuadricep',
+  'isquio',
+  'pantorrilla',
+  'gemelo',
+  'cadera',
+  'aductor',
+  'adductor',
+  'abductor',
+];
+const _upperBody = [
+  'superior',
+  'pecho',
+  'pectoral',
+  'espalda',
+  'hombro',
+  'brazo',
+  'bicep',
+  'tricep',
+  'torso',
+  'antebrazo',
+  'dorsal',
+  'trapecio',
+  'deltoide',
+];
+
+Set<String> _bodyWords(String text) {
+  final words = text
+      .toLowerCase()
+      .replaceAll(RegExp('[áà]'), 'a')
+      .replaceAll(RegExp('[éè]'), 'e')
+      .replaceAll(RegExp('[íì]'), 'i')
+      .replaceAll(RegExp('[óò]'), 'o')
+      .replaceAll(RegExp('[úùü]'), 'u')
+      .split(RegExp('[^a-zñ]+'));
+  final found = <String>{};
+  for (final word in words) {
+    for (final part in [..._lowerBody, ..._upperBody, 'descanso']) {
+      if (word.startsWith(part)) found.add(part);
+    }
+  }
+  if (found.any(_lowerBody.contains)) found.add('inferior');
+  if (found.any(_upperBody.contains)) found.add('superior');
+  return found;
+}
+
 /// Convierte los días de la rutina a texto para guardarlos ("2,3,5"), y de
 /// vuelta. Vacío ↔ nulo.
 String? encodeRoutineDays(List<int> days) =>

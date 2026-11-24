@@ -2,6 +2,59 @@ import 'package:anfybio/domain/nutrition.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('menú según el nombre del día de la rutina', () {
+    const lowerUpper = {
+      DayType.high: 'Días de Tren Inferior (Más carbohidratos)',
+      DayType.low: 'Días de Tren Superior / Descanso (Menos carbohidratos)',
+    };
+
+    test('el mismo "tren" en los dos nombres', () {
+      expect(
+        dayTypeByName('Tren Inferior (Glúteo y Femoral)', lowerUpper),
+        DayType.high,
+      );
+      expect(
+        dayTypeByName('Tren Superior (Espalda) + HIIT', lowerUpper),
+        DayType.low,
+      );
+    });
+
+    test('los músculos cuentan como su tren', () {
+      expect(dayTypeByName('Cuádriceps y Gemelos', lowerUpper), DayType.high);
+      expect(dayTypeByName('Pecho y Tríceps', lowerUpper), DayType.low);
+    });
+
+    test('un plan que nombra músculos en vez de trenes', () {
+      const byMuscle = {
+        DayType.low: 'Días bajos (Tríceps, Hombro, Pecho y Descanso)',
+        DayType.high: 'Días altos (Espalda y Pierna)',
+      };
+      expect(dayTypeByName('Espalda y Bíceps', byMuscle), DayType.high);
+      expect(dayTypeByName('Hombro completo', byMuscle), DayType.low);
+      expect(dayTypeByName('Isquiotibiales y Glúteos', byMuscle), DayType.high);
+    });
+
+    test('sin rutina hoy va al menú de descanso', () {
+      expect(dayTypeByName(null, lowerUpper), DayType.low);
+    });
+
+    test('si no hay pistas o empatan, no adivina', () {
+      const neutral = {
+        DayType.training: 'Días de entrenamiento (Superávit)',
+        DayType.rest: 'Días de descanso',
+      };
+      expect(dayTypeByName('Pecho y Tríceps', neutral), isNull);
+      expect(dayTypeByName('Full body', lowerUpper), isNull);
+      expect(
+        dayTypeByName('Pierna y Pecho', const {
+          DayType.high: 'Tren inferior',
+          DayType.low: 'Tren superior',
+        }),
+        isNull,
+      );
+    });
+  });
+
   group('menú según el día de la rutina', () {
     const menuDays = {
       DayType.high: [2, 3, 5],

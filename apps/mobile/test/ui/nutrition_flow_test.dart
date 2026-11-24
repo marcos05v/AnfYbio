@@ -244,6 +244,64 @@ void main() {
     await shutDown(tester);
   });
 
+  testWidgets('sin números de día, relaciona el nombre del día con el menú', (
+    tester,
+  ) async {
+    await preferences.setInt('routineDayOneWeekday', DateTime.now().weekday);
+    await RoutineRepository(db).saveRoutine(
+      userId,
+      const RoutineDraft(
+        name: 'Rutina',
+        days: [
+          RoutineDayDraft(name: 'Tren Inferior (Glúteo)'),
+          RoutineDayDraft(name: 'Tren Superior (Espalda)'),
+        ],
+      ),
+    );
+    await NutritionRepository(db).savePlan(
+      userId,
+      const NutritionPlanDraft(
+        name: 'Plan por tren',
+        menus: [
+          MenuDraft(
+            dayType: DayType.low,
+            title: 'Días de Tren Superior / Descanso',
+            meals: [
+              MealDraft(
+                name: 'Comida',
+                items: [
+                  ItemDraft(name: 'Tostadas', amount: 3, unit: FoodUnit.piece),
+                ],
+              ),
+            ],
+          ),
+          MenuDraft(
+            dayType: DayType.high,
+            title: 'Días de Tren Inferior',
+            meals: [
+              MealDraft(
+                name: 'Comida',
+                items: [
+                  ItemDraft(name: 'Arroz', amount: 90, unit: FoodUnit.gram),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    await openNutrition(tester);
+
+    expect(find.text('Arroz'), findsOneWidget);
+    expect(
+      find.text(
+        'Hoy toca el Día 1 de tu rutina (Tren Inferior (Glúteo)): día alto.',
+      ),
+      findsOneWidget,
+    );
+    await shutDown(tester);
+  });
+
   testWidgets('a un plan sin días se le indican a mano y elige el menú solo', (
     tester,
   ) async {
@@ -265,7 +323,7 @@ void main() {
         menus: [
           MenuDraft(
             dayType: DayType.high,
-            title: 'Días de tren inferior',
+            title: 'Opción A',
             meals: [
               MealDraft(
                 name: 'Comida',
@@ -277,7 +335,7 @@ void main() {
           ),
           MenuDraft(
             dayType: DayType.low,
-            title: 'Días de tren superior',
+            title: 'Opción B',
             meals: [
               MealDraft(
                 name: 'Comida',
