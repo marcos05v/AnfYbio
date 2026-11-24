@@ -2,6 +2,8 @@ import 'package:anfybio/app/appearance.dart';
 import 'package:anfybio/app/providers.dart';
 import 'package:anfybio/data/database.dart';
 import 'package:anfybio/data/repositories/nutrition_repository.dart';
+import 'package:anfybio/domain/routine.dart';
+import 'package:anfybio/data/repositories/routine_repository.dart';
 import 'package:anfybio/data/repositories/training_repository.dart';
 import 'package:anfybio/data/tables/sessions.dart';
 import 'package:anfybio/domain/nutrition.dart';
@@ -173,6 +175,71 @@ void main() {
     // Volver a elegir lo detectado quita la elección manual.
     await tap(tester, find.text('Descanso'));
     expect(find.text('Huevo entero'), findsOneWidget);
+    expect(preferences.getString('dayTypeOverride'), isNull);
+    await shutDown(tester);
+  });
+
+  testWidgets('si el plan dice los días de la rutina, elige el menú solo', (
+    tester,
+  ) async {
+    // Hoy es el Día 1 de la rutina.
+    await preferences.setInt('routineDayOneWeekday', DateTime.now().weekday);
+    await RoutineRepository(db).saveRoutine(
+      userId,
+      const RoutineDraft(
+        name: 'Rutina',
+        days: [
+          RoutineDayDraft(name: 'Torso'),
+          RoutineDayDraft(name: 'Pierna'),
+        ],
+      ),
+    );
+    await NutritionRepository(db).savePlan(
+      userId,
+      const NutritionPlanDraft(
+        name: 'Plan por días',
+        menus: [
+          MenuDraft(
+            dayType: DayType.high,
+            title: 'Días altos',
+            routineDays: [2],
+            meals: [
+              MealDraft(
+                name: 'Comida',
+                items: [
+                  ItemDraft(name: 'Arroz', amount: 90, unit: FoodUnit.gram),
+                ],
+              ),
+            ],
+          ),
+          MenuDraft(
+            dayType: DayType.low,
+            title: 'Días bajos',
+            routineDays: [1],
+            meals: [
+              MealDraft(
+                name: 'Comida',
+                items: [
+                  ItemDraft(name: 'Tostadas', amount: 3, unit: FoodUnit.piece),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    await openNutrition(tester);
+
+    expect(find.text('Tostadas'), findsOneWidget);
+    expect(
+      find.text('Hoy toca el Día 1 de tu rutina (Torso): día bajo.'),
+      findsOneWidget,
+    );
+
+    // Se puede cambiar a mano; volver al detectado regresa a automático.
+    await tap(tester, find.text('Día alto'));
+    expect(find.text('Arroz'), findsOneWidget);
+    await tap(tester, find.text('Día bajo'));
     expect(preferences.getString('dayTypeOverride'), isNull);
     await shutDown(tester);
   });

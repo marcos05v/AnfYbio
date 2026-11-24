@@ -123,6 +123,7 @@ class NutritionRepository {
                 planId: plan.id,
                 dayType: menuDraft.dayType,
                 title: menuDraft.title.trim(),
+                routineDays: Value(encodeRoutineDays(menuDraft.routineDays)),
               ),
             );
         for (final (mealIndex, mealDraft) in menuDraft.meals.indexed) {

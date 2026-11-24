@@ -231,7 +231,12 @@ class _PlanReviewScreenState extends ConsumerState<PlanReviewScreen> {
                     ),
                   for (final (menuIndex, menu) in _draft.menus.indexed) ...[
                     SectionHeader(
-                      'Días de ${dayTypeLabel(menu.dayType).toLowerCase()}',
+                      [
+                        'Días de ${dayTypeLabel(menu.dayType).toLowerCase()}',
+                        if (menu.routineDays.isNotEmpty)
+                          'días ${formatDayList(menu.routineDays)} de la '
+                              'rutina',
+                      ].join(' · '),
                     ),
                     for (final (mealIndex, meal) in menu.meals.indexed) ...[
                       Padding(

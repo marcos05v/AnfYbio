@@ -122,16 +122,19 @@ class SupplementRepository {
       final current = await (_db.select(
         _db.supplements,
       )..where((s) => s.userId.equals(userId) & s.deletedAt.isNull())).get();
-      final known = {for (final s in current) _key(s.name)};
+      // Cada plan escribe el nombre a su manera ("Omega-3" en uno, "Omega-3
+      // (EPA y DHA)" en otro): se compara el nombre principal, no el texto.
+      final known = [for (final s in current) s.name];
       final added = <String>[];
       final existing = <String>[];
       for (final entry in guide) {
         final name = entry.name.trim();
         if (name.isEmpty) continue;
-        if (!known.add(_key(name))) {
+        if (known.any((other) => isSameSupplement(other, name))) {
           existing.add(name);
           continue;
         }
+        known.add(name);
         final inventory = inventoryFromGuide(entry.dose);
         await _db
             .into(_db.supplements)
@@ -149,8 +152,6 @@ class SupplementRepository {
       return (added: added, existing: existing);
     });
   }
-
-  static String _key(String name) => name.trim().toLowerCase();
 
   Future<void> updateSupplement(
     String supplementId, {

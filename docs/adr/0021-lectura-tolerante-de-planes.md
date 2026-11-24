@@ -133,3 +133,16 @@ Después se agregó un formato más ("OPCIÓN A/B", comidas numeradas sin viñet
 con sus alimentos en viñetas "•", y suplementos con la dosis en el mismo
 renglón). Ese plan quedó al 100 % sin cambiar los demás. `revisar_planes.sh`
 ahora acepta PDFs sueltos además de carpetas.
+
+## Actualización (2026-11-23, días de la rutina y suplementos)
+
+- **Días de la rutina en cada menú.** Si el título del menú dice "día: 2,
+  5 y 3" o "(días 1, 4, 6 y 7)", esos números se guardan en el menú
+  (`plan_menus.routine_days`, esquema v12) y se quitan del título. En la
+  pantalla de alimentación, el menú de hoy sale del día de la rutina que
+  toca. Si el plan no dice días, se elige como antes: por sesión registrada
+  o a mano. Elegirlo a mano siempre manda.
+- **Suplementos repetidos al importar otro plan.** Al pasar la guía al
+  inventario, ya no se compara el nombre exacto sino el nombre principal
+  (`isSameSupplement`): "Omega-3" y "Omega-3 (Ácidos Grasos EPA y DHA)" son
+  el mismo.

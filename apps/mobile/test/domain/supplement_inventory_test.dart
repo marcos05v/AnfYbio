@@ -2,6 +2,30 @@ import 'package:anfybio/domain/supplement_inventory.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('mismo suplemento con otro nombre', () {
+    test('lo reconoce aunque cada plan lo escriba distinto', () {
+      for (final (a, b) in [
+        ('Omega-3', 'Omega 3 (EPA y DHA)'),
+        ('Magnesio', 'Citrato de Magnesio'),
+        ('Magnesio', 'Magnesio (Glicinato o Citrato de Magnesio)'),
+        ('Creatina monohidrato', 'Creatina Monohidratada'),
+        ('Multivitamínico', 'multivitaminico'),
+      ]) {
+        expect(isSameSupplement(a, b), isTrue, reason: '$a / $b');
+      }
+    });
+
+    test('no confunde suplementos distintos', () {
+      for (final (a, b) in [
+        ('Vitamina D3', 'Vitamina C'),
+        ('Magnesio', 'Zinc'),
+        ('Omega-3', 'Omega-6'),
+      ]) {
+        expect(isSameSupplement(a, b), isFalse, reason: '$a / $b');
+      }
+    });
+  });
+
   final today = DateTime(2026, 11, 16, 9);
   DateTime daysAgo(int days) => today.subtract(Duration(days: days));
 

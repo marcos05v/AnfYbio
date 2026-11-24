@@ -188,6 +188,13 @@ String formatDistance(int meters) => meters < 1000
     ? '$meters m'
     : '${formatNumber(meters / 1000, decimals: 2)} km';
 
+/// "2, 3 y 5": los días de la rutina de un menú, en orden.
+String formatDayList(List<int> days) {
+  final sorted = [...days]..sort();
+  if (sorted.length == 1) return '${sorted.single}';
+  return '${sorted.sublist(0, sorted.length - 1).join(', ')} y ${sorted.last}';
+}
+
 String dayTypeLabel(DayType dayType) => switch (dayType) {
   DayType.training => 'Entrenamiento',
   DayType.rest => 'Descanso',

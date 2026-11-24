@@ -192,3 +192,40 @@ int _max(int a, int b) => a > b ? a : b;
       ? (unitLabel: powderUnit, dailyDose: parsed!.amount)
       : (unitLabel: pillsUnit, dailyDose: 1);
 }
+
+/// Si dos nombres son del mismo suplemento, aunque cada plan lo escriba a
+/// su manera: "Omega-3" y "Omega 3 (EPA y DHA)", "Magnesio" y "Citrato de
+/// Magnesio", "Creatina monohidrato" y "Creatina Monohidratada".
+///
+/// Se queda con las palabras del nombre principal (sin paréntesis, acentos
+/// ni palabras como "de" u "o") y las compara por su raíz. Es el mismo si
+/// todas las palabras de uno están en el otro. "Vitamina D3" y "Vitamina C"
+/// siguen siendo distintos.
+bool isSameSupplement(String a, String b) {
+  final wordsA = _supplementWords(a);
+  final wordsB = _supplementWords(b);
+  if (wordsA.isEmpty || wordsB.isEmpty) return false;
+  final (small, large) = wordsA.length <= wordsB.length
+      ? (wordsA, wordsB)
+      : (wordsB, wordsA);
+  return large.containsAll(small);
+}
+
+Set<String> _supplementWords(String name) {
+  final main = name
+      .toLowerCase()
+      .replaceAll(RegExp(r'\([^)]*\)?'), ' ')
+      .replaceAll(RegExp('[áà]'), 'a')
+      .replaceAll(RegExp('[éè]'), 'e')
+      .replaceAll(RegExp('[íì]'), 'i')
+      .replaceAll(RegExp('[óò]'), 'o')
+      .replaceAll(RegExp('[úùü]'), 'u');
+  return {
+    for (final word in main.split(RegExp(r'[^a-z0-9ñ]+')))
+      if (word.isNotEmpty && !_supplementStopWords.contains(word))
+        // La raíz: "monohidrato" y "monohidratada" son la misma palabra.
+        word.length > 7 ? word.substring(0, 7) : word,
+  };
+}
+
+const _supplementStopWords = {'de', 'del', 'la', 'el', 'y', 'o', 'con', 'en'};

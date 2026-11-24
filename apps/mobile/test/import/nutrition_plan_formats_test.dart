@@ -29,6 +29,26 @@ void main() {
       expect(parsed.warnings, isEmpty);
     });
 
+    test('los días de la rutina de cada menú salen del título', () {
+      final [high, low] = parsed.draft.menus;
+      expect(
+        (high.title, low.title),
+        ('DÍAS DE MAYOR DEMANDA', 'DÍAS DE MENOR DEMANDA / DESCANSO'),
+      );
+      expect(high.routineDays, [1, 3]);
+      expect(low.routineDays, [2, 4]);
+      // "Días de descanso" no es una lista de días.
+      final plain = parseNutritionPlan(
+        'Plan\nDías de descanso (dias 1, 2 y 6)\n• Desayuno\n◦Avena: 40 g\n'
+        'Días de entrenamiento\n• Desayuno\n◦Avena: 60 g',
+      ).draft;
+      final [rest, training] = plain.menus;
+      expect((rest.dayType, rest.title), (DayType.rest, 'Días de descanso'));
+      expect(rest.routineDays, [1, 2, 6]);
+      expect(training.dayType, DayType.training);
+      expect(training.routineDays, isEmpty);
+    });
+
     test('las recomendaciones del final no son comidas', () {
       expect(parsed.draft.menus.last.meals.map((m) => m.name), [
         'Desayuno',

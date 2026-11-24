@@ -72,8 +72,9 @@ class AppDatabase extends _$AppDatabase {
   /// 9: platos con ingredientes y alternativas en el plan de alimentación.
   /// 10: indicaciones generales de la rutina.
   /// 11: básico o accesorio en cada ejercicio de la rutina.
+  /// 12: días de la rutina en que toca cada menú del plan.
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -136,6 +137,10 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from >= 3 && from < 11) {
         await m.addColumn(routineExercises, routineExercises.role);
+      }
+      // La tabla de menús existe desde la versión 2.
+      if (from >= 2 && from < 12) {
+        await m.addColumn(planMenus, planMenus.routineDays);
       }
     },
     beforeOpen: (details) async {

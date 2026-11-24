@@ -20,6 +20,32 @@ enum FoodState { raw, cooked, dry, unspecified }
 DayType dayTypeFor({required bool hasSessionToday, DayType? override}) =>
     override ?? (hasSessionToday ? DayType.training : DayType.rest);
 
+/// El menú que toca según el día de la rutina, si el plan lo indica: con
+/// "días altos: 2, 3 y 5", el Día 3 de la rutina es alto.
+///
+/// [routineDay] es el día de la rutina que toca hoy (Día 1 = 1), o `null`
+/// si no hay rutina o hoy es descanso. [menuDays] son los días de cada tipo
+/// de menú. Devuelve `null` si el plan no dice qué menú va ese día.
+DayType? dayTypeForRoutineDay(
+  int? routineDay,
+  Map<DayType, List<int>> menuDays,
+) {
+  if (routineDay == null) return null;
+  for (final MapEntry(key: type, value: days) in menuDays.entries) {
+    if (days.contains(routineDay)) return type;
+  }
+  return null;
+}
+
+/// Convierte los días de la rutina a texto para guardarlos ("2,3,5"), y de
+/// vuelta. Vacío ↔ nulo.
+String? encodeRoutineDays(List<int> days) =>
+    days.isEmpty ? null : ([...days]..sort()).join(',');
+
+List<int> decodeRoutineDays(String? text) => [
+  for (final part in (text ?? '').split(',')) ?int.tryParse(part.trim()),
+];
+
 /// Si la app puede elegir sola el menú de hoy: solo cuando el plan separa
 /// entrenamiento y descanso. Con días altos y bajos (se entrena en los dos)
 /// lo elige el usuario.
@@ -77,15 +103,24 @@ class MenuDraft {
   const MenuDraft({
     required this.dayType,
     required this.title,
+    this.routineDays = const [],
     this.meals = const [],
   });
 
   final DayType dayType;
   final String title;
+
+  /// Los días de la rutina (Día 1 = 1) en que toca este menú, si el plan
+  /// los indica ("día: 2, 5 y 3"). Vacío si no.
+  final List<int> routineDays;
   final List<MealDraft> meals;
 
-  MenuDraft copyWith({List<MealDraft>? meals}) =>
-      MenuDraft(dayType: dayType, title: title, meals: meals ?? this.meals);
+  MenuDraft copyWith({List<MealDraft>? meals}) => MenuDraft(
+    dayType: dayType,
+    title: title,
+    routineDays: routineDays,
+    meals: meals ?? this.meals,
+  );
 }
 
 class MealDraft {

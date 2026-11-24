@@ -6845,6 +6845,17 @@ class $PlanMenusTable extends PlanMenus
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _routineDaysMeta = const VerificationMeta(
+    'routineDays',
+  );
+  @override
+  late final GeneratedColumn<String> routineDays = GeneratedColumn<String>(
+    'routine_days',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -6855,6 +6866,7 @@ class $PlanMenusTable extends PlanMenus
     planId,
     dayType,
     title,
+    routineDays,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6913,6 +6925,15 @@ class $PlanMenusTable extends PlanMenus
     } else if (isInserting) {
       context.missing(_titleMeta);
     }
+    if (data.containsKey('routine_days')) {
+      context.handle(
+        _routineDaysMeta,
+        routineDays.isAcceptableOrUnknown(
+          data['routine_days']!,
+          _routineDaysMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -6956,6 +6977,10 @@ class $PlanMenusTable extends PlanMenus
         DriftSqlType.string,
         data['${effectivePrefix}title'],
       )!,
+      routineDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}routine_days'],
+      ),
     );
   }
 
@@ -6977,6 +7002,10 @@ class PlanMenu extends DataClass implements Insertable<PlanMenu> {
   final String planId;
   final DayType dayType;
   final String title;
+
+  /// Días de la rutina en que toca este menú, separados por coma ("2,3,5").
+  /// Nulo si el plan no los indica.
+  final String? routineDays;
   const PlanMenu({
     required this.id,
     required this.createdAt,
@@ -6986,6 +7015,7 @@ class PlanMenu extends DataClass implements Insertable<PlanMenu> {
     required this.planId,
     required this.dayType,
     required this.title,
+    this.routineDays,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -7004,6 +7034,9 @@ class PlanMenu extends DataClass implements Insertable<PlanMenu> {
       );
     }
     map['title'] = Variable<String>(title);
+    if (!nullToAbsent || routineDays != null) {
+      map['routine_days'] = Variable<String>(routineDays);
+    }
     return map;
   }
 
@@ -7019,6 +7052,9 @@ class PlanMenu extends DataClass implements Insertable<PlanMenu> {
       planId: Value(planId),
       dayType: Value(dayType),
       title: Value(title),
+      routineDays: routineDays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(routineDays),
     );
   }
 
@@ -7038,6 +7074,7 @@ class PlanMenu extends DataClass implements Insertable<PlanMenu> {
         serializer.fromJson<String>(json['dayType']),
       ),
       title: serializer.fromJson<String>(json['title']),
+      routineDays: serializer.fromJson<String?>(json['routineDays']),
     );
   }
   @override
@@ -7054,6 +7091,7 @@ class PlanMenu extends DataClass implements Insertable<PlanMenu> {
         $PlanMenusTable.$converterdayType.toJson(dayType),
       ),
       'title': serializer.toJson<String>(title),
+      'routineDays': serializer.toJson<String?>(routineDays),
     };
   }
 
@@ -7066,6 +7104,7 @@ class PlanMenu extends DataClass implements Insertable<PlanMenu> {
     String? planId,
     DayType? dayType,
     String? title,
+    Value<String?> routineDays = const Value.absent(),
   }) => PlanMenu(
     id: id ?? this.id,
     createdAt: createdAt ?? this.createdAt,
@@ -7075,6 +7114,7 @@ class PlanMenu extends DataClass implements Insertable<PlanMenu> {
     planId: planId ?? this.planId,
     dayType: dayType ?? this.dayType,
     title: title ?? this.title,
+    routineDays: routineDays.present ? routineDays.value : this.routineDays,
   );
   PlanMenu copyWithCompanion(PlanMenusCompanion data) {
     return PlanMenu(
@@ -7086,6 +7126,9 @@ class PlanMenu extends DataClass implements Insertable<PlanMenu> {
       planId: data.planId.present ? data.planId.value : this.planId,
       dayType: data.dayType.present ? data.dayType.value : this.dayType,
       title: data.title.present ? data.title.value : this.title,
+      routineDays: data.routineDays.present
+          ? data.routineDays.value
+          : this.routineDays,
     );
   }
 
@@ -7099,7 +7142,8 @@ class PlanMenu extends DataClass implements Insertable<PlanMenu> {
           ..write('userId: $userId, ')
           ..write('planId: $planId, ')
           ..write('dayType: $dayType, ')
-          ..write('title: $title')
+          ..write('title: $title, ')
+          ..write('routineDays: $routineDays')
           ..write(')'))
         .toString();
   }
@@ -7114,6 +7158,7 @@ class PlanMenu extends DataClass implements Insertable<PlanMenu> {
     planId,
     dayType,
     title,
+    routineDays,
   );
   @override
   bool operator ==(Object other) =>
@@ -7126,7 +7171,8 @@ class PlanMenu extends DataClass implements Insertable<PlanMenu> {
           other.userId == this.userId &&
           other.planId == this.planId &&
           other.dayType == this.dayType &&
-          other.title == this.title);
+          other.title == this.title &&
+          other.routineDays == this.routineDays);
 }
 
 class PlanMenusCompanion extends UpdateCompanion<PlanMenu> {
@@ -7138,6 +7184,7 @@ class PlanMenusCompanion extends UpdateCompanion<PlanMenu> {
   final Value<String> planId;
   final Value<DayType> dayType;
   final Value<String> title;
+  final Value<String?> routineDays;
   final Value<int> rowid;
   const PlanMenusCompanion({
     this.id = const Value.absent(),
@@ -7148,6 +7195,7 @@ class PlanMenusCompanion extends UpdateCompanion<PlanMenu> {
     this.planId = const Value.absent(),
     this.dayType = const Value.absent(),
     this.title = const Value.absent(),
+    this.routineDays = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PlanMenusCompanion.insert({
@@ -7159,6 +7207,7 @@ class PlanMenusCompanion extends UpdateCompanion<PlanMenu> {
     required String planId,
     required DayType dayType,
     required String title,
+    this.routineDays = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : userId = Value(userId),
        planId = Value(planId),
@@ -7173,6 +7222,7 @@ class PlanMenusCompanion extends UpdateCompanion<PlanMenu> {
     Expression<String>? planId,
     Expression<String>? dayType,
     Expression<String>? title,
+    Expression<String>? routineDays,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -7184,6 +7234,7 @@ class PlanMenusCompanion extends UpdateCompanion<PlanMenu> {
       if (planId != null) 'plan_id': planId,
       if (dayType != null) 'day_type': dayType,
       if (title != null) 'title': title,
+      if (routineDays != null) 'routine_days': routineDays,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -7197,6 +7248,7 @@ class PlanMenusCompanion extends UpdateCompanion<PlanMenu> {
     Value<String>? planId,
     Value<DayType>? dayType,
     Value<String>? title,
+    Value<String?>? routineDays,
     Value<int>? rowid,
   }) {
     return PlanMenusCompanion(
@@ -7208,6 +7260,7 @@ class PlanMenusCompanion extends UpdateCompanion<PlanMenu> {
       planId: planId ?? this.planId,
       dayType: dayType ?? this.dayType,
       title: title ?? this.title,
+      routineDays: routineDays ?? this.routineDays,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -7241,6 +7294,9 @@ class PlanMenusCompanion extends UpdateCompanion<PlanMenu> {
     if (title.present) {
       map['title'] = Variable<String>(title.value);
     }
+    if (routineDays.present) {
+      map['routine_days'] = Variable<String>(routineDays.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -7258,6 +7314,7 @@ class PlanMenusCompanion extends UpdateCompanion<PlanMenu> {
           ..write('planId: $planId, ')
           ..write('dayType: $dayType, ')
           ..write('title: $title, ')
+          ..write('routineDays: $routineDays, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -22071,6 +22128,7 @@ typedef $$PlanMenusTableCreateCompanionBuilder = PlanMenusCompanion Function({
   required String planId,
   required DayType dayType,
   required String title,
+  Value<String?> routineDays,
   Value<int> rowid,
 });
 typedef $$PlanMenusTableUpdateCompanionBuilder = PlanMenusCompanion Function({
@@ -22082,6 +22140,7 @@ typedef $$PlanMenusTableUpdateCompanionBuilder = PlanMenusCompanion Function({
   Value<String> planId,
   Value<DayType> dayType,
   Value<String> title,
+  Value<String?> routineDays,
   Value<int> rowid,
 });
 
@@ -22179,6 +22238,11 @@ class $$PlanMenusTableFilterComposer
 
   ColumnFilters<String> get title => $composableBuilder(
     column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get routineDays => $composableBuilder(
+    column: $table.routineDays,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -22293,6 +22357,11 @@ class $$PlanMenusTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get routineDays => $composableBuilder(
+    column: $table.routineDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$UsersTableOrderingComposer get userId {
     final $$UsersTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -22366,6 +22435,11 @@ class $$PlanMenusTableAnnotationComposer
 
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get routineDays => $composableBuilder(
+    column: $table.routineDays,
+    builder: (column) => column,
+  );
 
   $$UsersTableAnnotationComposer get userId {
     final $$UsersTableAnnotationComposer composer = $composerBuilder(
@@ -22475,6 +22549,7 @@ class $$PlanMenusTableTableManager
                 Value<String> planId = const Value.absent(),
                 Value<DayType> dayType = const Value.absent(),
                 Value<String> title = const Value.absent(),
+                Value<String?> routineDays = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PlanMenusCompanion(
                 id: id,
@@ -22485,6 +22560,7 @@ class $$PlanMenusTableTableManager
                 planId: planId,
                 dayType: dayType,
                 title: title,
+                routineDays: routineDays,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -22497,6 +22573,7 @@ class $$PlanMenusTableTableManager
                 required String planId,
                 required DayType dayType,
                 required String title,
+                Value<String?> routineDays = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PlanMenusCompanion.insert(
                 id: id,
@@ -22507,6 +22584,7 @@ class $$PlanMenusTableTableManager
                 planId: planId,
                 dayType: dayType,
                 title: title,
+                routineDays: routineDays,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

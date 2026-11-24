@@ -8,6 +8,7 @@ import '../data/database.dart';
 import '../data/repositories/nutrition_repository.dart';
 import '../domain/cooking.dart';
 import '../domain/nutrition.dart';
+import '../domain/routine.dart';
 import '../import/nutrition_plan_parser.dart';
 import 'batches_screen.dart';
 import 'formatting.dart';
@@ -278,12 +279,32 @@ class _PlanBody extends ConsumerWidget {
       for (final type in DayType.values)
         if (view.menuFor(type) != null) type,
     ];
-    final canDetect = canDetectDayType(planDayTypes);
+    // Si el plan dice en qué días de la rutina va cada menú ("días altos:
+    // 2, 3 y 5"), manda el día de la rutina que toca hoy.
+    final routine = ref.watch(activeRoutineProvider(user.id)).value;
+    final routineIndex = routine == null || routine.days.isEmpty
+        ? null
+        : routineDayIndexFor(
+            date: now,
+            dayCount: routine.days.length,
+            dayOneWeekday: ref.watch(routineDayOneProvider),
+          );
+    final byRoutine = dayTypeForRoutineDay(
+      routineIndex == null ? null : routineIndex + 1,
+      {
+        for (final menu in view.menus)
+          menu.menu.dayType: decodeRoutineDays(menu.menu.routineDays),
+      },
+    );
+    final bySession = canDetectDayType(planDayTypes);
+    final canDetect = byRoutine != null || bySession;
     final saved = ref.watch(dayTypeOverrideProvider);
     final override = planDayTypes.contains(saved) ? saved : null;
-    final detected = canDetect
-        ? dayTypeFor(hasSessionToday: hasSessionToday)
-        : planDayTypes.firstOrNull ?? DayType.training;
+    final detected =
+        byRoutine ??
+        (bySession
+            ? dayTypeFor(hasSessionToday: hasSessionToday)
+            : planDayTypes.firstOrNull ?? DayType.training);
     final dayType = override ?? detected;
     final menu = view.menuFor(dayType);
     final secondary = textStyle(
@@ -343,6 +364,10 @@ class _PlanBody extends ConsumerWidget {
             child: Text(
               override != null
                   ? 'Elegido por ti para hoy.'
+                  : byRoutine != null
+                  ? 'Hoy toca el Día ${routineIndex! + 1} de tu rutina '
+                        '(${routine!.days[routineIndex].day.name}): '
+                        '${dayTypeLabel(byRoutine).toLowerCase()}.'
                   : !canDetect
                   ? 'Toca el menú que te toca hoy; la app lo recuerda hasta '
                         'mañana.'

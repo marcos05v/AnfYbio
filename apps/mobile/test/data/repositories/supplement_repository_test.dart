@@ -354,6 +354,34 @@ void main() {
       expect(vitamin.supplement.timing, 'Con el desayuno');
     });
 
+    test(
+      'un plan nuevo que escribe distinto el nombre no lo duplica',
+      () async {
+        await repo.addFromGuide(userId, [
+          (
+            name: 'Omega-3 (Ácidos Grasos EPA y DHA)',
+            dose: '2 g',
+            timing: null,
+          ),
+          (
+            name: 'Magnesio (Glicinato o Citrato)',
+            dose: '200 mg',
+            timing: null,
+          ),
+        ]);
+
+        final result = await repo.addFromGuide(userId, [
+          (name: 'Omega-3', dose: '1,000–2,000 mg al día', timing: null),
+          (name: 'Creatina monohidrato', dose: '5 g por día', timing: null),
+          (name: 'Magnesio', dose: '200 mg al día', timing: null),
+        ]);
+
+        expect(result.added, ['Creatina monohidrato']);
+        expect(result.existing, ['Omega-3', 'Magnesio']);
+        expect(await repo.supplementsOf(userId), hasLength(3));
+      },
+    );
+
     test('sin guía no agrega nada', () async {
       final result = await repo.addFromGuide(userId, const []);
       expect(result.added, isEmpty);

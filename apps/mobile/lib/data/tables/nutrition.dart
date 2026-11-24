@@ -32,6 +32,10 @@ class PlanMenus extends Table with SyncColumns {
   TextColumn get planId => text().references(NutritionPlans, #id)();
   TextColumn get dayType => textEnum<DayType>()();
   TextColumn get title => text().withLength(min: 1, max: 150)();
+
+  /// Días de la rutina en que toca este menú, separados por coma ("2,3,5").
+  /// Nulo si el plan no los indica.
+  TextColumn get routineDays => text().nullable()();
 }
 
 /// Un tiempo de comida dentro de un menú: desayuno, pre-entreno, cena…

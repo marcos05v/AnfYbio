@@ -2,6 +2,31 @@ import 'package:anfybio/domain/nutrition.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('menú según el día de la rutina', () {
+    const menuDays = {
+      DayType.high: [2, 3, 5],
+      DayType.low: [1, 4, 6, 7],
+    };
+
+    test('el día de la rutina dice qué menú toca', () {
+      expect(dayTypeForRoutineDay(3, menuDays), DayType.high);
+      expect(dayTypeForRoutineDay(7, menuDays), DayType.low);
+    });
+
+    test('sin rutina, o un día que el plan no menciona, no decide', () {
+      expect(dayTypeForRoutineDay(null, menuDays), isNull);
+      expect(dayTypeForRoutineDay(8, menuDays), isNull);
+      expect(dayTypeForRoutineDay(1, const {}), isNull);
+    });
+
+    test('se guardan como texto y se leen de vuelta', () {
+      expect(encodeRoutineDays([5, 2, 3]), '2,3,5');
+      expect(encodeRoutineDays([]), isNull);
+      expect(decodeRoutineDays('2,3,5'), [2, 3, 5]);
+      expect(decodeRoutineDays(null), isEmpty);
+    });
+  });
+
   group('tipo de día', () {
     test('con una sesión registrada hoy es día de entrenamiento', () {
       expect(dayTypeFor(hasSessionToday: true), DayType.training);

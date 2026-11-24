@@ -81,7 +81,22 @@ ParsedNutritionPlan parseNutritionPlan(String text, {String? fileName}) {
   for (final line in joinedLines) {
     final title = _menuTitle(line);
     if (title != null) {
-      menus.add(_Menu(title, _dayTypeOf(title, menus.length, warnings)));
+      final days = _routineDays.firstMatch(title);
+      final cleanTitle = days == null
+          ? title
+          : title.replaceRange(days.start, days.end, '').trim();
+      menus.add(
+        _Menu(
+          cleanTitle,
+          _dayTypeOf(cleanTitle, menus.length, warnings),
+          routineDays: days == null
+              ? const []
+              : [
+                  for (final n in RegExp(r'\d+').allMatches(days.group(1)!))
+                    int.parse(n.group(0)!),
+                ],
+        ),
+      );
       inNotes = false;
       pendingAlternative = false;
     } else if (inNotes) {
@@ -169,6 +184,7 @@ ParsedNutritionPlan parseNutritionPlan(String text, {String? fileName}) {
           MenuDraft(
             dayType: menu.dayType,
             title: menu.title,
+            routineDays: menu.routineDays,
             meals: [
               for (final meal in menu.meals)
                 MealDraft(
@@ -276,6 +292,14 @@ String? _menuTitle(String line) {
   return _dayHeader.hasMatch(text) ? text : null;
 }
 
+/// Los días de la rutina que lleva un menú: "día: 2,5 y 3", "(días 1, 4,
+/// 6 y 7)". Se exige que el número vaya justo después, para no confundirlo
+/// con "Días de descanso".
+final _routineDays = RegExp(
+  r'\(?\s*d[iíÍ]as?\s*:?\s*(\d+(?:\s*(?:,|y|e)\s*\d+)*)\s*\)?',
+  caseSensitive: false,
+);
+
 final _weighingHeader = RegExp(
   r'^Indicaciones de pesaje',
   caseSensitive: false,
@@ -286,10 +310,11 @@ final _supplementsHeader = RegExp(
 );
 
 class _Menu {
-  _Menu(this.title, this.dayType);
+  _Menu(this.title, this.dayType, {this.routineDays = const []});
 
   final String title;
   final DayType dayType;
+  final List<int> routineDays;
   final meals = <_Meal>[];
 }
 
