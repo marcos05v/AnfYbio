@@ -9571,6 +9571,15 @@ class $RoutineExercisesTable extends RoutineExercises
     requiredDuringInsert: false,
   );
   @override
+  late final GeneratedColumnWithTypeConverter<ExerciseRole?, String> role =
+      GeneratedColumn<String>(
+        'role',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<ExerciseRole?>($RoutineExercisesTable.$converterrolen);
+  @override
   List<GeneratedColumn> get $columns => [
     id,
     createdAt,
@@ -9589,6 +9598,7 @@ class $RoutineExercisesTable extends RoutineExercises
     repsNote,
     supersetWithPrevious,
     note,
+    role,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -9789,6 +9799,12 @@ class $RoutineExercisesTable extends RoutineExercises
         DriftSqlType.string,
         data['${effectivePrefix}note'],
       ),
+      role: $RoutineExercisesTable.$converterrolen.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}role'],
+        ),
+      ),
     );
   }
 
@@ -9796,6 +9812,11 @@ class $RoutineExercisesTable extends RoutineExercises
   $RoutineExercisesTable createAlias(String alias) {
     return $RoutineExercisesTable(attachedDatabase, alias);
   }
+
+  static JsonTypeConverter2<ExerciseRole, String, String> $converterrole =
+      const EnumNameConverter<ExerciseRole>(ExerciseRole.values);
+  static JsonTypeConverter2<ExerciseRole?, String?, String?> $converterrolen =
+      JsonTypeConverter2.asNullable($converterrole);
 }
 
 class RoutineExercise extends DataClass implements Insertable<RoutineExercise> {
@@ -9823,6 +9844,10 @@ class RoutineExercise extends DataClass implements Insertable<RoutineExercise> {
   /// Forma biserie con el ejercicio anterior del mismo día.
   final bool supersetWithPrevious;
   final String? note;
+
+  /// Básico o accesorio, si el usuario lo eligió. Nulo: se deduce del nombre
+  /// cada vez que se muestra (así mejora si mejora la deducción).
+  final ExerciseRole? role;
   const RoutineExercise({
     required this.id,
     required this.createdAt,
@@ -9841,6 +9866,7 @@ class RoutineExercise extends DataClass implements Insertable<RoutineExercise> {
     this.repsNote,
     required this.supersetWithPrevious,
     this.note,
+    this.role,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -9878,6 +9904,11 @@ class RoutineExercise extends DataClass implements Insertable<RoutineExercise> {
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
     }
+    if (!nullToAbsent || role != null) {
+      map['role'] = Variable<String>(
+        $RoutineExercisesTable.$converterrolen.toSql(role),
+      );
+    }
     return map;
   }
 
@@ -9914,6 +9945,7 @@ class RoutineExercise extends DataClass implements Insertable<RoutineExercise> {
           : Value(repsNote),
       supersetWithPrevious: Value(supersetWithPrevious),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      role: role == null && nullToAbsent ? const Value.absent() : Value(role),
     );
   }
 
@@ -9942,6 +9974,9 @@ class RoutineExercise extends DataClass implements Insertable<RoutineExercise> {
         json['supersetWithPrevious'],
       ),
       note: serializer.fromJson<String?>(json['note']),
+      role: $RoutineExercisesTable.$converterrolen.fromJson(
+        serializer.fromJson<String?>(json['role']),
+      ),
     );
   }
   @override
@@ -9965,6 +10000,9 @@ class RoutineExercise extends DataClass implements Insertable<RoutineExercise> {
       'repsNote': serializer.toJson<String?>(repsNote),
       'supersetWithPrevious': serializer.toJson<bool>(supersetWithPrevious),
       'note': serializer.toJson<String?>(note),
+      'role': serializer.toJson<String?>(
+        $RoutineExercisesTable.$converterrolen.toJson(role),
+      ),
     };
   }
 
@@ -9986,6 +10024,7 @@ class RoutineExercise extends DataClass implements Insertable<RoutineExercise> {
     Value<String?> repsNote = const Value.absent(),
     bool? supersetWithPrevious,
     Value<String?> note = const Value.absent(),
+    Value<ExerciseRole?> role = const Value.absent(),
   }) => RoutineExercise(
     id: id ?? this.id,
     createdAt: createdAt ?? this.createdAt,
@@ -10004,6 +10043,7 @@ class RoutineExercise extends DataClass implements Insertable<RoutineExercise> {
     repsNote: repsNote.present ? repsNote.value : this.repsNote,
     supersetWithPrevious: supersetWithPrevious ?? this.supersetWithPrevious,
     note: note.present ? note.value : this.note,
+    role: role.present ? role.value : this.role,
   );
   RoutineExercise copyWithCompanion(RoutineExercisesCompanion data) {
     return RoutineExercise(
@@ -10032,6 +10072,7 @@ class RoutineExercise extends DataClass implements Insertable<RoutineExercise> {
           ? data.supersetWithPrevious.value
           : this.supersetWithPrevious,
       note: data.note.present ? data.note.value : this.note,
+      role: data.role.present ? data.role.value : this.role,
     );
   }
 
@@ -10054,7 +10095,8 @@ class RoutineExercise extends DataClass implements Insertable<RoutineExercise> {
           ..write('repsMax: $repsMax, ')
           ..write('repsNote: $repsNote, ')
           ..write('supersetWithPrevious: $supersetWithPrevious, ')
-          ..write('note: $note')
+          ..write('note: $note, ')
+          ..write('role: $role')
           ..write(')'))
         .toString();
   }
@@ -10078,6 +10120,7 @@ class RoutineExercise extends DataClass implements Insertable<RoutineExercise> {
     repsNote,
     supersetWithPrevious,
     note,
+    role,
   );
   @override
   bool operator ==(Object other) =>
@@ -10099,7 +10142,8 @@ class RoutineExercise extends DataClass implements Insertable<RoutineExercise> {
           other.repsMax == this.repsMax &&
           other.repsNote == this.repsNote &&
           other.supersetWithPrevious == this.supersetWithPrevious &&
-          other.note == this.note);
+          other.note == this.note &&
+          other.role == this.role);
 }
 
 class RoutineExercisesCompanion extends UpdateCompanion<RoutineExercise> {
@@ -10120,6 +10164,7 @@ class RoutineExercisesCompanion extends UpdateCompanion<RoutineExercise> {
   final Value<String?> repsNote;
   final Value<bool> supersetWithPrevious;
   final Value<String?> note;
+  final Value<ExerciseRole?> role;
   final Value<int> rowid;
   const RoutineExercisesCompanion({
     this.id = const Value.absent(),
@@ -10139,6 +10184,7 @@ class RoutineExercisesCompanion extends UpdateCompanion<RoutineExercise> {
     this.repsNote = const Value.absent(),
     this.supersetWithPrevious = const Value.absent(),
     this.note = const Value.absent(),
+    this.role = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   RoutineExercisesCompanion.insert({
@@ -10159,6 +10205,7 @@ class RoutineExercisesCompanion extends UpdateCompanion<RoutineExercise> {
     this.repsNote = const Value.absent(),
     this.supersetWithPrevious = const Value.absent(),
     this.note = const Value.absent(),
+    this.role = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : userId = Value(userId),
        dayId = Value(dayId),
@@ -10182,6 +10229,7 @@ class RoutineExercisesCompanion extends UpdateCompanion<RoutineExercise> {
     Expression<String>? repsNote,
     Expression<bool>? supersetWithPrevious,
     Expression<String>? note,
+    Expression<String>? role,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -10203,6 +10251,7 @@ class RoutineExercisesCompanion extends UpdateCompanion<RoutineExercise> {
       if (supersetWithPrevious != null)
         'superset_with_previous': supersetWithPrevious,
       if (note != null) 'note': note,
+      if (role != null) 'role': role,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -10225,6 +10274,7 @@ class RoutineExercisesCompanion extends UpdateCompanion<RoutineExercise> {
     Value<String?>? repsNote,
     Value<bool>? supersetWithPrevious,
     Value<String?>? note,
+    Value<ExerciseRole?>? role,
     Value<int>? rowid,
   }) {
     return RoutineExercisesCompanion(
@@ -10245,6 +10295,7 @@ class RoutineExercisesCompanion extends UpdateCompanion<RoutineExercise> {
       repsNote: repsNote ?? this.repsNote,
       supersetWithPrevious: supersetWithPrevious ?? this.supersetWithPrevious,
       note: note ?? this.note,
+      role: role ?? this.role,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -10305,6 +10356,11 @@ class RoutineExercisesCompanion extends UpdateCompanion<RoutineExercise> {
     if (note.present) {
       map['note'] = Variable<String>(note.value);
     }
+    if (role.present) {
+      map['role'] = Variable<String>(
+        $RoutineExercisesTable.$converterrolen.toSql(role.value),
+      );
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -10331,6 +10387,7 @@ class RoutineExercisesCompanion extends UpdateCompanion<RoutineExercise> {
           ..write('repsNote: $repsNote, ')
           ..write('supersetWithPrevious: $supersetWithPrevious, ')
           ..write('note: $note, ')
+          ..write('role: $role, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -24260,6 +24317,7 @@ typedef $$RoutineExercisesTableCreateCompanionBuilder =
       Value<String?> repsNote,
       Value<bool> supersetWithPrevious,
       Value<String?> note,
+      Value<ExerciseRole?> role,
       Value<int> rowid,
     });
 typedef $$RoutineExercisesTableUpdateCompanionBuilder =
@@ -24281,6 +24339,7 @@ typedef $$RoutineExercisesTableUpdateCompanionBuilder =
       Value<String?> repsNote,
       Value<bool> supersetWithPrevious,
       Value<String?> note,
+      Value<ExerciseRole?> role,
       Value<int> rowid,
     });
 
@@ -24422,6 +24481,12 @@ class $$RoutineExercisesTableFilterComposer
   ColumnFilters<String> get note => $composableBuilder(
     column: $table.note,
     builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<ExerciseRole?, ExerciseRole, String>
+  get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
   $$UsersTableFilterComposer get userId {
@@ -24573,6 +24638,11 @@ class $$RoutineExercisesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$UsersTableOrderingComposer get userId {
     final $$UsersTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -24700,6 +24770,9 @@ class $$RoutineExercisesTableAnnotationComposer
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
 
+  GeneratedColumnWithTypeConverter<ExerciseRole?, String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+
   $$UsersTableAnnotationComposer get userId {
     final $$UsersTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -24817,6 +24890,7 @@ class $$RoutineExercisesTableTableManager
                 Value<String?> repsNote = const Value.absent(),
                 Value<bool> supersetWithPrevious = const Value.absent(),
                 Value<String?> note = const Value.absent(),
+                Value<ExerciseRole?> role = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RoutineExercisesCompanion(
                 id: id,
@@ -24836,6 +24910,7 @@ class $$RoutineExercisesTableTableManager
                 repsNote: repsNote,
                 supersetWithPrevious: supersetWithPrevious,
                 note: note,
+                role: role,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -24857,6 +24932,7 @@ class $$RoutineExercisesTableTableManager
                 Value<String?> repsNote = const Value.absent(),
                 Value<bool> supersetWithPrevious = const Value.absent(),
                 Value<String?> note = const Value.absent(),
+                Value<ExerciseRole?> role = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RoutineExercisesCompanion.insert(
                 id: id,
@@ -24876,6 +24952,7 @@ class $$RoutineExercisesTableTableManager
                 repsNote: repsNote,
                 supersetWithPrevious: supersetWithPrevious,
                 note: note,
+                role: role,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -50,10 +50,18 @@ class RoutineExerciseDraft {
     this.repsNote,
     this.supersetWithPrevious = false,
     this.note,
+    this.role,
     this.warning,
   });
 
   final String name;
+
+  /// Básico o accesorio, si el usuario lo eligió; `null` = se deduce del
+  /// nombre ([effectiveRole]).
+  final ExerciseRole? role;
+
+  /// El tipo que vale para este ejercicio: el elegido o el deducido.
+  ExerciseRole? get effectiveRole => role ?? exerciseRoleFor(name);
 
   /// Encabezado bajo el que aparece en el plan: "Pecho", "Tríceps"…
   final String? groupLabel;
@@ -78,6 +86,155 @@ class RoutineExerciseDraft {
   /// guarda en la base de datos.
   final String? warning;
 }
+
+/// Qué tipo de ejercicio es, para saber cuánto descansar entre series.
+///
+/// - **Básico** (compuesto): mueve varias articulaciones y mucho peso
+///   (sentadilla, press, remo, peso muerto); pide descansos largos.
+/// - **Accesorio** (aislamiento): una sola articulación, menos peso (curl,
+///   extensiones, elevaciones); basta con descansos cortos.
+///
+/// Se guarda por nombre, así que agregar tipos no requiere migración.
+enum ExerciseRole { compound, accessory }
+
+/// El tipo que se deduce del nombre del ejercicio, o `null` si el nombre no
+/// lo deja claro (entonces lo indica el usuario).
+///
+/// Se buscan primero las palabras de accesorio, porque son más específicas:
+/// "Press **francés**" es de tríceps aunque diga "press", y "**Curl**
+/// femoral" es de una articulación aunque trabaje pierna.
+ExerciseRole? exerciseRoleFor(String name) {
+  final text = _withoutAccents(name.toLowerCase());
+  bool has(List<String> words) =>
+      words.any((word) => RegExp('(?<![a-z])$word').hasMatch(text));
+  // Calentamiento, cardio, movilidad: no son series de fuerza.
+  if (has(_warmupWords)) return null;
+  if (has(_accessoryWords)) return ExerciseRole.accessory;
+  if (has(_compoundWords)) return ExerciseRole.compound;
+  return null;
+}
+
+const _warmupWords = [
+  'calentamiento',
+  'activacion',
+  'cardio',
+  'movilidad',
+  'estiramiento',
+];
+
+const _accessoryWords = [
+  'hiperextension',
+  'a?d?ductor',
+  'puente',
+  'cruch',
+  'press frances',
+  'curl',
+  'extension',
+  'elevacion',
+  'apertura',
+  'cruce',
+  'pajaro',
+  'encogimiento',
+  'face pull',
+  'pull ?over',
+  'abduccion',
+  'aduccion',
+  'patada',
+  'gemelo',
+  'talon',
+  'pantorrilla',
+  'plancha',
+  'crunch',
+  'abdominal',
+  'oblicuo',
+  'fly',
+  'raise',
+  'kickback',
+  'skull',
+  'rompecraneo',
+  'predicador',
+  'martillo',
+  'concentrad',
+  'contractor',
+  'pec ?deck',
+  'peck ?deck',
+  'core',
+];
+
+const _compoundWords = [
+  'desplante',
+  'press',
+  'sentadilla',
+  'squat',
+  'prensa',
+  'peso muerto',
+  'deadlift',
+  'remo',
+  'row',
+  'jalon',
+  'dominada',
+  'pull[- ]?up',
+  'chin[- ]?up',
+  'fondo',
+  'dip',
+  'hip thrust',
+  'zancada',
+  'estocada',
+  'lunge',
+  'bulgara',
+  'hack',
+  'step[- ]?up',
+  'buenos dias',
+  'good morning',
+  'cargada',
+  'clean',
+  'arranque',
+  'snatch',
+  'thruster',
+  'flexiones',
+  'lagartija',
+  'militar',
+  'bench',
+];
+
+String _withoutAccents(String text) => text
+    .replaceAll(RegExp('[áà]'), 'a')
+    .replaceAll(RegExp('[éè]'), 'e')
+    .replaceAll(RegExp('[íì]'), 'i')
+    .replaceAll(RegExp('[óò]'), 'o')
+    .replaceAll(RegExp('[úùü]'), 'u');
+
+/// Descanso entre series para cada tipo de ejercicio: "2–3 min".
+///
+/// Si las indicaciones generales de la rutina lo dicen ("Descansos de 2–3
+/// min en básicos y 60–90 seg en accesorios"), manda lo que dice el plan. Si
+/// no, se usan los rangos habituales para hipertrofia.
+String restFor(ExerciseRole role, {String? routineNotes}) {
+  final notes = _withoutAccents((routineNotes ?? '').toLowerCase());
+  for (final match in _restInNotes.allMatches(notes)) {
+    final target =
+        match.group(3)!.startsWith('accesori') ||
+            match.group(3)!.startsWith('aisla')
+        ? ExerciseRole.accessory
+        : ExerciseRole.compound;
+    if (target != role) continue;
+    final range = match.group(1)!.replaceAll(RegExp(r'\s*[-–]\s*'), '–');
+    final unit = match.group(2)!.startsWith('m') ? 'min' : 's';
+    return '$range $unit';
+  }
+  return switch (role) {
+    ExerciseRole.compound => '2–3 min',
+    ExerciseRole.accessory => '60–90 s',
+  };
+}
+
+/// "2–3 min en básicos", "60-90 seg para accesorios", "90 s en los
+/// ejercicios de aislamiento".
+final _restInNotes = RegExp(
+  r'(\d+(?:\s*[-–]\s*\d+)?)\s*(min|seg|s)\w*\.?\s+'
+  r'(?:de descanso\s+)?(?:en|para)\s+(?:los\s+)?(?:ejercicios\s+)?'
+  r'(?:de\s+)?(basic|compuest|accesori|aisla)',
+);
 
 /// Objetivo de un ejercicio en una línea: "2 aprox. + 4 × 8–12",
 /// "3 × al fallo técnico", "4 × 15". Vacío si la rutina no lo indica.

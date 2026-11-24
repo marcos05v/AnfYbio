@@ -119,6 +119,49 @@ void main() {
       expect(view.routine.notes, 'Descansos de 2–3 min en básicos.');
     });
 
+    test(
+      'guarda si el ejercicio es básico o accesorio, y se corrige',
+      () async {
+        await repo.saveRoutine(
+          userId,
+          const RoutineDraft(
+            name: 'Tipos',
+            days: [
+              RoutineDayDraft(
+                name: 'Pierna',
+                exercises: [
+                  RoutineExerciseDraft(name: 'Sentadilla'),
+                  RoutineExerciseDraft(
+                    name: 'Hip Thrust',
+                    role: ExerciseRole.accessory,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+        var exercises = (await repo.activeRoutine(userId))!
+            .days
+            .single
+            .exercises;
+        // Sin elegir queda nulo: se deduce del nombre al mostrarse.
+        expect(
+          [for (final e in exercises) e.role],
+          [null, ExerciseRole.accessory],
+        );
+
+        await repo.updateExercise(
+          exercises.last.id,
+          const RoutineExerciseDraft(
+            name: 'Hip Thrust',
+            role: ExerciseRole.compound,
+          ),
+        );
+        exercises = (await repo.activeRoutine(userId))!.days.single.exercises;
+        expect(exercises.last.role, ExerciseRole.compound);
+      },
+    );
+
     test('sin rutina, la activa es nula', () async {
       expect(await repo.activeRoutine(userId), isNull);
     });

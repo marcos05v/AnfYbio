@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../domain/load_mode.dart';
 import '../domain/nutrition.dart';
+import '../domain/routine.dart';
 import '../domain/weight.dart';
 import 'tables/apnea_attempts.dart';
 import 'tables/cooking_batches.dart';
@@ -70,8 +71,9 @@ class AppDatabase extends _$AppDatabase {
   /// 8: cómo se mide el peso de cada ejercicio.
   /// 9: platos con ingredientes y alternativas en el plan de alimentación.
   /// 10: indicaciones generales de la rutina.
+  /// 11: básico o accesorio en cada ejercicio de la rutina.
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -131,6 +133,9 @@ class AppDatabase extends _$AppDatabase {
       // La tabla de rutinas existe desde la versión 3.
       if (from >= 3 && from < 10) {
         await m.addColumn(routines, routines.notes);
+      }
+      if (from >= 3 && from < 11) {
+        await m.addColumn(routineExercises, routineExercises.role);
       }
     },
     beforeOpen: (details) async {

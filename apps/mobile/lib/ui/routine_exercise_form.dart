@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 
 import '../domain/routine.dart';
+import 'routine_widgets.dart' show exerciseRoleLabel;
 import 'widgets.dart';
 
 /// Formulario de un ejercicio de la rutina. Trabaja con borradores, así que
@@ -43,6 +44,10 @@ class _RoutineExerciseFormState extends State<RoutineExerciseForm> {
   late final _repsNote = TextEditingController(text: widget.initial?.repsNote);
   late final _note = TextEditingController(text: widget.initial?.note);
   late bool _superset = widget.initial?.supersetWithPrevious ?? false;
+
+  /// Lo que eligió el usuario; nulo mientras no toque el selector (entonces
+  /// se deduce del nombre).
+  late ExerciseRole? _role = widget.initial?.role;
   String? _error;
 
   @override
@@ -105,6 +110,7 @@ class _RoutineExerciseFormState extends State<RoutineExerciseForm> {
         repsNote: _repsNote.text,
         supersetWithPrevious: _superset,
         note: _note.text,
+        role: _role,
       ),
     );
     navigator.pop();
@@ -155,6 +161,26 @@ class _RoutineExerciseFormState extends State<RoutineExerciseForm> {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 12),
+        // Se redibuja al escribir el nombre: la deducción puede cambiar.
+        ListenableBuilder(
+          listenable: _name,
+          builder: (context, _) => CupertinoSlidingSegmentedControl(
+            key: const Key('exerciseRole'),
+            groupValue: _role ?? exerciseRoleFor(_name.text),
+            onValueChanged: (role) => setState(() => _role = role),
+            children: {
+              for (final role in ExerciseRole.values)
+                role: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Text(
+                    '${exerciseRoleLabel(role)} · '
+                    '${role == ExerciseRole.compound ? 'compuesto' : 'aislado'}',
+                  ),
+                ),
+            },
+          ),
         ),
         const SizedBox(height: 12),
         CardTextField(

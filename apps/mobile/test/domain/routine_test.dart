@@ -2,6 +2,92 @@ import 'package:anfybio/domain/routine.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('básico o accesorio', () {
+    test('los multiarticulares son básicos', () {
+      for (final name in [
+        'Press de Banca Plano con Barra',
+        'Sentadilla Hack',
+        'Prensa de Piernas',
+        'Peso Muerto Rumano con Mancuernas',
+        'Remo en Polea Baja',
+        'Jalón al Pecho',
+        'Dominadas',
+        'Fondos en Paralelas',
+        'Hip Thrust',
+        'Press Militar en Máquina Smith',
+        'Zancadas búlgaras',
+        'Desplantes caminando',
+      ]) {
+        expect(exerciseRoleFor(name), ExerciseRole.compound, reason: name);
+      }
+    });
+
+    test('los de una articulación son accesorios, aunque digan "press"', () {
+      for (final name in [
+        'Press Francés con Barra Z',
+        'Curl Femoral Sentado',
+        'Curl de Bíceps con Mancuernas',
+        'Extensiones de Cuádriceps',
+        'Elevaciones Laterales',
+        'Cruces en Polea o Aperturas',
+        'Pájaros en Banco Inclinado',
+        'Encogimientos de Hombros',
+        'Face Pull en Polea',
+        'Pullover en Polea Alta',
+        'Elevación de Talones Sentado',
+        'Plancha Abdominal',
+        'Abducciones en Máquina',
+        'Máquina de aductores',
+        'Hiperextensiones a 45°',
+        'Puente de glúteo',
+      ]) {
+        expect(exerciseRoleFor(name), ExerciseRole.accessory, reason: name);
+      }
+    });
+
+    test('si el nombre no lo deja claro, no adivina', () {
+      expect(exerciseRoleFor('Burpees'), isNull);
+      // Calentar o hacer cardio no son series de fuerza.
+      expect(exerciseRoleFor('Calentamiento dinámico'), isNull);
+      expect(exerciseRoleFor('Activación de aductores con banda'), isNull);
+      // "chin" dentro de "máquina" no es una dominada.
+      expect(exerciseRoleFor('Caminata en máquina'), isNull);
+    });
+
+    test('lo que eligió el usuario manda sobre lo deducido', () {
+      const exercise = RoutineExerciseDraft(
+        name: 'Hip Thrust',
+        role: ExerciseRole.accessory,
+      );
+      expect(exercise.effectiveRole, ExerciseRole.accessory);
+      expect(
+        const RoutineExerciseDraft(name: 'Hip Thrust').effectiveRole,
+        ExerciseRole.compound,
+      );
+    });
+  });
+
+  group('descanso entre series', () {
+    test('sin indicaciones, los rangos habituales', () {
+      expect(restFor(ExerciseRole.compound), '2–3 min');
+      expect(restFor(ExerciseRole.accessory), '60–90 s');
+    });
+
+    test('si la rutina los indica, manda lo que dice', () {
+      const notes =
+          'Regla general: calentar antes del primer básico. Descansos de '
+          '3-4 min en básicos/ compuestos pesados y 45–60 seg en accesorios.';
+      expect(restFor(ExerciseRole.compound, routineNotes: notes), '3–4 min');
+      expect(restFor(ExerciseRole.accessory, routineNotes: notes), '45–60 s');
+    });
+
+    test('si la rutina solo indica uno, el otro usa el habitual', () {
+      const notes = 'Descansa 90 s en los ejercicios de aislamiento.';
+      expect(restFor(ExerciseRole.accessory, routineNotes: notes), '90 s');
+      expect(restFor(ExerciseRole.compound, routineNotes: notes), '2–3 min');
+    });
+  });
+
   group('objetivo de un ejercicio', () {
     String target({
       int warmupSets = 0,

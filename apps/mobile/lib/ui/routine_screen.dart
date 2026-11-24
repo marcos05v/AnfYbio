@@ -323,6 +323,7 @@ class RoutineScreen extends ConsumerWidget {
                       userId: user.id,
                       number: index + 1,
                       day: day,
+                      routineNotes: view.routine.notes,
                       onEditDay: () => _editDay(context, ref, day.day),
                     ),
                   const SizedBox(height: 20),
@@ -472,11 +473,15 @@ class _DaySection extends ConsumerWidget {
     required this.number,
     required this.day,
     required this.onEditDay,
+    this.routineNotes,
   });
 
   final String userId;
   final int number;
   final RoutineDayView day;
+
+  /// Indicaciones generales: de ahí sale el descanso de cada tipo.
+  final String? routineNotes;
   final VoidCallback onEditDay;
 
   @override
@@ -561,42 +566,49 @@ class _DaySection extends ConsumerWidget {
           RoutineExerciseList(
             entries: [
               for (final exercise in day.exercises)
-                RoutineEntry(
-                  name: exercise.name,
-                  target: formatExerciseTarget(
-                    warmupSets: exercise.warmupSets,
-                    workSets: exercise.workSets,
-                    repsMin: exercise.repsMin,
-                    repsMax: exercise.repsMax,
-                    repsNote: exercise.repsNote,
-                  ),
-                  note: exercise.note,
-                  supersetWithPrevious: exercise.supersetWithPrevious,
-                  trailing: CatalogLinkButton(
-                    userId: userId,
-                    routineExercise: exercise,
-                  ),
-                  onTap: () => showAppSheet<void>(
-                    context,
-                    title: 'Editar ejercicio',
-                    builder: (_) => RoutineExerciseForm(
-                      initial: RoutineExerciseDraft(
-                        name: exercise.name,
-                        groupLabel: exercise.groupLabel,
-                        warmupSets: exercise.warmupSets,
-                        workSets: exercise.workSets,
-                        repsMin: exercise.repsMin,
-                        repsMax: exercise.repsMax,
-                        repsNote: exercise.repsNote,
-                        supersetWithPrevious: exercise.supersetWithPrevious,
-                        note: exercise.note,
+                if (exercise.role ?? exerciseRoleFor(exercise.name)
+                    case final role)
+                  RoutineEntry(
+                    name: exercise.name,
+                    target: formatExerciseTarget(
+                      warmupSets: exercise.warmupSets,
+                      workSets: exercise.workSets,
+                      repsMin: exercise.repsMin,
+                      repsMax: exercise.repsMax,
+                      repsNote: exercise.repsNote,
+                    ),
+                    note: exercise.note,
+                    role: role,
+                    rest: role == null
+                        ? null
+                        : restFor(role, routineNotes: routineNotes),
+                    supersetWithPrevious: exercise.supersetWithPrevious,
+                    trailing: CatalogLinkButton(
+                      userId: userId,
+                      routineExercise: exercise,
+                    ),
+                    onTap: () => showAppSheet<void>(
+                      context,
+                      title: 'Editar ejercicio',
+                      builder: (_) => RoutineExerciseForm(
+                        initial: RoutineExerciseDraft(
+                          name: exercise.name,
+                          groupLabel: exercise.groupLabel,
+                          warmupSets: exercise.warmupSets,
+                          workSets: exercise.workSets,
+                          repsMin: exercise.repsMin,
+                          repsMax: exercise.repsMax,
+                          repsNote: exercise.repsNote,
+                          supersetWithPrevious: exercise.supersetWithPrevious,
+                          note: exercise.note,
+                          role: exercise.role,
+                        ),
+                        onSave: (draft) =>
+                            repository.updateExercise(exercise.id, draft),
+                        onDelete: () => repository.deleteExercise(exercise.id),
                       ),
-                      onSave: (draft) =>
-                          repository.updateExercise(exercise.id, draft),
-                      onDelete: () => repository.deleteExercise(exercise.id),
                     ),
                   ),
-                ),
             ],
           ),
       ],

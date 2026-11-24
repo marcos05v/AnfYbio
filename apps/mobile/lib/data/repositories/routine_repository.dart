@@ -319,6 +319,7 @@ class RoutineRepository {
           repsNote: Value(_clean(exercise.repsNote)),
           supersetWithPrevious: Value(exercise.supersetWithPrevious),
           note: Value(_clean(exercise.note)),
+          role: Value(exercise.role),
           updatedAt: Value(_now()),
         ),
       );
@@ -435,6 +436,7 @@ class RoutineRepository {
       repsNote: Value(_clean(exercise.repsNote)),
       supersetWithPrevious: Value(exercise.supersetWithPrevious),
       note: Value(_clean(exercise.note)),
+      role: Value(exercise.role),
     );
   }
 

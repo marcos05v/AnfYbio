@@ -130,4 +130,86 @@ void main() {
       );
     });
   });
+
+  group('opciones con comidas numeradas y alimentos con viñeta', () {
+    late ParsedNutritionPlan parsed;
+    setUp(() => parsed = read('plan_alimentacion_opciones.txt'));
+
+    test('"Opción A/B" son menús; manda la primera palabra', () {
+      expect(parsed.draft.menus.map((m) => (m.dayType, m.title)), [
+        (DayType.high, 'Días de Pierna (Más CHO )'),
+        (DayType.low, 'Días de Torso / Descanso (Menos CHO, Más Proteína )'),
+      ]);
+    });
+
+    test('lo que va antes del primer menú son indicaciones', () {
+      expect(
+        parsed.draft.weighingNotes,
+        'Carnes en peso crudo; cereales en peso cocido',
+      );
+    });
+
+    test('las comidas numeradas llevan sus viñetas como alimentos', () {
+      final [wake, breakfast, dinner] = parsed.draft.menus.first.meals;
+      expect(
+        (wake.name, wake.timingNote),
+        ('Al Despertar', 'Antes de salir — rápido'),
+      );
+      expect(wake.items.map((i) => i.name), ['proteína en polvo', 'avena']);
+      final [_, whites, rice] = breakfast.items;
+      expect(
+        (whites.name, whites.amount, whites.note),
+        ('claras cocidas en tupper', 90, '3 claras'),
+      );
+      expect(rice.name, 'arroz blanco cocido');
+      final shake = dinner.items.single;
+      expect(shake.name, 'Shaker rápido');
+      expect(shake.ingredients.map((i) => i.name), [
+        'proteína en agua',
+        'avena',
+      ]);
+      expect(
+        shake.ingredients.last.alternatives.single.name,
+        'galletas de arroz',
+      );
+      expect(parsed.warningCount, 0);
+    });
+
+    test('cualquier viñeta se lee igual que "•"', () {
+      // Cada programa (y el lector de PDF de Android) escribe la viñeta a
+      // su manera; a veces queda sola en su renglón.
+      final text = File('test/fixtures/plan_alimentacion_opciones.txt')
+          .readAsStringSync();
+      for (final bullet in ['▪ ', '● ', '- ', '\uF0B7 ', '•\n']) {
+        final variant = parseNutritionPlan(
+          text.replaceAll(RegExp('^• ', multiLine: true), bullet),
+        );
+        expect(
+          [
+            for (final menu in variant.draft.menus)
+              for (final meal in menu.meals) meal.name,
+          ],
+          [
+            for (final menu in parsed.draft.menus)
+              for (final meal in menu.meals) meal.name,
+          ],
+          reason: 'viñeta ${bullet.trim()}',
+        );
+        expect(
+          variant.draft.items.length,
+          parsed.draft.items.length,
+          reason: 'viñeta ${bullet.trim()}',
+        );
+      }
+    });
+
+    test('suplementos con la dosis en el mismo renglón', () {
+      final supplements = parsed.draft.supplements;
+      expect(supplements.map((s) => s.name), ['Omega-3', 'Creatina']);
+      expect(
+        supplements.last.dose,
+        '5 g por día, a cualquier hora con constancia',
+      );
+    });
+  });
 }

@@ -49,7 +49,9 @@ void main() {
         } else {
           final review = plan.warningCount;
           summary =
-              'alimentación: ${plan.draft.menus.length} menús, $foods '
+              'alimentación: ${plan.draft.menus.length} menús, '
+              '${plan.draft.menus.expand((m) => m.meals).length} comidas, '
+              '$foods '
               'alimentos, ${plan.draft.supplements.length} suplementos, '
               '$review por revisar (${_percent(foods, review)} % entendido)';
           empty = foods == 0;

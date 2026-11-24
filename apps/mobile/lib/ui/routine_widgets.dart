@@ -46,6 +46,66 @@ class RoutineNotesCard extends StatelessWidget {
   }
 }
 
+/// Etiqueta "Básico · descansa 2–3 min" o "Accesorio · descansa 60–90 s".
+class ExerciseRoleTag extends StatelessWidget {
+  const ExerciseRoleTag({super.key, required this.role, this.rest});
+
+  final ExerciseRole role;
+  final String? rest;
+
+  @override
+  Widget build(BuildContext context) {
+    final compound = role == ExerciseRole.compound;
+    final color = compound ? accentColor : CupertinoColors.secondaryLabel;
+    return Row(
+      key: const Key('exerciseRole'),
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: resolveColor(context, color)),
+          ),
+          child: Text(
+            exerciseRoleLabel(role),
+            style: textStyle(
+              context,
+              size: 12,
+              weight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ),
+        if (rest != null) ...[
+          const SizedBox(width: 6),
+          Icon(
+            CupertinoIcons.timer,
+            size: 14,
+            color: resolveColor(context, CupertinoColors.secondaryLabel),
+          ),
+          const SizedBox(width: 3),
+          Flexible(
+            child: Text(
+              'descansa $rest',
+              style: textStyle(
+                context,
+                size: 13,
+                color: CupertinoColors.secondaryLabel,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// "Básico" o "Accesorio".
+String exerciseRoleLabel(ExerciseRole role) => switch (role) {
+  ExerciseRole.compound => 'Básico',
+  ExerciseRole.accessory => 'Accesorio',
+};
+
 /// Un ejercicio de la rutina tal como se muestra en una lista.
 class RoutineEntry {
   const RoutineEntry({
@@ -53,12 +113,20 @@ class RoutineEntry {
     required this.target,
     required this.supersetWithPrevious,
     this.note,
+    this.role,
+    this.rest,
     this.warning,
     this.onTap,
     this.trailing,
   });
 
   final String name;
+
+  /// Básico o accesorio; nulo si no se sabe.
+  final ExerciseRole? role;
+
+  /// Descanso entre series que le toca: "2–3 min".
+  final String? rest;
 
   /// Objetivo ya formateado: "2 aprox. + 4 × 8–12".
   final String target;
@@ -106,6 +174,8 @@ class RoutineExerciseList extends StatelessWidget {
                 _RoutineExerciseTile(
                   entry: entry,
                   marker: supersetLetter(index),
+                  // Se descansa al terminar la vuelta, no entre ejercicios.
+                  showRest: index == block.length - 1,
                 ),
             ],
           ),
@@ -228,9 +298,14 @@ class SupersetMarker extends StatelessWidget {
 }
 
 class _RoutineExerciseTile extends StatelessWidget {
-  const _RoutineExerciseTile({required this.entry, this.marker});
+  const _RoutineExerciseTile({
+    required this.entry,
+    this.marker,
+    this.showRest = true,
+  });
 
   final RoutineEntry entry;
+  final bool showRest;
 
   /// Letra dentro de la biserie; nula si el ejercicio va suelto.
   final String? marker;
@@ -275,6 +350,13 @@ class _RoutineExerciseTile extends StatelessWidget {
                       color: accentColor,
                     ),
                   ),
+                if (entry.role case final role?) ...[
+                  const SizedBox(height: 4),
+                  ExerciseRoleTag(
+                    role: role,
+                    rest: showRest ? entry.rest : null,
+                  ),
+                ],
                 if (entry.note != null) ...[
                   const SizedBox(height: 2),
                   Text(

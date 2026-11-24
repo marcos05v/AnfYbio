@@ -128,3 +128,8 @@ una plantilla para esos planes:
 
 Lo que queda por revisar son datos que el plan no trae ("40 h", un peso sin
 unidad, un ejercicio sin repeticiones) o que tienen dos lecturas posibles.
+
+Después se agregó un formato más ("OPCIÓN A/B", comidas numeradas sin viñeta
+con sus alimentos en viñetas "•", y suplementos con la dosis en el mismo
+renglón). Ese plan quedó al 100 % sin cambiar los demás. `revisar_planes.sh`
+ahora acepta PDFs sueltos además de carpetas.

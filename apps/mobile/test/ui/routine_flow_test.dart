@@ -191,6 +191,27 @@ void main() {
       await shutDown(tester);
     });
 
+    testWidgets('marca básicos y accesorios con su descanso, y se corrige', (
+      tester,
+    ) async {
+      await saveRoutine();
+      await pumpApp(tester);
+      await tap(tester, find.text('Ver rutina'));
+
+      expect(find.text('Básico'), findsNWidgets(2)); // press y dominadas
+      expect(find.text('Accesorio'), findsOneWidget); // aperturas
+      // En la biserie se descansa al terminar la vuelta: solo en la B.
+      expect(find.text('descansa 2–3 min'), findsOneWidget);
+      expect(find.text('descansa 60–90 s'), findsOneWidget);
+
+      await tap(tester, find.text('Dominadas'));
+      await tap(tester, find.text('Accesorio · aislado'));
+      await tap(tester, find.text('Guardar cambios'));
+      expect(find.text('Accesorio'), findsNWidgets(2));
+      expect(find.text('descansa 60–90 s'), findsNWidgets(2));
+      await shutDown(tester);
+    });
+
     testWidgets('tocar un ejercicio permite corregirlo o borrarlo', (
       tester,
     ) async {

@@ -208,6 +208,14 @@ class _RoutineReviewScreenState extends ConsumerState<RoutineReviewScreen> {
                               repsNote: exercise.repsNote,
                             ),
                             note: exercise.note,
+                            role: exercise.effectiveRole,
+                            rest: switch (exercise.effectiveRole) {
+                              final role? => restFor(
+                                role,
+                                routineNotes: _draft.notes,
+                              ),
+                              null => null,
+                            },
                             supersetWithPrevious: exercise.supersetWithPrevious,
                             warning: exercise.warning,
                             onTap: () => showAppSheet<void>(

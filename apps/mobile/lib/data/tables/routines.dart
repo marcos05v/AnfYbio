@@ -4,6 +4,7 @@
 
 import 'package:drift/drift.dart';
 
+import '../../domain/routine.dart';
 import 'exercises.dart';
 import 'sync_columns.dart';
 import 'users.dart';
@@ -62,4 +63,8 @@ class RoutineExercises extends Table with SyncColumns {
   BoolColumn get supersetWithPrevious =>
       boolean().withDefault(const Constant(false))();
   TextColumn get note => text().nullable()();
+
+  /// Básico o accesorio, si el usuario lo eligió. Nulo: se deduce del nombre
+  /// cada vez que se muestra (así mejora si mejora la deducción).
+  TextColumn get role => textEnum<ExerciseRole>().nullable()();
 }
